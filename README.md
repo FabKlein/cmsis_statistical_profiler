@@ -78,12 +78,12 @@ sampling_profiler_stop(1, workload_output_is_correct());
 The workload functions are placeholders. Always stop, even when full. Keep clocks
 stable; avoid sleep, debugger halts and long interrupt masking during capture.
 After `sampling_profiler_stop()` returns, halt the target. With the matching ELF
-loaded in GDB, use [tools/dump_samples.gdb](tools/dump_samples.gdb) from the
+loaded in GDB, use [tools/export_profiler_buffer.gdb](tools/export_profiler_buffer.gdb) from the
 repository root:
 
 ```gdb
-source tools/dump_samples.gdb
-dump_statistical_profile samples.bin
+source tools/export_profiler_buffer.gdb
+export_profiler_buffer samples.bin
 ```
 
 The helper checks that capture is complete and inactive, prints the header, and

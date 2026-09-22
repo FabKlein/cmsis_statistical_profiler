@@ -63,12 +63,12 @@ the matching ELF loaded; each resolves its own buffer symbol. From the repositor
 
 ```gdb
 # HP debugger context, HP ELF loaded:
-source tools/dump_samples.gdb
-dump_statistical_profile hp_samples.bin
+source tools/export_profiler_buffer.gdb
+export_profiler_buffer hp_samples.bin
 
 # HE debugger context, HE ELF loaded:
-source tools/dump_samples.gdb
-dump_statistical_profile he_samples.bin
+source tools/export_profiler_buffer.gdb
+export_profiler_buffer he_samples.bin
 ```
 
 ```sh

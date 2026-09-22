@@ -54,7 +54,7 @@ this ITCM/DTCM workload/model. FVP validates capture flow, not silicon performan
 ## MPS3 FPGA
 
 Build without `--semihosting`, load with the board debugger and break at
-`profiler_capture_complete`. Use [dump_samples.gdb](../../tools/dump_samples.gdb)
+`profiler_capture_complete`. Use [export_profiler_buffer.gdb](../../tools/export_profiler_buffer.gdb)
 and decode with the matching ELF.
 
 Confirm the FPGA image's clocks and memory map: this linker assumes 512 KiB secure
