@@ -77,11 +77,18 @@ sampling_profiler_stop(1, workload_output_is_correct());
 
 The workload functions are placeholders. Always stop, even when full. Keep clocks
 stable; avoid sleep, debugger halts and long interrupt masking during capture.
-After stop, halt the target and dump the whole object:
+After `sampling_profiler_stop()` returns, halt the target. With the matching ELF
+loaded in GDB, use [tools/dump_samples.gdb](tools/dump_samples.gdb) from the
+repository root:
 
 ```gdb
-dump binary memory samples.bin &statistical_samples (&statistical_samples+1)
+source tools/dump_samples.gdb
+dump_statistical_profile samples.bin
 ```
+
+The helper checks that capture is complete and inactive, prints the header, and
+dumps the whole buffer, including unused space. For AMP, stop all captures before
+halting, then run it in each core's debugger context with its own ELF and filename.
 
 Decode with Python 3.8+ and the exact unstripped executable:
 

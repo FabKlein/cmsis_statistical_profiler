@@ -12,7 +12,8 @@ Start with [README.md](README.md). Use [configuration](docs/CONFIGURATION.md),
 - For AMP, keep buffers/state physically separate per image and reserve distinct
   timer channels. Serialize shared peripheral clock setup; decode with each core's ELF.
 - Run lifecycle calls serially in privileged thread mode on 1 core. Always stop
-  before dumping the whole buffer; decode with the exact unstripped executable.
+  before dumping the whole buffer with [dump_samples.gdb](tools/dump_samples.gdb);
+  decode with the exact unstripped executable.
 - Keep ISR code bounded and integer-only: no allocation, blocking, logging, FP or
   vector instructions. Preserve the original exception frame.
 - Maintain 1 [format](FORMAT.md): 6 base words plus `pmu_count` words, 24–40
