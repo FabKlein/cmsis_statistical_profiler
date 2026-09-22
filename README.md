@@ -145,6 +145,11 @@ into a Perfetto trace and, optionally, an interactive HTML dashboard. It reads
 firmware rebuild or ELF is needed at this stage; symbolization is already done.
 Use the matching ELF when running `analyze_profiler_buffer.py` first.
 
+![F16 MobileNetV3 on STM32N6: sampled function shares and PMU event rates](docs/images/stm32n6-mobilenetv3-f16.png)
+
+*Example HTML dashboard: F16 MobileNetV3 on STM32N6, showing sampled function
+shares and PMU event rates over time.*
+
 Run these commands from the repository root. `REPORT_DIR` can be outside the
 repository; keep confidential captures and generated reports out of version control.
 
