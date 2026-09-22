@@ -1,0 +1,29 @@
+/*
+ * SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/* ----------------------------------------------------------------------
+ * Project:      CMSIS Statistical Profiler
+ * Title:        profiler_app_config.h.example
+ * Description:  Application profiler configuration template
+ *
+ * $Date:        22 September 2026
+ * $Revision:    V.1.0.0
+ *
+ * Target :  Arm(R) M-Profile Architecture
+ *
+ * -------------------------------------------------------------------- */
+
+#ifndef PROFILER_APP_CONFIG_H
+#define PROFILER_APP_CONFIG_H
+/* Copy into your application as profiler_app_config.h and replace these tokens
+ * with the SDK/application constants for your actual stack memory layout.
+ * Select the device header through your board layer (or compiler definition). */
+#define PROFILER_STACK_BASE YOUR_STACK_BASE
+#define PROFILER_STACK_BYTES YOUR_STACK_BYTES
+/* For multiple regions, replace both definitions above with:
+ * #define PROFILER_STACK_REGIONS {{MSP_RAM_BASE, MSP_RAM_BYTES}, {PSP_RAM_BASE, PSP_RAM_BYTES}}
+ */
+#endif

@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# ----------------------------------------------------------------------
+# Project:      CMSIS Statistical Profiler
+# Title:        template.clayer.yml
+# Description:  Board device and stack memory configuration layer template
+#
+# $Date:        22 September 2026
+# $Revision:    V.1.0.0
+#
+# Target :  Arm(R) M-Profile Architecture
+#
+# ----------------------------------------------------------------------
+
+layer:
+  description: New board adapter template (edit device header)
+  type: ProfilerAdapter
+  define:
+    - PROFILER_DEVICE_HEADER: '"your_device.h"'
+    # Optional: SDK-derived defaults for CPU-readable stack RAM (SRAM or TCM).
+    # - PROFILER_DEFAULT_STACK_BASE: YOUR_SDK_RAM_BASE
+    # - PROFILER_DEFAULT_STACK_BYTES: YOUR_SDK_RAM_SIZE
+    # Alternatively, for DTCM with a hardware-reported size:
+    # - PROFILER_DEFAULT_DTCM_BASE: YOUR_SDK_DTCM_BASE
+  add-path:
+    - .

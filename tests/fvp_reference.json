@@ -1,0 +1,58 @@
+{
+  "description": "AC6 secure Corstone-300, 333 Hz, 250 ms, two PSP/FP captures, precise bounds and PMU.",
+  "expected": {
+    "header": {
+      "record_size": 32,
+      "buffer_bytes": 65536,
+      "capacity": 2043,
+      "rejected": 0,
+      "active": 0,
+      "timestamp_hz": 32000000,
+      "timer_period": 300300,
+      "full": 0,
+      "complete": 1,
+      "validation_passed": 1,
+      "sample_hz": 333,
+      "timer_hz": 100000000,
+      "rejected_reasons": {
+        "invalid_exc_return": 0,
+        "unsupported_frame": 0,
+        "stack_bounds": 0,
+        "invalid_xpsr": 0
+      },
+      "pmu": {
+        "status": "active",
+        "count": 2,
+        "events": [
+          3,
+          36
+        ],
+        "counter_bits": 32,
+        "flags": 0
+      }
+    },
+    "unknown_samples": 0,
+    "timing_valid": true
+  },
+  "sample_count_range": [
+    80,
+    90
+  ],
+  "capture_tick_range": [
+    83,
+    90
+  ],
+  "minimum_start_tick": 83,
+  "workload_function": "run_once",
+  "minimum_workload_percent": 95,
+  "required_exception_return": "0xffffffed",
+  "observed": {
+    "sample_count": 84,
+    "workload_percent": 100,
+    "pmu_totals": [
+      0,
+      0
+    ]
+  },
+  "notes": "Observed values are informational. No fixed PC addresses, hashes, iteration counts or PMU totals are compared. PMU totals must be valid and agree with raw snapshots; zero is allowed on the functional FVP."
+}

@@ -1,0 +1,49 @@
+/*
+ * SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/* ----------------------------------------------------------------------
+ * Project:      CMSIS Statistical Profiler
+ * Title:        profiler_stack_bounds.c.example
+ * Description:  Precise interrupted stack bounds adapter template
+ *
+ * $Date:        22 September 2026
+ * $Revision:    V.1.0.0
+ *
+ * Target :  Arm(R) M-Profile Architecture
+ *
+ * -------------------------------------------------------------------- */
+
+#include "sampling_profiler_cortex_m.h"
+
+/* Copy as .c, add to the application sources and define
+ * PROFILER_PRECISE_STACK_BOUNDS=1 project-wide.
+ * Replace these illustrative linker symbols with your actual stack allocations.
+ * Each range is [start, end); use CPU-visible addresses and exclude guard memory.
+ * The configured RAM whitelist must also cover these allocations.
+ * For an RTOS, replace PSP selection with an ISR-safe lookup of the interrupted
+ * task's stack bounds. Do not use the sampling ISR's current SP or allocate here. */
+extern unsigned char __app_msp_start[], __app_msp_end[];
+extern unsigned char __app_psp_start[], __app_psp_end[];
+
+int profiler_stack_bounds(uint32_t exception_return, struct ProfilerStackBounds *bounds)
+{
+    uintptr_t start, end;
+    if (exception_return & 4U)
+    {
+        start = (uintptr_t)__app_psp_start;
+        end = (uintptr_t)__app_psp_end;
+    }
+    else
+    {
+        start = (uintptr_t)__app_msp_start;
+        end = (uintptr_t)__app_msp_end;
+    }
+    if (end <= start)
+        return 0;
+    bounds->base = start;
+    bounds->bytes = end - start;
+    return 1;
+}

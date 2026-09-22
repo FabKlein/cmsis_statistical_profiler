@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# ----------------------------------------------------------------------
+# Project:      CMSIS Statistical Profiler
+# Title:        alif_e8.clayer.yml
+# Description:  Alif Ensemble E8 device and stack memory configuration layer
+#
+# $Date:        22 September 2026
+# $Revision:    V.1.0.0
+#
+# Target :  Arm(R) M-Profile Architecture
+#
+# ----------------------------------------------------------------------
+
+layer:
+  description: alif_e8 statistical profiler adapter (secure Cortex-M55)
+  type: ProfilerAdapter
+  define:
+    - PROFILER_DEVICE_HEADER: '"profiler_alif_device.h"'
+    - PROFILER_DEFAULT_STACK_BASE: DTCM_BASE
+    - PROFILER_DEFAULT_STACK_BYTES: DTCM_SIZE
+  add-path:
+    - .

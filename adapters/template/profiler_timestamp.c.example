@@ -1,0 +1,44 @@
+/*
+ * SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/* ----------------------------------------------------------------------
+ * Project:      CMSIS Statistical Profiler
+ * Title:        profiler_timestamp.c.example
+ * Description:  Free-running timestamp counter adapter template
+ *
+ * $Date:        22 September 2026
+ * $Revision:    V.1.0.0
+ *
+ * Target :  Arm(R) M-Profile Architecture
+ *
+ * -------------------------------------------------------------------- */
+
+#include "sampling_profiler_cortex_m.h"
+#include PROFILER_DEVICE_HEADER
+
+/* Copy as .c, add it to the application sources, and set
+ * PROFILER_TIMESTAMP_CUSTOM=1 project-wide. Complete both placeholders.
+ * Prefer a native 32-bit free-running upcounter (e.g. 1 MHz).
+ * It must NOT reset each sampling interrupt or stop when capture is gated.
+ * A narrower counter needs a race-safe software extension to 32 bits; simply
+ * returning a 16/24-bit register will produce incorrect wrap handling. */
+#error "Implement a free-running timestamp counter for this board"
+
+int profiler_timestamp_init(uint32_t *frequency_hz)
+{
+    /* Validate access, clock and counting state. Configure only an exclusively
+     * reserved counter; never reset/reconfigure an application-owned timer.
+     * No timestamp IRQ is needed for a native 32-bit counter. */
+    *frequency_hz = YOUR_TIMESTAMP_FREQUENCY_HZ;
+    return *frequency_hz != 0U;
+}
+
+uint32_t profiler_timestamp_read(void)
+{
+    /* 1 coherent, bounded read. A native downcounter can be complemented.
+     * For a wider timer, use its documented atomic low-word read. */
+    return YOUR_TIMESTAMP_COUNTER_REGISTER;
+}

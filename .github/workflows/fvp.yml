@@ -1,0 +1,96 @@
+# SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# ----------------------------------------------------------------------
+# Project:      CMSIS Statistical Profiler
+# Title:        fvp.yml
+# Description:  AC6 build and Corstone-300 FVP PMU capture regression
+#
+# $Date:        22 September 2026
+# $Revision:    V.1.0.0
+#
+# Target :  Arm(R) M-Profile Architecture
+#
+# ----------------------------------------------------------------------
+
+name: Corstone-300 AC6 FVP
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fvp:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    env:
+      CMSIS_PACK_ROOT: /home/runner/.cache/arm/packs
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install Arm tools
+        uses: ARM-software/cmsis-actions/vcpkg@v1
+      - name: Activate Arm tool license
+        uses: ARM-software/cmsis-actions/armlm@v1
+      - name: Cache CMSIS packs
+        uses: actions/cache@v6
+        with:
+          key: profiler-cmsis-6.3.0-sse300-1.5.0
+          path: /home/runner/.cache/arm/packs
+      - name: Install CMSIS and BSP
+        run: cpackget add ARM::CMSIS@6.3.0 ARM::V2M_MPS3_SSE_300_BSP@1.5.0 --agree-embedded-license
+      - name: Check CMSIS compiler option scope
+        run: |
+          python3 -m pip install PyYAML==6.0.2
+          python3 tests/check_layer_scope.py --compiler AC6
+      - name: Native and host tests
+        run: python3 -B -m unittest discover -s tests -v
+      - name: Build, run and check PMU capture
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p build/fvp
+          python3 -u tests/run_fvp.py \
+            --cc "${AC6_TOOLCHAIN_6_24_0}/armclang" \
+            --cmsis "${CMSIS_PACK_ROOT}/ARM/CMSIS/6.3.0" \
+            --bsp "${CMSIS_PACK_ROOT}/ARM/V2M_MPS3_SSE_300_BSP/1.5.0" \
+            --fvp FVP_Corstone_SSE-300 | tee build/fvp/run.log
+      - name: Publish result summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '## Corstone-300 AC6 / PMU'
+            echo '```text'
+            if test -f build/fvp/run.log; then
+              cat build/fvp/run.log
+            else
+              echo 'FVP regression did not run; see setup/build logs.'
+            fi
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload capture and reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: corstone300-ac6-pmu
+          path: |
+            build/fvp/*.log
+            build/fvp/*.json
+            build/fvp/*.bin
+            build/fvp/*.elf
+            build/fvp/*.map
+            build/fvp/report/

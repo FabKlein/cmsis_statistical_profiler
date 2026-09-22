@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# ----------------------------------------------------------------------
+# Project:      CMSIS Statistical Profiler
+# Title:        stm32n6_tim2.clayer.yml
+# Description:  STM32N6 TIM2 sampling adapter layer
+#
+# $Date:        22 September 2026
+# $Revision:    V.1.0.0
+#
+# Target :  Arm(R) M-Profile Architecture
+#
+# ----------------------------------------------------------------------
+
+layer:
+  description: Reserve stm32n6 tim2 and its IRQ exclusively for profiling
+  type: ProfilerTimer
+  groups:
+    - group: Profiler sampling timer
+      # Restrict ISR code generation without changing application optimization.
+      misc:
+        - for-compiler: AC6
+          C:
+            - -fno-vectorize
+            - -fno-slp-vectorize
+        - for-compiler: GCC
+          C:
+            - -fno-tree-vectorize
+      files:
+        - file: ./profiler_tim2.c

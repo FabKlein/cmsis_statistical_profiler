@@ -1,0 +1,17 @@
+; SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+; SPDX-License-Identifier: Apache-2.0
+; CMSIS Statistical Profiler: AC6 secure SSE-300, 512 KiB ITCM / DTCM.
+LR_ITCM 0x10000000 0x80000
+{
+    ER_ITCM 0x10000000 0x80000
+    {
+        startup.o (.vectors, +First)
+        *(InRoot$$Sections)
+        .ANY (+RO)
+    }
+    RW_DTCM 0x30000000 0x7C000
+    {
+        .ANY (+RW +ZI)
+    }
+    ARM_LIB_STACK 0x30080000 EMPTY -0x4000 {}
+}

@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# ----------------------------------------------------------------------
+# Project:      CMSIS Statistical Profiler
+# Title:        stm32n6.clayer.yml
+# Description:  STM32N6 device and stack memory configuration layer
+#
+# $Date:        22 September 2026
+# $Revision:    V.1.0.0
+#
+# Target :  Arm(R) M-Profile Architecture
+#
+# ----------------------------------------------------------------------
+
+layer:
+  description: stm32n6 statistical profiler adapter (secure Cortex-M55)
+  type: ProfilerAdapter
+  define:
+    - PROFILER_DEVICE_HEADER: '"stm32n6xx.h"'
+    - PROFILER_DEFAULT_DTCM_BASE: DTCM_BASE_S
+    # CMSIS DTCMCR supplies the configured size at initialization.
+  add-path:
+    - .
