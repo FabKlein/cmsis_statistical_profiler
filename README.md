@@ -6,6 +6,10 @@ Sample Cortex-M thread PCs into RAM, then decode them with the matching ELF/AXF.
 Optional PMU counters report hardware events. The core supports M0 through M85;
 board adapters supply the timer and device settings.
 
+Zephyr users should use its native [Perf profiling tool](https://docs.zephyrproject.org/latest/samples/subsys/profiling/perf/README.html#profiling-perf).
+This pack is intended for applications outside Zephyr; see the linked sample for
+Zephyr's supported targets and requirements.
+
 ## How it works
 
 ```text
