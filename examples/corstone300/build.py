@@ -28,6 +28,7 @@ def main():
     parser.add_argument("--cc", default="arm-none-eabi-gcc")
     parser.add_argument("--output", type=Path, default=Path("build/corstone300"))
     parser.add_argument("--semihosting", action="store_true", help="FVP: export samples.bin and exit after capture")
+    parser.add_argument("--reference-timestamp", action="store_true", help="Use the TIMER0 reference counter instead of DWT (recommended for FVP)")
     parser.add_argument("--float-workload", action="store_true", help="Exercise FP extended exception frames")
     parser.add_argument("--precise-stack-bounds", action="store_true", help="Validate frames against exact MSP/PSP allocations")
     parser.add_argument("--pmu", action="store_true", help="Record D-cache refill and backend-stall PMU events")
@@ -55,6 +56,8 @@ def main():
     isr_flags = ["-fno-vectorize", "-fno-slp-vectorize"] if ac6 else ["-fno-tree-vectorize"]
     if args.semihosting:
         flags.append("-DPROFILER_FVP_SEMIHOSTING=1")
+    if args.reference_timestamp:
+        flags.append("-DPROFILER_TIMESTAMP_CUSTOM=1")
     if args.float_workload:
         flags.append("-DPROFILER_EXAMPLE_FLOAT=1")
     if args.precise_stack_bounds:
@@ -70,10 +73,13 @@ def main():
                "adapters/corstone300/profiler_timer0.c",
                "examples/profile_workload.c", "examples/corstone300/main.c", "examples/corstone300/startup.c"]]
     sources.append(args.bsp.resolve() / "Device/Source/system_SSE300MPS3.c")
+    reference_source = root / "examples/corstone300/reference_timestamp.c"
+    if args.reference_timestamp:
+        sources.append(reference_source)
     objects = []
     for source in sources:
         obj = output / (source.stem + ".o")
-        source_flags = isr_flags if source.parent in (root / "mcu", root / "adapters/corstone300") else []
+        source_flags = isr_flags if source.parent in (root / "mcu", root / "adapters/corstone300") or source == reference_source else []
         subprocess.run([args.cc] + flags + source_flags + ["-c", str(source), "-o", str(obj)], check=True)
         objects.append(str(obj))
     elf = output / "profiler.elf"

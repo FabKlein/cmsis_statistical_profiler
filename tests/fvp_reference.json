@@ -1,5 +1,5 @@
 {
-  "description": "AC6 secure Corstone-300, 333 Hz, 250 ms, two PSP/FP captures, precise bounds and PMU.",
+  "description": "AC6 secure Corstone-300, 333 Hz, 250 ms, 2 PSP/FP captures, precise bounds and PMU.",
   "expected": {
     "header": {
       "record_size": 32,
@@ -7,7 +7,7 @@
       "capacity": 2043,
       "rejected": 0,
       "active": 0,
-      "timestamp_hz": 32000000,
+      "timestamp_hz": 100000000,
       "timer_period": 300300,
       "full": 0,
       "complete": 1,
@@ -47,7 +47,7 @@
   "minimum_workload_percent": 95,
   "required_exception_return": "0xffffffed",
   "observed": {
-    "sample_count": 84,
+    "sample_count": 82,
     "workload_percent": 100,
     "pmu_totals": [
       0,

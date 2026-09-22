@@ -15,7 +15,7 @@ Checked on 22 September 2026:
 | CMSIS-RTOS2 illustration | GCC/AC6 compilation and exception-symbol checks only; no kernel linked/run |
 | CMSIS layers | Schema validation and generated AC6/GCC builds: application flags unchanged; core and all timer groups protected |
 | Timing checks | Frozen counters, rate mismatch, mid-capture drift and stop epochs; valid wraps, coarse counters and degraded reports |
-| CI regression | Workflow passes actionlint; saved AC6/FVP capture now fails the stricter timing gate (DWT clock mismatch) |
+| CI regression | Workflow passes actionlint; AC6/FVP uses reference-counter timestamps and requires valid cumulative timing |
 
 GCC 13 uses `-march=armv8.1-m.main` for M52 because it lacks that CPU name.
 FVP D-cache refill/backend-stall counts are 0 for the ITCM/DTCM workload;
@@ -75,15 +75,15 @@ The committed [reference](fvp_reference.json) requires 80–90 samples, no rejec
 or unresolved PCs, at least 95% hits in `run_once`, a completed/validated capture,
 correct clocks, valid cumulative timing, restart evidence and an extended PSP frame. PMU must be active
 with events `0x0003`/`0x0024`, no validity flags and consistent totals/deltas.
-Observed output: 84 samples, 100% workload hits, both event totals 0. PMU totals
+Observed reference-timestamp output: 82 samples, 100% workload hits, both event totals 0. PMU totals
 are not fixed thresholds; functional-model zeros are allowed.
 
 The runner clears stale captures, enforces timeouts and writes `result.json`.
 Failures return nonzero. CI uploads logs, ELF/map, raw buffer and decoded reports.
 To recheck reports: `python3 tests/check_fvp.py --report build/fvp/report`.
-GitHub-hosted execution has not yet been run; local testing used Linux x86-64.
+Local testing uses Linux x86-64; GitHub runs the Arm64 model.
 
-The saved FVP capture has about 252 ms of timer time but 31.7 ms of DWT time.
-The decoder now flags this mismatch and preserves PC/PMU reports with blank time
-fields. CI requires `timing_valid=true`, so the current FVP DWT setup will fail
-until its timestamp source is corrected. No FVP timestamp change is included here.
+The runner selects `--reference-timestamp`, using the 100 MHz reference counter
+shared with TIMER0. The functional FVP's DWT rate disagrees with elapsed timer
+time; reference timestamps avoid that mismatch. CI still requires
+`timing_valid=true`; timestamps represent elapsed time, not CPU cycles.

@@ -13,7 +13,7 @@ python3 examples/corstone300/build.py \
   --cmsis /path/to/ARM/CMSIS/6.0.0 \
   --bsp /path/to/ARM/V2M_MPS3_SSE_300_BSP/1.5.0 \
   --output build/corstone300 --semihosting --sample-hz 2500 --buffer-bytes 65536 \
-  --timer-clock-hz 100000000 --captures 2
+  --timer-clock-hz 100000000 --captures 2 --reference-timestamp
 ```
 
 Run the FVP from the build directory so the post-capture dump is written there:
@@ -45,6 +45,7 @@ at 2500 Hz, mostly in `run_once`. A simulation-limit exit alone does not prove s
 | `--sample-hz`, `--buffer-bytes` | Sampling rate and allocation budget |
 | `--psp --float-workload` | Exercise PSP/extended frames; EXC_RETURN normally `0xFFFFFFED`, possibly `0xFFFFFFFD` before FP use |
 | `--precise-stack-bounds` | Check linker MSP bounds and the example PSP array; still enforce the RAM whitelist |
+| `--reference-timestamp` | Use the 100 MHz reference counter for FVP timing; default is DWT |
 | `--pmu` | Request D-cache refill/backend-stall counters; adds event reports and timeline deltas |
 
 Ordinary MSP captures use EXC_RETURN `0xFFFFFFF9`. PMU events can count 0 for
@@ -67,6 +68,7 @@ board setup. FPGA execution remains unverified.
 11.31.28 with PMU enabled. Use [the runner and reference](../../tests/VALIDATION.md#ci-reference)
 for the same local pass/fail check.
 
-The functional FVP's DWT currently disagrees with TIMER0 elapsed time. The host
-flags invalid timing and leaves time columns blank; PC/PMU reports remain usable.
-The strict CI timing gate will fail until the example uses a suitable timestamp source.
+CI uses `--reference-timestamp`: the low 32 bits of the free-running TIMER0
+reference counter, at `--timer-clock-hz`. This avoids the functional FVP's DWT
+rate mismatch while retaining the strict timing check. It measures elapsed time,
+not CPU cycles, and does not reset or reconfigure the shared counter.

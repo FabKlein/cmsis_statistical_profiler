@@ -58,7 +58,7 @@ def main():
              "--cmsis", args.cmsis.resolve(), "--bsp", args.bsp.resolve(), "--output", output,
              "--semihosting", "--sample-hz", "333", "--timer-clock-hz", "100000000",
              "--buffer-bytes", "65536", "--captures", "2", "--psp", "--float-workload",
-             "--precise-stack-bounds", "--pmu"], "build.log")
+             "--precise-stack-bounds", "--pmu", "--reference-timestamp"], "build.log")
         command = [args.fvp, "-a", "profiler.elf", "--simlimit", "3"]
         parameters = ["core_clk.mul=32000000", "mps3_board.sse300.refcounter.base_frequency=100000000",
                       "cpu0.semihosting-enable=1", "mps3_board.visualisation.disable-visualisation=1"]
