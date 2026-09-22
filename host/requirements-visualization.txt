@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# ----------------------------------------------------------------------
+# Project:      CMSIS Statistical Profiler
+# Title:        requirements-visualization.txt
+# Description:  Optional Python dependency for offline HTML visualization
+#
+# $Date:        22 September 2026
+# $Revision:    V.1.0.0
+#
+# Target :  Arm(R) M-Profile Architecture
+#
+# ----------------------------------------------------------------------
+
+plotly==6.3.0

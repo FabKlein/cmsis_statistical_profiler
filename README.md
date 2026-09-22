@@ -119,6 +119,94 @@ PMU counts cover init through stop, including interrupts and gated-off execution
 The host reports totals and interval deltas, without per-function attribution.
 Overflow or incoherent reads invalidate derived counts.
 
+## Visualize reports: HTML and Perfetto
+
+[host/visualize_samples.py](host/visualize_samples.py) converts a decoded report
+into a Perfetto trace and, optionally, an interactive HTML dashboard. It reads
+`samples.csv` and `summary.json` from the same decoder run. No connected board,
+firmware rebuild or ELF is needed at this stage; symbolization is already done.
+Use the matching ELF when running `analyze_samples.py` first.
+
+Run these commands from the repository root. `REPORT_DIR` can be outside the
+repository; keep confidential captures and generated reports out of version control.
+
+```sh
+python3 host/visualize_samples.py --report REPORT_DIR
+```
+
+This writes `REPORT_DIR/samples.perfetto.json` using only the Python standard
+library. To also generate HTML, install the optional visualization dependency
+in your Python environment:
+
+```sh
+python3 -m pip install -r host/requirements-visualization.txt
+python3 host/visualize_samples.py --report REPORT_DIR --html
+```
+
+This additionally writes `REPORT_DIR/dashboard.html`. Open it in a browser, or
+launch it with Python using the absolute file path:
+
+```sh
+python3 -m webbrowser "file:///absolute/path/to/report/dashboard.html"
+```
+
+| Option | Purpose |
+|---|---|
+| `--report PATH` | Required directory containing `samples.csv` and `summary.json` |
+| `--output PATH` | Output directory; defaults to the report directory |
+| `--html` | Also create `dashboard.html`; requires Plotly |
+| `--help` | Show command-line usage |
+
+Existing exports with these names are overwritten; decoded CSV/JSON inputs are
+unchanged. Use `--output` to retain multiple exports.
+
+### HTML dashboard
+
+- Top 20 function names by exclusive PC hits, plus a full function-name table.
+- Individual PC samples with function, time, PC, LR and sample index on hover.
+- 0–4 valid PMU event-rate graphs sharing the PC timeline's zoomable time axis.
+- Capture warnings, validation status, PMU totals and ELF/capture hashes.
+- Embedded Plotly JavaScript: works offline, with no CDN or server required.
+
+Drag to zoom, double-click a plot to reset, click legend entries to hide functions,
+or double-click a legend entry to isolate a function. Function rank 0 is the hottest
+name in the table. Hotspot percentages and the table always describe the whole
+capture, even when the timeline is zoomed. Identical function names are aggregated.
+
+### Perfetto trace
+
+Open `samples.perfetto.json` with **Open trace file** in an approved Perfetto UI.
+For confidential data, use your approved local/self-hosted viewer and do not use
+upload or sharing features. The exporter itself performs no network requests.
+
+The Chrome JSON trace contains 1 instant event per PC sample, named after its
+function, with PC/LR/index/tick arguments. PMU rates appear as counter tracks.
+A capture-information event contains warnings, limitations, hashes and PMU totals.
+Timestamps use microseconds in JSON; Perfetto SQL uses nanoseconds.
+No call stacks, function-duration spans or inference boundaries are inferred.
+
+### Interpretation and validation
+
+PMU rates are `interval_delta / actual_elapsed_seconds` between consecutive
+samples. A value at time T describes the interval **ending** at T, not the time
+after T; viewer lines/steps are not additional measurements. The initial PMU
+interval is omitted because its epoch differs from the timestamp epoch. Final
+unsampled time is also omitted, so plotted intervals need not sum to the full
+initialization-to-stop totals.
+
+These are raw event-rate plots, not smoothed curves, CPI, stall percentages or
+cache-miss rates. PMU intervals include interrupts and gated-off execution and
+must not be attributed to the function sampled at their endpoint. PC hits estimate
+exclusive execution-time share, not calls or exact cycle counts. Fixed-rate
+aliasing and interrupt latency remain limitations; LR is not a call stack.
+
+Empty captures, invalid timing, non-increasing timestamps, inconsistent sample
+counts and malformed PMU deltas are rejected. Disabled/invalid PMU suppresses
+rate tracks while retaining valid PC samples. Full/incomplete captures, rejected
+frames, failed workload validation and unresolved PCs produce warnings.
+The exporter preserves supplied hashes but cannot independently verify that the
+CSV, summary and original ELF belong together.
+
 ## Development
 
 Run `python3 -B -m unittest discover -s tests -v`.
