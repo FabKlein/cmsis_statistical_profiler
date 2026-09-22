@@ -4,7 +4,7 @@
     "header": {
       "record_size": 32,
       "buffer_bytes": 65536,
-      "capacity": 2043,
+      "capacity": 2042,
       "rejected": 0,
       "active": 0,
       "timestamp_hz": 100000000,
@@ -23,6 +23,7 @@
       "pmu": {
         "status": "active",
         "count": 2,
+        "requested": 2,
         "events": [
           3,
           36
@@ -47,8 +48,8 @@
   "minimum_workload_percent": 95,
   "required_exception_return": "0xffffffed",
   "observed": {
-    "sample_count": 82,
-    "workload_percent": 100,
+    "sample_count": 84,
+    "workload_percent": 97.62,
     "pmu_totals": [
       0,
       0

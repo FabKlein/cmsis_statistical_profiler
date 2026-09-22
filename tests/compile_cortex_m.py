@@ -56,7 +56,7 @@ def main():
                         '-Wall', '-Wextra', '-Werror', '-Imcu', '-I' + str(tmp),
                         '-I' + str(args.cmsis / 'CMSIS/Core/Include'),
                         '-DPROFILER_DEVICE_HEADER="device.h"', '-DPROFILER_STACK_BASE=0x20000000U',
-                        '-DPROFILER_STACK_BYTES=4096U', '-DPROFILER_PMU_ENABLE=1', f'-DPROFILER_TIMESTAMP_CUSTOM={custom}',
+                        '-DPROFILER_STACK_BYTES=4096U', '-DPROFILER_PMU_COUNT=4', f'-DPROFILER_TIMESTAMP_CUSTOM={custom}',
                         f'-DPROFILER_PRECISE_STACK_BOUNDS={custom}']
                     flags += ['--target=arm-arm-none-eabi', '-fno-vectorize', '-fno-slp-vectorize'] if clang else ['-fno-tree-vectorize']
                     if secure:

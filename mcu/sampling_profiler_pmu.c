@@ -7,7 +7,7 @@
 /* ----------------------------------------------------------------------
  * Project:      CMSIS Statistical Profiler
  * Title:        sampling_profiler_pmu.c
- * Description:  Optional CMSIS PMU snapshots using 2 chained 32-bit counters
+ * Description:  Optional CMSIS PMU snapshots using up to 4 chained 32-bit counters
  *
  * $Date:        22 September 2026
  * $Revision:    V.1.0.0
@@ -18,20 +18,44 @@
 
 /**
  * @file sampling_profiler_pmu.c
- * @brief Optional CMSIS PMU snapshots using 2 chained 32-bit counters.
+ * @brief Optional CMSIS PMU snapshots using up to 4 chained 32-bit counters.
  */
 
 #include "sampling_profiler_port.h"
 #include PROFILER_DEVICE_HEADER
 
-#if PROFILER_PMU_ENABLE
-_Static_assert(PROFILER_PMU_EVENT0 <= 0xFFFFU && PROFILER_PMU_EVENT1 <= 0xFFFFU, "PMU event IDs must fit 16 bits");
+#if PROFILER_PMU_COUNT
+    #define CHECK_EVENT(event)                                                                                         \
+        _Static_assert((event) >= 0 && (event) <= 0xFFFFU && (event) != 0x001EU,                                       \
+                       "Invalid PMU event ID (CHAIN is reserved)")
+CHECK_EVENT(PROFILER_PMU_EVENT0);
+    #if PROFILER_PMU_COUNT > 1
+CHECK_EVENT(PROFILER_PMU_EVENT1);
+    #endif
+    #if PROFILER_PMU_COUNT > 2
+CHECK_EVENT(PROFILER_PMU_EVENT2);
+    #endif
+    #if PROFILER_PMU_COUNT > 3
+CHECK_EVENT(PROFILER_PMU_EVENT3);
+    #endif
+static const uint32_t events[PROFILER_PMU_COUNT] = {
+    PROFILER_PMU_EVENT0,
+    #if PROFILER_PMU_COUNT > 1
+    PROFILER_PMU_EVENT1,
+    #endif
+    #if PROFILER_PMU_COUNT > 2
+    PROFILER_PMU_EVENT2,
+    #endif
+    #if PROFILER_PMU_COUNT > 3
+    PROFILER_PMU_EVENT3,
+    #endif
+};
 
     #if defined(__PMU_PRESENT) && (__PMU_PRESENT == 1U)
 /* Reserve the event-counter bank for the firmware lifetime. Do not reset the
  * cycle counter: PMU CCNTR aliases the timestamp's DWT CYCCNT. No DebugMon IRQ. */
 static uint32_t owned, running;
-        #define EVENT_MASK 0xFU
+        #define EVENT_MASK ((1U << (2U * PROFILER_PMU_COUNT)) - 1U)
 
 /**
  * @brief Latch high-half overflow flags; low-half rollovers are normal chaining.
@@ -39,7 +63,8 @@ static uint32_t owned, running;
 static void note_overflow(void)
 {
     uint32_t overflow = ARM_PMU_Get_CNTR_OVS();
-    statistical_samples.header.pmu_flags |= ((overflow >> 1) & 1U) | ((overflow >> 2) & 2U);
+    for (uint32_t event = 0; event < PROFILER_PMU_COUNT; ++event)
+        statistical_samples.header.pmu_flags |= ((overflow >> (2U * event + 1U)) & 1U) << event;
 }
 
 /**
@@ -58,19 +83,20 @@ static uint32_t read_pair(uint32_t low)
         if (high == ARM_PMU_Get_EVCNTR(low + 1U))
             return (high << 16) | value;
     }
-    statistical_samples.header.pmu_flags |= 4U;
+    statistical_samples.header.pmu_flags |= 16U;
     return 0U;
 }
     #endif
 
-void profiler_pmu_snapshot(uint32_t values[2])
+void profiler_pmu_snapshot(uint32_t *values)
 {
-    values[0] = values[1] = 0U;
+    for (uint32_t event = 0; event < PROFILER_PMU_COUNT; ++event)
+        values[event] = 0U;
     #if defined(__PMU_PRESENT) && (__PMU_PRESENT == 1U)
     if (!running)
         return;
-    values[0] = read_pair(0U);
-    values[1] = read_pair(2U);
+    for (uint32_t event = 0; event < PROFILER_PMU_COUNT; ++event)
+        values[event] = read_pair(2U * event);
     note_overflow();
     #endif
 }
@@ -78,14 +104,15 @@ void profiler_pmu_snapshot(uint32_t values[2])
 void profiler_pmu_init(void)
 {
     statistical_samples.header.pmu_status = 1U;
-    statistical_samples.header.pmu_events[0] = PROFILER_PMU_EVENT0;
-    statistical_samples.header.pmu_events[1] = PROFILER_PMU_EVENT1;
+    statistical_samples.header.pmu_requested = PROFILER_PMU_COUNT;
+    for (uint32_t event = 0; event < PROFILER_PMU_COUNT; ++event)
+        statistical_samples.header.pmu_events[event] = events[event];
     #if defined(__PMU_PRESENT) && (__PMU_PRESENT == 1U)
     uint32_t type = PMU->TYPE;
     /* TYPE.SIZE describes register spacing (31 = 32-bit words), not the
      * 16-bit event-counter width. CMSIS supplies the event count field mask. */
     uint32_t spacing = (type & PMU_TYPE_SIZE_CNTS_Msk) >> PMU_TYPE_SIZE_CNTS_Pos;
-    if ((type & PMU_TYPE_NUM_CNTS_Msk) < 4U || spacing != 31U || PMU_EVCNTR_CNT_Msk != 0xFFFFU)
+    if ((type & PMU_TYPE_NUM_CNTS_Msk) < 2U * PROFILER_PMU_COUNT || spacing != 31U || PMU_EVCNTR_CNT_Msk != 0xFFFFU)
     {
         statistical_samples.header.pmu_status = 4U;
         return;
@@ -121,15 +148,16 @@ void profiler_pmu_init(void)
     owned = 1U;
     ARM_PMU_CNTR_Disable(EVENT_MASK);
     ARM_PMU_Set_CNTR_IRQ_Disable(EVENT_MASK);
-    ARM_PMU_Set_EVTYPER(0U, PROFILER_PMU_EVENT0);
-    ARM_PMU_Set_EVTYPER(1U, ARM_PMU_CHAIN);
-    ARM_PMU_Set_EVTYPER(2U, PROFILER_PMU_EVENT1);
-    ARM_PMU_Set_EVTYPER(3U, ARM_PMU_CHAIN);
-    /* CMSIS has no individual counter-write function. Never use a global reset. */
-    for (uint32_t i = 0; i < 4U; ++i)
-        PMU->EVCNTR[i] = 0U;
+    for (uint32_t event = 0; event < PROFILER_PMU_COUNT; ++event)
+    {
+        ARM_PMU_Set_EVTYPER(2U * event, events[event]);
+        ARM_PMU_Set_EVTYPER(2U * event + 1U, ARM_PMU_CHAIN);
+        /* CMSIS has no individual counter-write function. Never use a global reset. */
+        PMU->EVCNTR[2U * event] = 0U;
+        PMU->EVCNTR[2U * event + 1U] = 0U;
+    }
     ARM_PMU_Set_CNTR_OVS(EVENT_MASK);
-    statistical_samples.header.pmu_count = 2U;
+    statistical_samples.header.pmu_count = PROFILER_PMU_COUNT;
     statistical_samples.header.pmu_counter_bits = 32U;
     statistical_samples.header.pmu_status = 2U;
     running = 1U;
@@ -137,10 +165,10 @@ void profiler_pmu_init(void)
     ARM_PMU_CNTR_Enable(EVENT_MASK);
     __DSB();
     __ISB();
-    uint32_t values[2];
+    uint32_t values[PROFILER_PMU_COUNT];
     profiler_pmu_snapshot(values);
-    statistical_samples.header.pmu_start[0] = values[0];
-    statistical_samples.header.pmu_start[1] = values[1];
+    for (uint32_t event = 0; event < PROFILER_PMU_COUNT; ++event)
+        statistical_samples.header.pmu_start[event] = values[event];
     #endif
 }
 
@@ -152,10 +180,10 @@ void profiler_pmu_stop(void)
     ARM_PMU_CNTR_Disable(EVENT_MASK);
     __DSB();
     __ISB();
-    uint32_t values[2];
+    uint32_t values[PROFILER_PMU_COUNT];
     profiler_pmu_snapshot(values);
-    statistical_samples.header.pmu_stop[0] = values[0];
-    statistical_samples.header.pmu_stop[1] = values[1];
+    for (uint32_t event = 0; event < PROFILER_PMU_COUNT; ++event)
+        statistical_samples.header.pmu_stop[event] = values[event];
     running = 0U;
         /* Keep global PMU/cycle state and reservation; only our event counters stop. */
     #endif

@@ -31,15 +31,17 @@ def main():
     parser.add_argument("--reference-timestamp", action="store_true", help="Use the TIMER0 reference counter instead of DWT (recommended for FVP)")
     parser.add_argument("--float-workload", action="store_true", help="Exercise FP extended exception frames")
     parser.add_argument("--precise-stack-bounds", action="store_true", help="Validate frames against exact MSP/PSP allocations")
-    parser.add_argument("--pmu", action="store_true", help="Record D-cache refill and backend-stall PMU events")
+    pmu = parser.add_mutually_exclusive_group()
+    pmu.add_argument("--pmu", dest="pmu_count", action="store_const", const=2, default=0, help="Record 2 PMU events")
+    pmu.add_argument("--pmu-count", type=int, choices=range(5), default=0, help="Number of PMU events (0–4)")
     parser.add_argument("--psp", action="store_true", help="Run capture on the process stack")
     parser.add_argument("--sample-hz", type=int, default=1000, help="Requested sampling interrupt rate in Hz")
     parser.add_argument("--captures", type=int, default=1, help="Repeat capture to exercise timer restart")
     parser.add_argument("--timer-clock-hz", type=int, required=True, help="Actual TIMER0 reference clock, Hz")
     parser.add_argument("--buffer-bytes", type=int, default=65536, help="Capture allocation budget, including header")
     args = parser.parse_args()
-    if not 1 <= args.captures <= 100 or not 0 < args.timer_clock_hz <= 0xFFFFFFFF or not 0 < args.sample_hz <= 0xFFFFFFFF or not (168 if args.pmu else 160) <= args.buffer_bytes <= 0x7FFFFFFF:
-        parser.error("sample-hz must be a positive uint32; buffer-bytes must be between 160 (168 with PMU) and 2147483647")
+    if not 1 <= args.captures <= 100 or not 0 < args.timer_clock_hz <= 0xFFFFFFFF or not 0 < args.sample_hz <= 0xFFFFFFFF or not (188 + 4 * args.pmu_count) <= args.buffer_bytes <= 0x7FFFFFFF:
+        parser.error("sample-hz must be a positive uint32; buffer-bytes must fit the 164-byte header plus 1 configured record, up to 2147483647")
     ac6 = "armclang" in Path(args.cc).name
     root = Path(__file__).resolve().parents[2]
     output = args.output.resolve()
@@ -62,8 +64,7 @@ def main():
         flags.append("-DPROFILER_EXAMPLE_FLOAT=1")
     if args.precise_stack_bounds:
         flags.append("-DPROFILER_PRECISE_STACK_BOUNDS=1")
-    if args.pmu:
-        flags += ["-DPROFILER_PMU_ENABLE=1", "-DPROFILER_PMU_EVENT0=0x0003U", "-DPROFILER_PMU_EVENT1=0x0024U"]
+    flags.append(f"-DPROFILER_PMU_COUNT={args.pmu_count}")
     if args.psp:
         flags.append("-DPROFILER_EXAMPLE_PSP=1")
     for directory in [root / "mcu", root / "adapters/corstone300", root / "examples", root / "examples/corstone300",

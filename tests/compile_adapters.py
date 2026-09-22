@@ -46,7 +46,7 @@ def main():
              "-Wall", "-Wextra", "-Werror", "-Imcu", "-Iexamples",
              "-DPROFILER_TIMER_CLOCK_HZ=100000000U",
              "-I" + str(args.cmsis.resolve() / "CMSIS/Core/Include")]
-    flags += [f"-DPROFILER_PMU_ENABLE={int(args.pmu)}"]
+    flags += [f"-DPROFILER_PMU_COUNT={2 if args.pmu else 0}"]
     flags += (["--target=arm-arm-none-eabi", "-fno-vectorize", "-fno-slp-vectorize"] if armclang
               else ["-fno-tree-vectorize"])
     boards = []

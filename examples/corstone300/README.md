@@ -46,7 +46,7 @@ at 2500 Hz, mostly in `run_once`. A simulation-limit exit alone does not prove s
 | `--psp --float-workload` | Exercise PSP/extended frames; EXC_RETURN normally `0xFFFFFFED`, possibly `0xFFFFFFFD` before FP use |
 | `--precise-stack-bounds` | Check linker MSP bounds and the example PSP array; still enforce the RAM whitelist |
 | `--reference-timestamp` | Use the 100 MHz reference counter for FVP timing; default is DWT |
-| `--pmu` | Request D-cache refill/backend-stall counters; adds event reports and timeline deltas |
+| `--pmu-count 0..4` | Select event count; `--pmu` is shorthand for 2. Defaults: cache refill, backend stall, instructions retired, CPU cycles |
 
 Ordinary MSP captures use EXC_RETURN `0xFFFFFFF9`. PMU events can count 0 for
 this ITCM/DTCM workload/model. FVP validates capture flow, not silicon performance.

@@ -21,11 +21,13 @@ layer:
   define:
     - PROFILER_SAMPLE_HZ: 1000
     - PROFILER_SAMPLE_BUFFER_BYTES: 65536
-    # Optional: 2 32-bit events using chained pairs 0/1 and 2/3.
+    # Optional: 0–4 32-bit events, each using 2 chained hardware counters.
     # Unavailable CPUs keep PC sampling; the capture reports PMU unavailable.
-    # - PROFILER_PMU_ENABLE: 1
+    # - PROFILER_PMU_COUNT: 2  # 0 disables collection; use 4 for all events below
     # - PROFILER_PMU_EVENT0: 0x0003  # ARM_PMU_L1D_CACHE_REFILL
     # - PROFILER_PMU_EVENT1: 0x0024  # ARM_PMU_STALL_BACKEND
+    # - PROFILER_PMU_EVENT2: 0x0008  # ARM_PMU_INST_RETIRED
+    # - PROFILER_PMU_EVENT3: 0x0011  # ARM_PMU_CPU_CYCLES
     #
     # Useful architectural PMU events (CMSIS names have the ARM_PMU_ prefix):
     # | Hex    | CMSIS event name | Meaning                                      |

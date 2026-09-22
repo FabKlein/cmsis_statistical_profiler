@@ -1,6 +1,6 @@
 # Capture format
 
-All fields are little-endian uint32. A 136-byte header precedes records of
+All fields are little-endian uint32. A 164-byte header precedes records of
 `24 + 4 * pmu_count` bytes. Dump the whole `statistical_samples` object, including
 unused slots and trailing padding. Use the matching firmware and decoder.
 
@@ -12,7 +12,7 @@ unused slots and trailing padding. Use the matching firmware and decoder.
 | 1 | version | `1`, the sole supported format identifier |
 | 2 | record_size | `24 + 4 * pmu_count` |
 | 3 | buffer_bytes | Allocated object size, rounded down to whole words |
-| 4 | capacity | `floor((buffer_bytes - 136) / record_size)` |
+| 4 | capacity | `floor((buffer_bytes - 164) / record_size)` |
 | 5 | count | Committed samples; may be 0 |
 | 6 | rejected | Total rejected frames |
 | 7 | active | Capture gate; 0 after stop |
@@ -28,12 +28,13 @@ unused slots and trailing padding. Use the matching firmware and decoder.
 | 19 | timer_hz | Actual sampling timer input frequency |
 | 20–23 | rejected_reason | Invalid EXC_RETURN, unsupported frame, stack bounds, invalid xPSR |
 | 24 | pmu_status | 0 disabled; 1 unavailable; 2 active; 3 busy; 4 unsupported; 5 denied |
-| 25 | pmu_count | 2 when active; otherwise 0 |
-| 26–27 | pmu_events | Requested architectural event IDs; 0 when disabled |
-| 28 | pmu_counter_bits | 32 when active; otherwise 0 |
-| 29–30 | pmu_start | 2 initial chained-counter snapshots |
-| 31–32 | pmu_stop | 2 final snapshots, after event counters stop |
-| 33 | pmu_flags | Bits 0/1: corresponding 32-bit overflow; bit 2: incoherent read |
+| 25 | pmu_count | 1–4 when active; otherwise 0 |
+| 26 | pmu_requested | Requested event count, 0–4 |
+| 27–30 | pmu_events | Requested architectural event IDs; unused slots are 0 |
+| 31 | pmu_counter_bits | 32 when active; otherwise 0 |
+| 32–35 | pmu_start | Initial chained-counter snapshots; unused slots are 0 |
+| 36–39 | pmu_stop | Final snapshots after event counters stop; unused slots are 0 |
+| 40 | pmu_flags | Bits 0–3: corresponding event overflow; bit 4: incoherent read |
 
 Rejection counters reset at init. Exactly 1 reason per rejected sample is counted;
 their sum modulo 2^32 equals `rejected`. Gated-off/full/spurious events are excluded.
@@ -41,17 +42,20 @@ their sum modulo 2^32 equals `rejected`. Gated-off/full/spurious events are excl
 ## Records
 
 ```text
-timestamp, tick, pc, lr, xpsr, exception_return [, pmu[0], pmu[1]]
+timestamp, tick, pc, lr, xpsr, exception_return [, pmu[0], ..., pmu[pmu_count - 1]]
 ```
 
 Only the first `count` records are valid. Timestamp is read after timer acknowledgement;
 tick counts sampling interrupts. PC/LR describe the interrupted thread, not a call stack.
 
-PMU count is 0 or 2; stride/capacity are fixed at init. Disabled PMU metadata is 0.
-Unavailable/busy/unsupported/denied PMU preserves status and requested event IDs,
+PMU count is 0–4; stride/capacity are fixed at init. Disabled PMU metadata is 0.
+Unavailable/busy/unsupported/denied PMU preserves status, requested count and event IDs,
 with 0 count, width, snapshots and flags. Those records have no PMU words.
-Ignore trailing space smaller than a record. Minimum allocation: 160 bytes,
-or 168 when requesting PMU. A 64 KiB buffer holds 2,725 or 2,043 records respectively.
+Ignore trailing space smaller than a record. Minimum allocation is
+`188 + 4 * PROFILER_PMU_COUNT` bytes. A 64 KiB buffer holds 2,723 samples
+without PMU, 2,042 with 2 events or 1,634 with 4 events. Event ID `0x001E`
+(CHAIN) is reserved for the backend. Insufficient hardware counters produce
+`unsupported` status and records without PMU words.
 
 ## Decoding
 

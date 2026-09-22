@@ -85,42 +85,62 @@ class ProfilerTests(unittest.TestCase):
                     self.assertEqual(timeline[0]["time_us"], 15015)
 
     def test_pmu_capture(self):
-        for available in [False, True]:
-            with self.subTest(available=available), tempfile.TemporaryDirectory() as tmp:
-                binary, capture = Path(tmp) / "test", Path(tmp) / "capture.bin"
-                flags = ["-DTEST_PMU"] if available else []
-                subprocess.run(["cc", "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror",
-                    "-Imcu", "-Itests/fakes", "-DPROFILER_PMU_ENABLE=1",
-                    '-DPROFILER_USER_CONFIG="profiler_test_config.h"'] + flags +
-                    ["tests/test_pmu.c", "mcu/sampling_profiler.c", "mcu/sampling_profiler_pmu.c",
-                     "-o", str(binary)], cwd=ROOT, check=True)
-                subprocess.run([str(binary), str(capture)], check=True)
-                data = capture.read_bytes()
-                header, samples = analyzer.read_capture(data)
-                self.assertEqual(header["pmu"]["status"], "active" if available else "unavailable")
-                self.assertEqual(header["record_size"], 32 if available else 24)
-                self.assertEqual(header["capacity"], 3 if available else 4)
-                self.assertEqual(len(samples[0]), 8 if available else 6)
-                events = analyzer.pmu_statistics(header)
-                self.assertEqual(events[0]["count"], 0x1000F if available else None)
-                self.assertEqual(events[1]["count"], 0x20015 if available else None)
-                rows, timeline, unknown, timing = analyzer.analyze(header, samples, [(0x10001000, 32, "workload")])
-                self.assertEqual((rows[0]["hits"], unknown), (3 if available else 4, 0))
-                self.assertNotIn("pmu0", rows[0])
-                self.assertEqual(timeline[1]["pmu0_interval_delta"], 5 if available else None)
-                self.assertEqual(timeline[2]["pmu1_interval_delta"], 7 if available else None)
-                with self.assertRaises(ValueError):
-                    analyzer.read_capture(data[:120])
-                if available:
-                    flagged = bytearray(data)
-                    analyzer.struct.pack_into("<I", flagged, 132, 1)
-                    invalid, samples = analyzer.read_capture(flagged)
-                    self.assertIsNone(analyzer.pmu_statistics(invalid)[0]["count"])
-                    _, timeline, _, _ = analyzer.analyze(invalid, samples, [])
-                    self.assertIsNone(timeline[0]["pmu0_interval_delta"])
-                    analyzer.struct.pack_into("<I", flagged, 100, 1)  # Wrong event count.
+        for count in range(5):
+            for available in [False, True]:
+                with self.subTest(count=count, available=available), tempfile.TemporaryDirectory() as tmp:
+                    binary, capture = Path(tmp) / "test", Path(tmp) / "capture.bin"
+                    flags = ["-DTEST_PMU"] if available else []
+                    subprocess.run(["cc", "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror",
+                        "-Imcu", "-Itests/fakes", f"-DPROFILER_PMU_COUNT={count}",
+                        '-DPROFILER_USER_CONFIG="profiler_test_config.h"'] + flags +
+                        ["tests/test_pmu.c", "mcu/sampling_profiler.c", "mcu/sampling_profiler_pmu.c",
+                         "-o", str(binary)], cwd=ROOT, check=True)
+                    subprocess.run([str(binary), str(capture)], check=True)
+                    data = capture.read_bytes()
+                    header, samples = analyzer.read_capture(data)
+                    active = bool(count and available)
+                    stride = 24 + (4 * count if active else 0)
+                    capacity = (236 + 12 * count - analyzer.HEADER.size) // stride
+                    self.assertEqual(header["pmu"]["status"], "disabled" if not count else "active" if available else "unavailable")
+                    self.assertEqual(header["pmu"]["requested"], count)
+                    self.assertEqual(header["record_size"], stride)
+                    self.assertEqual(header["capacity"], capacity)
+                    self.assertEqual(len(samples[0]), stride // 4)
+                    events = analyzer.pmu_statistics(header)
+                    self.assertEqual(len(events), count)
+                    rows, timeline, unknown, timing = analyzer.analyze(header, samples, [(0x10001000, 32, "workload")])
+                    self.assertEqual((rows[0]["hits"], unknown), (capacity, 0))
+                    self.assertNotIn("pmu0", rows[0])
+                    for event in range(count):
+                        self.assertEqual(events[event]["count"], (event + 1) * 0x10000 + 3 * (5 + 2 * event) if active else None)
+                        self.assertEqual(timeline[1][f"pmu{event}_interval_delta"], 5 + 2 * event if active else None)
                     with self.assertRaises(ValueError):
-                        analyzer.read_capture(flagged)
+                        analyzer.read_capture(data[:120])
+                    if active:
+                        for flag in [1 << event for event in range(count)] + [16]:
+                            flagged = bytearray(data)
+                            analyzer.struct.pack_into("<I", flagged, 160, flag)
+                            invalid, records = analyzer.read_capture(flagged)
+                            self.assertTrue(all(event["count"] is None for event in analyzer.pmu_statistics(invalid)))
+                            _, invalid_timeline, _, _ = analyzer.analyze(invalid, records, [])
+                            self.assertIsNone(invalid_timeline[0]["pmu0_interval_delta"])
+                    for offset, value in [(100, 5), (104, 5), (160, 32), (124, 16)]:
+                        malformed = bytearray(data)
+                        analyzer.struct.pack_into("<I", malformed, offset, value)
+                        with self.subTest(offset=offset), self.assertRaises(ValueError):
+                            analyzer.read_capture(malformed)
+
+    def test_pmu_event_configuration(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for count, event, valid in [(4, "0", True), (4, "0xFFFF", True), (4, "0x10000", False),
+                                        (4, "-1", False), (4, "0x001E", False), (1, "0x10000", True)]:
+                with self.subTest(count=count, event=event):
+                    result = subprocess.run(["cc", "-std=c11", "-Wall", "-Wextra", "-Werror",
+                        "-Imcu", "-Itests/fakes", f"-DPROFILER_PMU_COUNT={count}",
+                        f"-DPROFILER_PMU_EVENT3={event}", '-DPROFILER_USER_CONFIG="profiler_test_config.h"',
+                        "-c", "mcu/sampling_profiler_pmu.c", "-o", str(Path(tmp) / "pmu.o")],
+                        cwd=ROOT, capture_output=True, text=True)
+                    self.assertEqual(result.returncode == 0, valid, result.stderr)
 
     def test_dtcm_size_detection(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -167,15 +187,15 @@ class ProfilerTests(unittest.TestCase):
                                "tests/test_capture.c", "mcu/sampling_profiler.c", "mcu/sampling_profiler_cortex_m.c",
                                "-o", str(binary)], cwd=ROOT, check=True)
                 subprocess.run([str(binary), "unused"], check=True)
-            for define in ["-DPROFILER_SAMPLE_HZ=0"]:
+            for define in ["-DPROFILER_SAMPLE_HZ=0", "-DPROFILER_PMU_COUNT=-1", "-DPROFILER_PMU_COUNT=5"]:
                 result = subprocess.run(common + [define, "-c", "mcu/sampling_profiler.c",
                                         "-o", str(Path(tmp) / "invalid.o")], cwd=ROOT, capture_output=True)
                 self.assertNotEqual(result.returncode, 0)
 
     @staticmethod
     def capture_fields():
-        return [analyzer.MAGIC, analyzer.FORMAT_VERSION, 24, 160, 1, 1, 0, 0,
-                1000000, 1000, 0, 0, 1000, 1, 1, 1, 1, 1, 1000, 1000000] + [0] * 14
+        return [analyzer.MAGIC, analyzer.FORMAT_VERSION, 24, analyzer.HEADER.size + 24, 1, 1, 0, 0,
+                1000000, 1000, 0, 0, 1000, 1, 1, 1, 1, 1, 1000, 1000000] + [0] * 21
 
     def test_independent_timer_clock(self):
         fields = self.capture_fields()

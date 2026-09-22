@@ -64,7 +64,9 @@ def check_report(report, reference):
     require(any(int(row["exception_return"], 16) == int(reference["required_exception_return"], 16)
                 for row in samples), "no extended PSP frame captured")
     pmu = h["pmu"]
-    require(len(events) == 2 and len(summary["pmu_events"]) == 2, "expected two PMU event results")
+    expected_count = reference["expected"]["header"]["pmu"]["count"]
+    require(len(events) == expected_count and len(summary["pmu_events"]) == expected_count,
+            f"expected {expected_count} PMU event results")
     for index, event_id in enumerate(reference["expected"]["header"]["pmu"]["events"]):
         if index >= len(events) or index >= len(summary["pmu_events"]):
             continue

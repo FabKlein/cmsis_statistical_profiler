@@ -28,11 +28,11 @@ import struct
 
 MAGIC = 0x46504353
 FORMAT_VERSION = 1
-HEADER = struct.Struct("<34I")
+HEADER = struct.Struct("<41I")
 REJECTION_NAMES = ("invalid_exc_return", "unsupported_frame", "stack_bounds", "invalid_xpsr")
 RECORD = struct.Struct("<6I")
 PMU_STATES = {0: "disabled", 1: "unavailable", 2: "active", 3: "busy", 4: "unsupported", 5: "access_denied"}
-PMU_EVENTS = {0x0000: "sw-incr", 0x0003: "l1d-cache-refill", 0x0024: "stall-backend"}
+PMU_EVENTS = {0x0000: "sw-incr", 0x0003: "l1d-cache-refill", 0x0024: "stall-backend", 0x0008: "instructions-retired", 0x0011: "cpu-cycles"}
 HEADER_NAMES = (
     "magic version record_size buffer_bytes capacity count rejected active timestamp_hz "
     "timer_period start_timestamp start_tick stop_timestamp stop_tick full complete "
@@ -93,18 +93,22 @@ def read_capture(data):
     if sum(reasons.values()) & 0xFFFFFFFF != header["rejected"]:
         raise ValueError("Rejection total and reason counters disagree")
     header["rejected_reasons"] = reasons
-    state, count, event0, event1, bits, start0, start1, stop0, stop1, flags = fields[24:]
-    if state not in PMU_STATES or flags & ~7 or max(event0, event1) > 0xFFFF:
+    state, count, requested = fields[24:27]
+    events, bits, start, stop, flags = list(fields[27:31]), fields[31], list(fields[32:36]), list(fields[36:40]), fields[40]
+    if state not in PMU_STATES or not 0 <= requested <= 4 or flags & ~31 or max(events) > 0xFFFF:
         raise ValueError("Invalid PMU metadata")
-    if (state == 2 and (count != 2 or bits != 32)) or (state != 2 and (count or bits or start0 or start1 or stop0 or stop1 or flags)):
+    if (state == 2 and (not requested or count != requested or bits != 32 or flags & ~((1 << count) - 1 | 16))) or (
+            state != 2 and (count or bits or any(start) or any(stop) or flags)):
         raise ValueError("Inconsistent PMU availability metadata")
-    if state == 0 and (event0 or event1):
-        raise ValueError("Disabled PMU must have zero event metadata")
+    if (state == 0) != (requested == 0) or any(events[requested:]) or any(start[count:]) or any(stop[count:]):
+        raise ValueError("Invalid unused PMU metadata")
+    if 0x001E in events[:requested]:
+        raise ValueError("CHAIN is reserved for counter pairing")
     record = struct.Struct("<" + "I" * (6 + count))
     if header["record_size"] != record.size:
         raise ValueError("Record size disagrees with PMU count")
-    header["pmu"] = dict(status=PMU_STATES[state], count=count, events=[event0, event1],
-                         counter_bits=bits, start=[start0, start1], stop=[stop0, stop1], flags=flags,
+    header["pmu"] = dict(status=PMU_STATES[state], count=count, requested=requested, events=events[:requested],
+                         counter_bits=bits, start=start[:requested], stop=stop[:requested], flags=flags,
                          scope="init_to_stop_all_execution")
     if header["active"] or header["complete"] != 1:
         raise ValueError("Capture not stopped/completed; dump after sampling_profiler_stop")
@@ -209,7 +213,7 @@ def analyze(header, samples, functions):
                          "pc": f"0x{pc:08x}", "lr": f"0x{lr:08x}", "xpsr": f"0x{xpsr:08x}",
                          "exception_return": f"0x{exception_return:08x}", "function": match[1]})
         if pmu["status"] != "disabled":
-            for event in range(2):
+            for event in range(len(pmu["events"])):
                 raw = sample[6 + event] if pmu["count"] else 0
                 timeline[-1][f"pmu{event}_raw"] = raw if pmu["status"] == "active" else None
                 timeline[-1][f"pmu{event}_interval_delta"] = ((raw - pmu_previous[event]) & 0xFFFFFFFF) if pmu_valid else None
@@ -261,7 +265,7 @@ def main():
         write_csv(args.output / "samples.csv", timeline,
                   ["sample", "timestamp", "timestamp_ticks_since_start",
                    "time_us", "tick", "pc", "lr", "xpsr", "exception_return", "function"] +
-                  (["pmu0_raw", "pmu0_interval_delta", "pmu1_raw", "pmu1_interval_delta"] if header["pmu"]["status"] != "disabled" else []))
+                  [f"pmu{i}_{field}" for i in range(len(header["pmu"]["events"])) for field in ("raw", "interval_delta")])
         if pmu_rows:
             write_csv(args.output / "events.csv", pmu_rows, [])
         else:

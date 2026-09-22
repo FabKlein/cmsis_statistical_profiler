@@ -41,8 +41,8 @@ struct ProfilerSample
     uint32_t lr;               /**< Interrupted link register; not a reconstructed call stack. */
     uint32_t xpsr;             /**< Interrupted program status register. */
     uint32_t exception_return; /**< EXC_RETURN captured at interrupt entry. */
-#if PROFILER_PMU_ENABLE
-    uint32_t pmu[2]; /**< Optional 2-counter staging snapshot; stored only when collection is active. */
+#if PROFILER_PMU_COUNT
+    uint32_t pmu[PROFILER_PMU_COUNT]; /**< Staging snapshot; only active event words are stored. */
 #endif
 };
 
@@ -87,12 +87,13 @@ struct ProfilerSamplingHeader
     uint32_t timer_hz;          /**< Actual sampling timer input frequency in Hz. */
     uint32_t rejected_reason[PROFILER_REJECT_REASON_COUNT]; /**< Per-reason rejection counters in enum order. */
     uint32_t pmu_status;       /**< 0 disabled, 1 unavailable, 2 active, 3 busy, 4 unsupported, 5 denied */
-    uint32_t pmu_count;        /**< Counter words per record: 2 when active, otherwise 0. */
-    uint32_t pmu_events[2];    /**< Requested architectural event IDs; 0 when disabled. */
+    uint32_t pmu_count;        /**< Counter words per record: 1–4 when active, otherwise 0. */
+    uint32_t pmu_requested;    /**< Requested event count, including when collection is unavailable. */
+    uint32_t pmu_events[4];    /**< Requested architectural event IDs; 0 when disabled. */
     uint32_t pmu_counter_bits; /**< 32 when active, otherwise 0. */
-    uint32_t pmu_start[2];     /**< Counter snapshots at collection start. */
-    uint32_t pmu_stop[2];      /**< Counter snapshots after collection stops. */
-    uint32_t pmu_flags;        /**< Bits 0/1: 32-bit overflow; bit 2: incoherent read. */
+    uint32_t pmu_start[4];     /**< Counter snapshots at collection start. */
+    uint32_t pmu_stop[4];      /**< Counter snapshots after collection stops. */
+    uint32_t pmu_flags;        /**< Bits 0–3: event overflow; bit 4: incoherent read. */
 };
 
 /* 1 format: 6 base words followed by pmu_count counter words. */
@@ -101,7 +102,7 @@ struct ProfilerSamplingHeader
 /** @brief Identifier checked by the matching host decoder. */
 #define PROFILER_FORMAT_VERSION 1U
 /** @brief Size of the capture header in bytes. */
-#define PROFILER_HEADER_BYTES 136U
+#define PROFILER_HEADER_BYTES 164U
 /** @brief Size of the 6 mandatory record words in bytes. */
 #define PROFILER_BASE_RECORD_BYTES 24U
 /** @brief Whole words available for packed records within the allocation budget. */

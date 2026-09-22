@@ -27,7 +27,7 @@
 
 _Static_assert(sizeof(struct ProfilerSamplingHeader) == PROFILER_HEADER_BYTES, "Header format");
 _Static_assert(PROFILER_SAMPLE_BUFFER_BYTES >=
-                   PROFILER_HEADER_BYTES + PROFILER_BASE_RECORD_BYTES + 8U * !!PROFILER_PMU_ENABLE,
+                   PROFILER_HEADER_BYTES + PROFILER_BASE_RECORD_BYTES + 4U * PROFILER_PMU_COUNT,
                "Buffer must hold a header and sample");
 #ifdef PROFILER_SRAM_REGION_BYTES
 _Static_assert(PROFILER_SAMPLE_BUFFER_BYTES <= PROFILER_SRAM_REGION_BYTES, "Buffer exceeds reserved sampling SRAM");
@@ -43,7 +43,7 @@ int sampling_profiler_init(void)
 {
     sampling_profiler_disable();
     profiler_port_stop();
-#if PROFILER_PMU_ENABLE
+#if PROFILER_PMU_COUNT
     profiler_pmu_stop();
 #endif
     initialized = 0;
@@ -59,7 +59,7 @@ int sampling_profiler_init(void)
     statistical_samples.header.timestamp_hz = clock.timestamp_hz;
     statistical_samples.header.timer_period = clock.timer_period;
     statistical_samples.header.timer_hz = clock.timer_hz;
-#if PROFILER_PMU_ENABLE
+#if PROFILER_PMU_COUNT
     profiler_pmu_init();
 #endif
     statistical_samples.header.record_size = PROFILER_BASE_RECORD_BYTES + 4U * statistical_samples.header.pmu_count;
@@ -95,7 +95,7 @@ void sampling_profiler_stop(uint32_t iterations, uint32_t validation_passed)
     if (!initialized)
         return;
     profiler_port_stop();
-#if PROFILER_PMU_ENABLE
+#if PROFILER_PMU_COUNT
     profiler_pmu_stop();
 #endif
     statistical_samples.header.stop_timestamp = profiler_port_timestamp();
@@ -129,12 +129,9 @@ void sampling_profiler_record(const struct ProfilerSample *sample)
     record[3] = sample->lr;
     record[4] = sample->xpsr;
     record[5] = sample->exception_return;
-#if PROFILER_PMU_ENABLE
-    if (statistical_samples.header.pmu_count)
-    {
-        record[6] = sample->pmu[0];
-        record[7] = sample->pmu[1];
-    }
+#if PROFILER_PMU_COUNT
+    for (uint32_t event = 0; event < statistical_samples.header.pmu_count; ++event)
+        record[6U + event] = sample->pmu[event];
 #endif
     profiler_port_barrier();
     statistical_samples.header.count = index + 1U;

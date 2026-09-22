@@ -49,8 +49,8 @@
  * @brief Set to 1 to require the ISR-safe precise stack bounds hook; default 0.
  */
 /**
- * @def PROFILER_PMU_ENABLE
- * @brief Set to 1 to request 2 32-bit PMU events; default 0. Unavailable PMU uses compact records.
+ * @def PROFILER_PMU_COUNT
+ * @brief Number of 32-bit PMU events, 0–4; default 0 (disabled). Unavailable PMU uses compact records.
  */
 /**
  * @def PROFILER_PMU_EVENT0
@@ -96,14 +96,25 @@
 
 /* Optional PMU event snapshots; raw architectural event IDs keep the core
  * independent of device headers. The backend uses CMSIS PMU functions. */
-#ifndef PROFILER_PMU_ENABLE
-    #define PROFILER_PMU_ENABLE 0
+#ifndef PROFILER_PMU_COUNT
+    #define PROFILER_PMU_COUNT 0
+#endif
+#if PROFILER_PMU_COUNT < 0 || PROFILER_PMU_COUNT > 4
+    #error "PROFILER_PMU_COUNT must be between 0 and 4"
 #endif
 #ifndef PROFILER_PMU_EVENT0
     #define PROFILER_PMU_EVENT0 0x0003U /* ARM_PMU_L1D_CACHE_REFILL */
 #endif
 #ifndef PROFILER_PMU_EVENT1
     #define PROFILER_PMU_EVENT1 0x0024U /* ARM_PMU_STALL_BACKEND */
+#endif
+/** @brief Third event; default 0x0008, instructions retired. */
+#ifndef PROFILER_PMU_EVENT2
+    #define PROFILER_PMU_EVENT2 0x0008U
+#endif
+/** @brief Fourth event; default 0x0011, CPU cycles. */
+#ifndef PROFILER_PMU_EVENT3
+    #define PROFILER_PMU_EVENT3 0x0011U
 #endif
 
 #endif

@@ -6,14 +6,15 @@ its include directory. Application definitions override C defaults.
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `PROFILER_PMU_ENABLE` | 0 | Request 2 chained 32-bit PMU event snapshots; skip collection if unavailable |
+| `PROFILER_PMU_COUNT` | 0 | Request 0–4 chained 32-bit events; 0 disables collection; skip if unavailable or hardware capacity is insufficient |
 | `PROFILER_PMU_EVENT0`, `PROFILER_PMU_EVENT1` | `0x0003`, `0x0024` | Architectural event IDs: L1D cache refill and backend stall |
+| `PROFILER_PMU_EVENT2`, `PROFILER_PMU_EVENT3` | `0x0008`, `0x0011` | Instructions retired and CPU cycles; used for counts 3 and 4 respectively |
 | `PROFILER_TIMESTAMP_CUSTOM` | 0: DWT | 1 selects adapter-provided timestamp hooks |
 | `PROFILER_TIMER_CLOCK_HZ` | Required for Corstone/Alif | Actual timer input clock in Hz |
 | `PROFILER_ALIF_UTIMER_CHANNEL` | HP: 0; HE: 1 | Alif per-image channel, 0–11; startup enables shared clocks |
 | `PROFILER_IRQ_PRIORITY` | Lowest | CMSIS unshifted sampling interrupt priority |
 | `PROFILER_SAMPLE_HZ` | 1000 | Requested sampling interrupt frequency in Hz |
-| `PROFILER_SAMPLE_BUFFER_BYTES` | Layer: 64 KiB; C fallback: 32 KiB | Allocation budget including the 136-byte header |
+| `PROFILER_SAMPLE_BUFFER_BYTES` | Layer: 64 KiB; C fallback: 32 KiB | Allocation budget including the 164-byte header |
 | `PROFILER_SAMPLING_ENABLED` | 1 | Supplied handler/example switch; 0 still maintains ticks |
 | `PROFILER_STACK_BASE`, `PROFILER_STACK_BYTES` | Board RAM defaults | Application override for 1 readable stack RAM range |
 | `PROFILER_PRECISE_STACK_BOUNDS` | 0 | Enable an ISR-safe adapter hook that narrows RAM bounds to the interrupted stack |

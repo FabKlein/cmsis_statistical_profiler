@@ -89,8 +89,8 @@ class TimingTests(unittest.TestCase):
 
     def test_cli_preserves_pc_reports_and_blanks_time(self):
         count = 12
-        fields = [analyzer.MAGIC, analyzer.FORMAT_VERSION, 24, 136 + 24 * count,
-                  count, count, 0, 0, 1000000, 1000, 0, 0, 0, count, 0, 1, 1, 1, 1000, 1000000] + [0] * 14
+        fields = [analyzer.MAGIC, analyzer.FORMAT_VERSION, 24, analyzer.HEADER.size + 24 * count,
+                  count, count, 0, 0, 1000000, 1000, 0, 0, 0, count, 0, 1, 1, 1, 1000, 1000000] + [0] * 21
         records = b"".join(analyzer.RECORD.pack(0, i, 0x10001004, 0x10002001, 1 << 24, 0xFFFFFFF9)
                            for i in range(1, count + 1))
         with tempfile.TemporaryDirectory() as tmp:

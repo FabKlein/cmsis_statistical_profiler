@@ -59,8 +59,8 @@ M0/M0+/M1/M23 need a [custom timestamp](adapters/template/profiler_timestamp.c.e
 TCM is optional.
 
 Set `PROFILER_SAMPLE_HZ` and `PROFILER_SAMPLE_BUFFER_BYTES` in the
-[common layer](cmsis_statistical_profiler.clayer.yml). A 64 KiB buffer holds 2,725
-samples without PMU or 2,043 with 2 counters. Records never overwrite.
+[common layer](cmsis_statistical_profiler.clayer.yml). A 64 KiB buffer holds 2,723
+samples without PMU, 2,042 with 2 events or 1,634 with 4 events. Records never overwrite.
 See [configuration](docs/CONFIGURATION.md) for clocks, bounds and build options.
 
 ## Capture and decode
@@ -101,8 +101,11 @@ separate; independent timestamps are not automatically synchronized.
 
 ## Optional PMU
 
-Enable `PROFILER_PMU_ENABLE=1` in the common layer. Defaults are D-cache refill
-(`0x0003`) and backend stall (`0x0024`); the layer lists other event IDs.
+Set `PROFILER_PMU_COUNT` to 0–4 in the common layer (default 0). Each 32-bit
+event uses 2 hardware counters. Default events, in order: D-cache refill (`0x0003`),
+backend stall (`0x0024`), instructions retired (`0x0008`) and CPU cycles (`0x0011`).
+Override `PROFILER_PMU_EVENT0` through `PROFILER_PMU_EVENT3` as needed. Records
+use 24, 28, 32, 36 or 40 bytes for 0–4 active events.
 Unavailable PMU collection falls back to PC sampling with a diagnostic status.
 
 PMU counts cover init through stop, including interrupts and gated-off execution.

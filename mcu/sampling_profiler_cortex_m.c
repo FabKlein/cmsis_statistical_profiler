@@ -270,7 +270,7 @@ __attribute__((used, noinline)) void statistical_sampling_tick(const uint32_t *f
                                     .lr = frame[5],
                                     .xpsr = xpsr,
                                     .exception_return = exception_return};
-#if PROFILER_PMU_ENABLE
+#if PROFILER_PMU_COUNT
     profiler_pmu_snapshot(sample.pmu);
 #endif
     sampling_profiler_record(&sample);

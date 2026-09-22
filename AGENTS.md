@@ -15,8 +15,8 @@ Start with [README.md](README.md). Use [configuration](docs/CONFIGURATION.md),
   before dumping the whole buffer; decode with the exact unstripped executable.
 - Keep ISR code bounded and integer-only: no allocation, blocking, logging, FP or
   vector instructions. Preserve the original exception frame.
-- Maintain 1 [format](FORMAT.md): 6 base words plus `pmu_count` words, 24 or 32
-  bytes. Change firmware, decoder and tests together; no legacy compatibility branches.
+- Maintain 1 [format](FORMAT.md): 6 base words plus `pmu_count` words, 24–40
+  bytes for 0–4 events. Change firmware, decoder and tests together; no legacy compatibility branches.
   PMU deltas are not per-function counts.
 - Preserve SPDX/project headers and Doxygen contracts. Use `.clang-format` for C/H;
   preserve protected device include order.

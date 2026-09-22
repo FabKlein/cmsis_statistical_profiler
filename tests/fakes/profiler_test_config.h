@@ -19,7 +19,7 @@
 #ifndef TEST_PROFILER_CONFIG_H
 #define TEST_PROFILER_CONFIG_H
 #define PROFILER_DEVICE_HEADER "fake_device.h"
-#define PROFILER_SAMPLE_BUFFER_BYTES (208U + 24U * !!PROFILER_PMU_ENABLE)
+#define PROFILER_SAMPLE_BUFFER_BYTES (236U + 12U * PROFILER_PMU_COUNT)
 #define PROFILER_STACK_REGIONS                                                                                         \
     {                                                                                                                  \
         {(uintptr_t)fake_stack, sizeof(fake_stack)}, {UINTPTR_MAX - 15U, 8U}, { 0U, 0U }                               \

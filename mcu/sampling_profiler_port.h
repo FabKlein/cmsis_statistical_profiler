@@ -80,7 +80,7 @@ uint32_t profiler_port_timestamp(void);
 void profiler_port_barrier(void);
 /* Optional PMU backend. PMU scope is init through stop, independent of gate. */
 /**
- * @brief Try to reserve and start 2 chained 32-bit PMU events.
+ * @brief Try to reserve and start the configured chained 32-bit PMU events.
  * @pre Capture header was cleared and sampling is gated off.
  * @details Records failure status without preventing PC sampling. Counting covers
  * init through stop, including interrupts and gated-off intervals.
@@ -92,11 +92,11 @@ void profiler_pmu_init(void);
  */
 void profiler_pmu_stop(void);
 /**
- * @brief Read both chained event counters with bounded rollover retries.
- * @param[out] values Non-NULL 2-word destination; 0 when collection is inactive.
+ * @brief Read the configured chained event counters with bounded rollover retries.
+ * @param[out] values Non-NULL PROFILER_PMU_COUNT-word destination; 0 when collection is inactive.
  * @details ISR-safe. Overflow or incoherent reads set capture validity flags.
  */
-void profiler_pmu_snapshot(uint32_t values[2]);
+void profiler_pmu_snapshot(uint32_t *values);
 /**
  * @brief Make completed capture data visible to an external debugger.
  * @param[in] address Start of the capture allocation.
