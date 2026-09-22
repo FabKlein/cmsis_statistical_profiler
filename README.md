@@ -105,6 +105,12 @@ Decode with Python 3.8+ and the exact unstripped executable:
 python3 host/analyze_profiler_buffer.py --samples samples.bin --elf firmware.elf --output report
 ```
 
+C++ function names are demangled automatically using `arm-none-eabi-c++filt`,
+`llvm-cxxfilt` or `c++filt` from `PATH`. Use `--cxxfilt PATH` to select a tool, or
+`--no-demangle` to retain ELF names. If the tool is unavailable or fails, the decoder
+warns and keeps the original names. Regenerate the report and visualization to
+update existing plots.
+
 Outputs: `functions.csv`, `samples.csv`, `summary.json`, and `events.csv` for PMU
 requests. Function percentages estimate sampled execution time, not call counts.
 Samples aggregate tasks; call-stack tracing and task IDs are not implemented.

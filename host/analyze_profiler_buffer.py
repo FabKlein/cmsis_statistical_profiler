@@ -24,6 +24,9 @@ import hashlib
 import json
 from pathlib import Path
 import struct
+import shutil
+import subprocess
+import sys
 
 
 MAGIC = 0x46504353
@@ -80,6 +83,29 @@ def elf_functions(data):
     if not functions:
         raise ValueError("No sized function symbols; supply the original unstripped AXF")
     return sorted(set(functions))
+
+
+def demangle_functions(functions, tool=None):
+    """Demangle unique C++ symbols in 1 subprocess, preserving addresses and sizes."""
+    names = sorted({name for _, _, name in functions if name.startswith("_Z") and not any(c.isspace() for c in name)})
+    if not names:
+        return functions
+    executable = tool or next((path for name in ("arm-none-eabi-c++filt", "llvm-cxxfilt", "c++filt")
+                               if (path := shutil.which(name))), None)
+    if not executable:
+        print("WARNING: C++ names remain mangled; install c++filt or specify --cxxfilt PATH.", file=sys.stderr)
+        return functions
+    try:
+        result = subprocess.run([executable], input="\n".join(names) + "\n", text=True,
+                                capture_output=True, check=True, timeout=30)
+        decoded = result.stdout.splitlines()
+        if len(decoded) != len(names) or not all(decoded):
+            raise ValueError("unexpected demangler output")
+    except (OSError, subprocess.SubprocessError, ValueError) as error:
+        print(f"WARNING: C++ demangling failed ({error}); retaining original names.", file=sys.stderr)
+        return functions
+    mapping = dict(zip(names, decoded))
+    return [(address, size, mapping.get(name, name)) for address, size, name in functions]
 
 
 def read_capture(data):
@@ -251,6 +277,8 @@ def main():
     parser.add_argument("--elf", type=Path, required=True, help="Exact unstripped AXF used for this capture")
     parser.add_argument("--output", type=Path, default=Path("sampling-report"))
     parser.add_argument("--top", type=int, default=0, help="Console function limit; 0 prints every sampled function (default)")
+    parser.add_argument("--cxxfilt", help="C++ demangler executable; auto-detected from PATH by default")
+    parser.add_argument("--no-demangle", action="store_true", help="Keep original ELF symbol names")
     args = parser.parse_args()
     if args.top < 0:
         parser.error("--top must be nonnegative")
@@ -258,7 +286,10 @@ def main():
         capture = args.samples.read_bytes()
         elf = args.elf.read_bytes()
         header, samples = read_capture(capture)
-        rows, timeline, unknown, timing = analyze(header, samples, elf_functions(elf))
+        functions = elf_functions(elf)
+        if not args.no_demangle:
+            functions = demangle_functions(functions, args.cxxfilt)
+        rows, timeline, unknown, timing = analyze(header, samples, functions)
         pmu_rows = pmu_statistics(header)
         args.output.mkdir(parents=True, exist_ok=True)
         write_csv(args.output / "functions.csv", rows, ["address", "function", "hits", "percent"])
