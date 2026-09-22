@@ -42,7 +42,7 @@ can occur when TIMER0 preempts a kernel handler.
 Dump with [export_profiler_buffer.gdb](../../tools/export_profiler_buffer.gdb), then run:
 
 ```sh
-python3 host/analyze_samples.py --samples samples.bin --elf rtos_application.elf --output report
+python3 host/analyze_profiler_buffer.py --samples samples.bin --elf rtos_application.elf --output report
 ```
 
 Samples aggregate all tasks, including kernel/controller thread-mode execution;

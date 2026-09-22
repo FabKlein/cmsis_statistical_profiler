@@ -29,7 +29,7 @@ FVP_Corstone_SSE-300_Ethos-U55 -a profiler.elf \
   -C mps3_board.telnetterminal1.start_telnet=0 \
   -C mps3_board.telnetterminal2.start_telnet=0 \
   -C mps3_board.telnetterminal5.start_telnet=0 --simlimit 3
-python3 ../../host/analyze_samples.py --samples samples.bin --elf profiler.elf --output report
+python3 ../../host/analyze_profiler_buffer.py --samples samples.bin --elf profiler.elf --output report
 ```
 
 

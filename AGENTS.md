@@ -12,7 +12,8 @@ Start with [README.md](README.md). Use [configuration](docs/CONFIGURATION.md),
   timer channels. Serialize shared peripheral clock setup; decode with each core's ELF.
 - Run lifecycle calls serially in privileged thread mode on 1 core. Always stop
   before dumping the whole buffer with [export_profiler_buffer.gdb](tools/export_profiler_buffer.gdb);
-  decode with the exact unstripped executable.
+  decode with [analyze_profiler_buffer.py](host/analyze_profiler_buffer.py) and the exact
+  unstripped executable. Plot reports with [visualize_profiler_report.py](host/visualize_profiler_report.py).
 - Keep ISR code bounded and integer-only: no allocation, blocking, logging, FP or
   vector instructions. Preserve the original exception frame.
 - Maintain 1 [format](FORMAT.md): 6 base words plus `pmu_count` words, 24–40

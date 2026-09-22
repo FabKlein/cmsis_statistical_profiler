@@ -4,7 +4,7 @@
 
 # ----------------------------------------------------------------------
 # Project:      CMSIS Statistical Profiler
-# Title:        visualize_samples.py
+# Title:        visualize_profiler_report.py
 # Description:  Export decoded samples to offline HTML dashboards and Perfetto traces
 #
 # $Date:        22 September 2026

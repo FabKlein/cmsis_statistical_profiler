@@ -72,8 +72,8 @@ export_profiler_buffer he_samples.bin
 ```
 
 ```sh
-python3 host/analyze_samples.py --samples hp_samples.bin --elf hp.elf --output report/hp
-python3 host/analyze_samples.py --samples he_samples.bin --elf he.elf --output report/he
+python3 host/analyze_profiler_buffer.py --samples hp_samples.bin --elf hp.elf --output report/hp
+python3 host/analyze_profiler_buffer.py --samples he_samples.bin --elf he.elf --output report/he
 ```
 
 Reports and percentages are per core. Independent DWT timestamps do not share an

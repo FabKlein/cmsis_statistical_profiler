@@ -1,6 +1,6 @@
 # CMSIS Statistical Profiler
 
-Initial prototype — APIs and capture format may change.
+Initial prototype. APIs and capture format may change.
 
 Sample Cortex-M thread PCs into RAM, then decode them with the matching ELF/AXF.
 Optional PMU counters report hardware events. The core supports M0 through M85;
@@ -24,14 +24,16 @@ Cortex-M application
            ▼
 3. Capture core                          mcu/sampling_profiler.c
    └─ Append to RAM buffer sized by PROFILER_SAMPLE_BUFFER_BYTES
-      (includes header and records; never overwrite)
+      (includes header and records; currently stops recording when full)
            │  stop capture, then dump via debugger / FVP semihosting
            ▼
-Host decoder + matching ELF              host/analyze_samples.py
+Host decoder + matching ELF              host/analyze_profiler_buffer.py
    └─ Function hit percentages, sample timeline, PMU totals, diagnostics
 ```
 
-For AMP, each core has its own 3 layers, buffer and report.
+For asymmetric multiprocessing (AMP), where each core runs its own firmware,
+each core has its own instance of the 3 layers shown above: **Board adapter**,
+**Cortex-M backend** and **Capture core**, with a separate buffer and host report.
 
 ## Get started
 
@@ -60,7 +62,10 @@ TCM is optional.
 
 Set `PROFILER_SAMPLE_HZ` and `PROFILER_SAMPLE_BUFFER_BYTES` in the
 [common layer](cmsis_statistical_profiler.clayer.yml). A 64 KiB buffer holds 2,723
-samples without PMU, 2,042 with 2 events or 1,634 with 4 events. Records never overwrite.
+samples without PMU, 2,042 with 2 events or 1,634 with 4 events. Currently, recording
+stops when the buffer is full; existing records are not overwritten. Circular
+buffering and a repeated capture/export/resume workflow are planned: capture until
+full, stop and finalize, export the buffer through the debugger, then resume capture.
 See [configuration](docs/CONFIGURATION.md) for clocks, bounds and build options.
 
 ## Capture and decode
@@ -93,7 +98,7 @@ halting, then run it in each core's debugger context with its own ELF and filena
 Decode with Python 3.8+ and the exact unstripped executable:
 
 ```sh
-python3 host/analyze_samples.py --samples samples.bin --elf firmware.elf --output report
+python3 host/analyze_profiler_buffer.py --samples samples.bin --elf firmware.elf --output report
 ```
 
 Outputs: `functions.csv`, `samples.csv`, `summary.json`, and `events.csv` for PMU
@@ -108,6 +113,9 @@ separate; independent timestamps are not automatically synchronized.
 
 ## Optional PMU
 
+See the [Armv8.1-M Performance Monitoring User Guide](https://documentation-service.arm.com/static/63f365789567172d4e2aadf5)
+for PMU events, counter chaining and usage guidance.
+
 Set `PROFILER_PMU_COUNT` to 0–4 in the common layer (default 0). Each 32-bit
 event uses 2 hardware counters. Default events, in order: D-cache refill (`0x0003`),
 backend stall (`0x0024`), instructions retired (`0x0008`) and CPU cycles (`0x0011`).
@@ -121,17 +129,17 @@ Overflow or incoherent reads invalidate derived counts.
 
 ## Visualize reports: HTML and Perfetto
 
-[host/visualize_samples.py](host/visualize_samples.py) converts a decoded report
+[host/visualize_profiler_report.py](host/visualize_profiler_report.py) converts a decoded report
 into a Perfetto trace and, optionally, an interactive HTML dashboard. It reads
 `samples.csv` and `summary.json` from the same decoder run. No connected board,
 firmware rebuild or ELF is needed at this stage; symbolization is already done.
-Use the matching ELF when running `analyze_samples.py` first.
+Use the matching ELF when running `analyze_profiler_buffer.py` first.
 
 Run these commands from the repository root. `REPORT_DIR` can be outside the
 repository; keep confidential captures and generated reports out of version control.
 
 ```sh
-python3 host/visualize_samples.py --report REPORT_DIR
+python3 host/visualize_profiler_report.py --report REPORT_DIR
 ```
 
 This writes `REPORT_DIR/samples.perfetto.json` using only the Python standard
@@ -140,7 +148,7 @@ in your Python environment:
 
 ```sh
 python3 -m pip install -r host/requirements-visualization.txt
-python3 host/visualize_samples.py --report REPORT_DIR --html
+python3 host/visualize_profiler_report.py --report REPORT_DIR --html
 ```
 
 This additionally writes `REPORT_DIR/dashboard.html`. Open it in a browser, or

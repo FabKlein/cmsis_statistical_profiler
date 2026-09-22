@@ -66,7 +66,7 @@ def main():
         for parameter in parameters:
             command += ["-C", parameter]
         run(command, "fvp.log", output)
-        run([sys.executable, ROOT / "host/analyze_samples.py", "--samples", output / "samples.bin",
+        run([sys.executable, ROOT / "host/analyze_profiler_buffer.py", "--samples", output / "samples.bin",
              "--elf", output / "profiler.elf", "--output", report], "decode.log")
         reference = json.loads((ROOT / "tests/fvp_reference.json").read_text())
         failures = check_report(report, reference)

@@ -98,7 +98,7 @@ class TimingTests(unittest.TestCase):
             (root / "capture.bin").write_bytes(analyzer.HEADER.pack(*fields) + records)
             (root / "app.elf").write_bytes(b"ELF fixture")
             output = root / "report"
-            argv = ["analyze_samples.py", "--samples", str(root / "capture.bin"),
+            argv = ["analyze_profiler_buffer.py", "--samples", str(root / "capture.bin"),
                     "--elf", str(root / "app.elf"), "--output", str(output)]
             console = io.StringIO()
             with patch("sys.argv", argv), patch.object(analyzer, "elf_functions", return_value=[(0x10001000, 32, "workload")]), redirect_stdout(console):

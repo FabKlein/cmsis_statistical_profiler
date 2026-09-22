@@ -4,7 +4,7 @@
 
 # ----------------------------------------------------------------------
 # Project:      CMSIS Statistical Profiler
-# Title:        analyze_samples.py
+# Title:        analyze_profiler_buffer.py
 # Description:  Decode SRAM captures and report sampled functions using ELF symbols
 #
 # $Date:        22 September 2026
