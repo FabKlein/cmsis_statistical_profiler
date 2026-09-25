@@ -23,6 +23,12 @@ Start with [README.md](README.md). Use [configuration](docs/CONFIGURATION.md),
   PMU deltas are not per-function counts.
 - For [backtraces](docs/UNWINDING.md), bound every read and retain partial-trace status.
   Require precise task-stack bounds; never call exception personality routines.
+- For FlameGraph, enable `PROFILER_STACK_UNWIND` and `PROFILER_PRECISE_STACK_BOUNDS`;
+  supply EHABI tables and linker hooks as described in [unwinding](docs/UNWINDING.md).
+  The decoder writes `stacks.folded`; render with external `flamegraph.pl` and use
+  `stacks.note.txt` as the subtitle. `--stack-root NAME` selects the graph base.
+  Unreliable/root-missing chains are excluded and counted; PC/PMU statistics remain intact.
+  See the [RTX dual-thread FVP test](examples/corstone300_rtos2/CALL_TREE.md).
 - Preserve SPDX/project headers and Doxygen contracts. Use `.clang-format` for C/H;
   preserve protected device include order.
 - For behavior changes, run `python3 -B -m unittest discover -s tests -v`.
