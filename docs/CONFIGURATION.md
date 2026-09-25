@@ -14,9 +14,11 @@ its include directory. Application definitions override C defaults.
 | `PROFILER_ALIF_UTIMER_CHANNEL` | HP: 0; HE: 1 | Alif per-image channel, 0–11; startup enables shared clocks |
 | `PROFILER_IRQ_PRIORITY` | Lowest | CMSIS unshifted sampling interrupt priority |
 | `PROFILER_SAMPLE_HZ` | 1000 | Requested sampling interrupt frequency in Hz |
-| `PROFILER_SAMPLE_BUFFER_BYTES` | Layer: 64 KiB; C fallback: 32 KiB | Allocation budget including the 164-byte header |
+| `PROFILER_SAMPLE_BUFFER_BYTES` | Layer: 64 KiB; C fallback: 32 KiB | Allocation budget including the 168-byte header |
 | `PROFILER_SAMPLING_ENABLED` | 1 | Supplied handler/example switch; 0 still maintains ticks |
 | `PROFILER_STACK_BASE`, `PROFILER_STACK_BYTES` | Board RAM defaults | Application override for 1 readable stack RAM range |
+| `PROFILER_UNWIND_MAX_DEPTH` | 16 | Maximum recovered callers (1–255); bounds ISR work and temporary storage, not each stored record |
+| `PROFILER_STACK_UNWIND` | 0 | 1 enables EHABI backtraces (4 bytes + 4 bytes/recovered caller); requires precise bounds and linker-table hook. See [unwinding](UNWINDING.md) |
 | `PROFILER_PRECISE_STACK_BOUNDS` | 0 | Enable an ISR-safe adapter hook that narrows RAM bounds to the interrupted stack |
 | `PROFILER_STACK_REGIONS` | Alternative to BASE/BYTES | Array initializer of `{CPU address, bytes}` readable stack regions |
 | `PROFILER_BUFFER_ATTRIBUTES` | 32-byte alignment | Optional application-defined section placement |

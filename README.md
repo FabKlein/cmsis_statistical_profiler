@@ -23,7 +23,7 @@ Cortex-M application
 2. Cortex-M backend                      mcu/sampling_profiler_cortex_m.c
    ├─ Acknowledge timer, read timestamp, check capture gate
    ├─ Validate exception frame and stack bounds
-   └─ Extract PC/LR + optional PMU snapshots
+   └─ Extract PC/LR + optional PMU snapshots and bounded backtrace
            │  validated sample (or rejection reason)
            ▼
 3. Capture core                          mcu/sampling_profiler.c
@@ -46,7 +46,7 @@ each core has its own instance of the 3 layers shown above: **Board adapter**,
 | Corstone-300 FVP / MPS3 FPGA | [Runnable example](examples/corstone300/README.md) |
 | STM32N6 | [TIM2 adapter](adapters/stm32n6/README.md) |
 | Alif E8 | [UTIMER adapter](adapters/alif_e8/README.md) |
-| CMSIS-RTOS2 | [Corstone illustration](examples/corstone300_rtos2/README.md) |
+| CMSIS-RTOS2 | [RTX dual-thread FVP test](examples/corstone300_rtos2/CALL_TREE.md), [integration illustration](examples/corstone300_rtos2/README.md) |
 | New board | [Adapter template](adapters/template/README.md) |
 
 Select the common layer, 1 board and 1 timer:
@@ -66,7 +66,7 @@ TCM is optional.
 
 Set `PROFILER_SAMPLE_HZ` and `PROFILER_SAMPLE_BUFFER_BYTES` in the
 [common layer](cmsis_statistical_profiler.clayer.yml). A 64 KiB buffer holds 2,723
-samples without PMU, 2,042 with 2 events or 1,634 with 4 events. Currently, recording
+samples without PMU, 2,042 with 2 events or 1,634 with 4 events, without backtraces. Currently, recording
 stops when the buffer is full; existing records are not overwritten. Circular
 buffering and a repeated capture/export/resume workflow are planned: capture until
 full, stop and finalize, export the buffer through the debugger, then resume capture.
@@ -113,7 +113,8 @@ update existing plots.
 
 Outputs: `functions.csv`, `samples.csv`, `summary.json`, and `events.csv` for PMU
 requests. Function percentages estimate sampled execution time, not call counts.
-Samples aggregate tasks; call-stack tracing and task IDs are not implemented.
+Samples aggregate tasks; task IDs are not recorded. Optional backtraces are
+available for FlameGraph export (see below).
 If timestamp clocks disagree, the host warns and marks `timing_valid=false`;
 derived time fields are blank, while raw timestamps and PC/PMU reports remain available.
 
@@ -136,6 +137,16 @@ Unavailable PMU collection falls back to PC sampling with a diagnostic status.
 PMU counts cover init through stop, including interrupts and gated-off execution.
 The host reports totals and interval deltas, without per-function attribution.
 Overflow or incoherent reads invalidate derived counts.
+
+## Optional backtraces and FlameGraph
+
+Set `PROFILER_STACK_UNWIND=1` and `PROFILER_PRECISE_STACK_BOUNDS=1` in the common
+layer to collect caller addresses. `PROFILER_UNWIND_MAX_DEPTH` defaults to 16;
+each sample stores only its recovered callers (4-byte metadata + 4 bytes/caller). This requires
+compiler-generated EHABI tables, a linker-table hook and precise stack bounds.
+The decoder exports `stacks.folded` and trace-status diagnostics; incomplete traces
+remain visible without diagnostic frames; unreliable chains are excluded with counts.
+Use `--stack-root osThreadEntry` to select the graph base. See [setup and limitations](docs/UNWINDING.md).
 
 ## Visualize reports: HTML and Perfetto
 

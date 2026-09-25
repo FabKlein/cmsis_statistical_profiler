@@ -8,7 +8,7 @@
 # Description:  Native capture and Python decoder regression tests
 #
 # $Date:        22 September 2026
-# $Revision:    V.1.0.0
+# $Revision:    V.1.0.1
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -44,7 +44,7 @@ class ProfilerTests(unittest.TestCase):
                 header, samples = analyzer.read_capture(capture.read_bytes())
                 self.assertEqual(header["count"], 3)
                 self.assertEqual(header["version"], 1)
-                self.assertEqual(header["record_size"], 24)
+                self.assertEqual(header["record_base_bytes"], 24)
                 self.assertEqual(len(samples[0]), 6)
                 self.assertEqual(header["sample_hz"], rate)
                 self.assertAlmostEqual(analyzer.nominal_sample_hz(header),
@@ -100,11 +100,11 @@ class ProfilerTests(unittest.TestCase):
                     header, samples = analyzer.read_capture(data)
                     active = bool(count and available)
                     stride = 24 + (4 * count if active else 0)
-                    capacity = (236 + 12 * count - analyzer.HEADER.size) // stride
+                    capacity = (240 + 12 * count - analyzer.HEADER.size) // stride
                     self.assertEqual(header["pmu"]["status"], "disabled" if not count else "active" if available else "unavailable")
                     self.assertEqual(header["pmu"]["requested"], count)
-                    self.assertEqual(header["record_size"], stride)
-                    self.assertEqual(header["capacity"], capacity)
+                    self.assertEqual(header["record_base_bytes"], stride)
+                    self.assertEqual(header["bytes_used"], capacity * stride)
                     self.assertEqual(len(samples[0]), stride // 4)
                     events = analyzer.pmu_statistics(header)
                     self.assertEqual(len(events), count)
@@ -194,8 +194,8 @@ class ProfilerTests(unittest.TestCase):
 
     @staticmethod
     def capture_fields():
-        return [analyzer.MAGIC, analyzer.FORMAT_VERSION, 24, analyzer.HEADER.size + 24, 1, 1, 0, 0,
-                1000000, 1000, 0, 0, 1000, 1, 1, 1, 1, 1, 1000, 1000000] + [0] * 21
+        return [analyzer.MAGIC, analyzer.FORMAT_VERSION, 24, analyzer.HEADER.size + 24, 24, 1, 0, 0,
+                1000000, 1000, 0, 0, 1000, 1, 1, 1, 1, 1, 1000, 1000000] + [0] * 22
 
     def test_independent_timer_clock(self):
         fields = self.capture_fields()
@@ -226,6 +226,7 @@ class ProfilerTests(unittest.TestCase):
         self.assertEqual(sum(header["rejected_reasons"].values()), 10)
         self.assertEqual(header["pmu"]["status"], "disabled")
         self.assertEqual(analyzer.pmu_statistics(header), [])
+        fields[4] = 0
         fields[5] = 0
         header, samples = analyzer.read_capture(analyzer.HEADER.pack(*fields) + bytes(24))
         self.assertEqual(analyzer.analyze(header, samples, [])[:3], ([], [], 0))

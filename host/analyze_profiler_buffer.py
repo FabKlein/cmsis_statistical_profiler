@@ -8,7 +8,7 @@
 # Description:  Decode SRAM captures and report sampled functions using ELF symbols
 #
 # $Date:        22 September 2026
-# $Revision:    V.1.0.0
+# $Revision:    V.1.0.1
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -31,13 +31,13 @@ import sys
 
 MAGIC = 0x46504353
 FORMAT_VERSION = 1
-HEADER = struct.Struct("<41I")
+HEADER = struct.Struct("<42I")
 REJECTION_NAMES = ("invalid_exc_return", "unsupported_frame", "stack_bounds", "invalid_xpsr")
 RECORD = struct.Struct("<6I")
 PMU_STATES = {0: "disabled", 1: "unavailable", 2: "active", 3: "busy", 4: "unsupported", 5: "access_denied"}
 PMU_EVENTS = {0x0000: "sw-incr", 0x0003: "l1d-cache-refill", 0x0024: "stall-backend", 0x0008: "instructions-retired", 0x0011: "cpu-cycles"}
 HEADER_NAMES = (
-    "magic version record_size buffer_bytes capacity count rejected active timestamp_hz "
+    "magic version record_base_bytes buffer_bytes bytes_used count rejected active timestamp_hz "
     "timer_period start_timestamp start_tick stop_timestamp stop_tick full complete "
     "iterations validation_passed sample_hz timer_hz"
 ).split()
@@ -130,19 +130,22 @@ def read_capture(data):
         raise ValueError("Invalid unused PMU metadata")
     if 0x001E in events[:requested]:
         raise ValueError("CHAIN is reserved for counter pairing")
-    record = struct.Struct("<" + "I" * (6 + count))
-    if header["record_size"] != record.size:
-        raise ValueError("Record size disagrees with PMU count")
+    unwind_max_depth = fields[41]
+    if unwind_max_depth > 255:
+        raise ValueError("Invalid maximum unwind depth")
+    header["unwind_max_depth"] = unwind_max_depth
+    base = 24 + 4 * count + (4 if unwind_max_depth else 0)
+    if header["record_base_bytes"] != base:
+        raise ValueError("Record base size disagrees with PMU/backtrace metadata")
     header["pmu"] = dict(status=PMU_STATES[state], count=count, requested=requested, events=events[:requested],
                          counter_bits=bits, start=start[:requested], stop=stop[:requested], flags=flags,
                          scope="init_to_stop_all_execution")
     if header["active"] or header["complete"] != 1:
         raise ValueError("Capture not stopped/completed; dump after sampling_profiler_stop")
-    if not 0 <= header["count"] <= header["capacity"] or not header["capacity"]:
-        raise ValueError("Invalid record count or capacity")
-    if (header["buffer_bytes"] % 4 or
-            header["capacity"] != (header["buffer_bytes"] - HEADER.size) // record.size):
-        raise ValueError("Invalid buffer dimensions")
+    used = header["bytes_used"]
+    if (header["buffer_bytes"] % 4 or header["buffer_bytes"] < HEADER.size + base or used % 4 or
+            used > header["buffer_bytes"] - HEADER.size or header["count"] > used // base):
+        raise ValueError("Invalid buffer dimensions/count")
     if len(data) != header["buffer_bytes"]:
         raise ValueError("Dump size differs from header; dump the entire statistical_samples object")
     if not header["timestamp_hz"]:
@@ -154,7 +157,21 @@ def read_capture(data):
         raise ValueError("Sampling frequency and timer period disagree")
     if period * header["timestamp_hz"] // hz >= 0x40000000:
         raise ValueError("Timer period too long for unambiguous timestamps")
-    samples = list(record.iter_unpack(data[HEADER.size:HEADER.size + header["count"] * record.size]))
+    samples = []
+    cursor, end = HEADER.size, HEADER.size + used
+    for _ in range(header["count"]):
+        if end - cursor < base:
+            raise ValueError("Truncated record base")
+        depth = struct.unpack_from("<I", data, cursor + base - 4)[0] & 255 if unwind_max_depth else 0
+        if depth > unwind_max_depth:
+            raise ValueError("Record depth exceeds capture maximum")
+        size = base + 4 * depth
+        if size > end - cursor:
+            raise ValueError("Truncated caller array")
+        samples.append(struct.unpack_from("<" + "I" * (size // 4), data, cursor))
+        cursor += size
+    if cursor != end:
+        raise ValueError("Record count disagrees with bytes_used")
     for sample in samples:
         timestamp, tick, pc, lr, xpsr, exception_return = sample[:6]
         if not xpsr & (1 << 24) or xpsr & 0x1FF or (
@@ -264,6 +281,134 @@ def pmu_statistics(header):
     return rows
 
 
+UNWIND_STATES = {0: "complete", 1: "no_table", 2: "unsupported", 3: "stack_bounds",
+                 4: "invalid_pc", 5: "no_progress", 6: "depth_limit"}
+
+
+def executable_ranges(data):
+    """Read executable section ranges from the ELF already validated by elf_functions."""
+    offset = struct.unpack_from("<I", data, 32)[0]
+    size, count = struct.unpack_from("<HH", data, 46)
+    ranges = []
+    for index in range(count):
+        section = struct.unpack("<10I", checked_slice(data, offset + index * size, 40))
+        if section[2] & 6 == 6 and section[5]:
+            ranges.append((section[3], section[5]))
+    return ranges
+
+
+def lr_only_entries(data, functions):
+    """Find function entries covered by the exact inline EHABI finish recipe.
+
+    This recipe reads live LR without touching SP or saved registers, so it is
+    valid before the first instruction too. Other encodings stay conservative.
+    """
+    offset = struct.unpack_from("<I", data, 32)[0]
+    size, count = struct.unpack_from("<HH", data, 46)
+    safe = set()
+    for index in range(count):
+        section = struct.unpack("<10I", checked_slice(data, offset + index * size, 40))
+        if section[1] != 0x70000001 or not section[2] & 2:  # SHT_ARM_EXIDX, allocated
+            continue
+        if section[5] % 8:
+            return set()
+        entries = []
+        for n, (relative, recipe) in enumerate(struct.iter_unpack(
+                "<II", checked_slice(data, section[4], section[5]))):
+            if relative & 0x80000000:
+                return set()
+            delta = relative - (0x80000000 if relative & 0x40000000 else 0)
+            address = (section[3] + 8 * n + delta) & 0xffffffff
+            if address & 1 or (entries and address <= entries[-1][0]):
+                return set()
+            entries.append((address, recipe))
+        starts = [address for address, _ in entries]
+        for address, _, _ in functions:
+            entry = bisect_right(starts, address) - 1
+            if entry >= 0 and entries[entry][1] == 0x80B0B0B0:
+                safe.add(address)
+    return safe
+
+
+def analyze_backtraces(header, samples, functions, code_ranges, lr_entries=(), stack_root=None):
+    """Validate optional caller chains; never discard the underlying PC sample."""
+    addresses = [item[0] for item in functions]
+    folded, statuses = Counter(), Counter()
+    details = []
+    names = Counter(name for _, _, name in functions)
+    function_entries = set(addresses)
+
+    def label(pc):
+        index = bisect_right(addresses, pc) - 1
+        while index >= 0:
+            start, size, name = functions[index]
+            if start <= pc < start + size:
+                # Folded format uses semicolons and newlines as delimiters.
+                name = name.replace(";", ":").replace("\n", " ").replace("\r", " ")
+                return f"{name} [0x{start:08x}]" if names[functions[index][2]] > 1 else name
+            index -= 1
+        return f"[unknown@0x{pc:08x}]"
+
+    def executable(pc):
+        return any(base <= pc and pc - base < size for base, size in code_ranges)
+
+    offset = 6 + header["pmu"]["count"]
+    for sample in samples:
+        metadata = sample[offset]
+        depth, status = metadata & 255, metadata >> 8
+        raw = sample[offset + 1:]
+        valid = (depth <= header["unwind_max_depth"] and status in UNWIND_STATES and
+                 (status != 6 or depth == header["unwind_max_depth"]) and len(raw) == depth)
+        pc = sample[2] & ~1
+        valid = valid and executable(pc)
+        callers = []
+        if valid:
+            for address in raw[:depth]:
+                call_site = (address & ~1) - 2
+                if not address & 1 or call_site < 0 or not executable(call_site):
+                    valid = False
+                    break
+                callers.append(label(call_site))
+        state = UNWIND_STATES[status] if valid else "invalid_trace"
+        # EHABI assumes the prologue has executed. At the exact entry PC,
+        # applying its recipe can pop the caller's frame and skip a function.
+        safe_entry = pc in lr_entries and depth > 0 and raw[0] == sample[3]
+        at_entry = valid and pc in function_entries and not safe_entry
+        if at_entry:
+            state = "function_entry"
+        chain = list(reversed(callers)) + [label(pc)] if valid and not at_entry else [label(pc)]
+        disposition = "unreliable" if not valid or at_entry else "included"
+        displayed = chain
+        if disposition == "included" and stack_root is not None:
+            if stack_root in chain:
+                displayed = chain[chain.index(stack_root):]  # Outermost occurrence for recursion.
+            else:
+                disposition = "root_missing"
+        if disposition == "included":
+            folded[";".join(displayed)] += 1
+        statuses[state] += 1
+        details.append(dict(unwind_status=state, callers_raw=json.dumps([f"0x{x:08x}" for x in raw]),
+                            callchain=json.dumps(chain), flamegraph_status=disposition))
+    return folded, details, dict(statuses)
+
+
+def flamegraph_summary(details, root=None):
+    counts = Counter(item["flamegraph_status"] for item in details)
+    included = counts["included"]
+    partial = sum(item["flamegraph_status"] == "included" and item["unwind_status"] != "complete"
+                  for item in details)
+    text = f"{included} of {len(details)} samples shown"
+    if counts["unreliable"]:
+        text += f"; {counts['unreliable']} excluded because their call stacks could not be trusted"
+    if counts["root_missing"]:
+        text += f"; {counts['root_missing']} excluded because the selected root was not captured"
+    if partial:
+        text += ". Some stacks are partial (unwinding stopped early)."
+    return dict(root=root, total_samples=len(details), included_samples=included,
+                excluded_unreliable=counts["unreliable"], excluded_root_missing=counts["root_missing"],
+                partial_samples=partial, subtitle=text)
+
+
 def write_csv(path, rows, empty_fields):
     with path.open("w", newline="") as output:
         writer = csv.DictWriter(output, fieldnames=list(rows[0]) if rows else empty_fields)
@@ -278,6 +423,7 @@ def main():
     parser.add_argument("--output", type=Path, default=Path("sampling-report"))
     parser.add_argument("--top", type=int, default=0, help="Console function limit; 0 prints every sampled function (default)")
     parser.add_argument("--cxxfilt", help="C++ demangler executable; auto-detected from PATH by default")
+    parser.add_argument("--stack-root", help="Flamegraph base: exact displayed function name; omit chains without it")
     parser.add_argument("--no-demangle", action="store_true", help="Keep original ELF symbol names")
     args = parser.parse_args()
     if args.top < 0:
@@ -291,12 +437,29 @@ def main():
             functions = demangle_functions(functions, args.cxxfilt)
         rows, timeline, unknown, timing = analyze(header, samples, functions)
         pmu_rows = pmu_statistics(header)
+        folded, stack_statuses = Counter(), {}
+        stack_summary = None
+        if args.stack_root is not None and (not args.stack_root.strip() or not header["unwind_max_depth"]):
+            raise ValueError("--stack-root requires a nonempty name and a capture with backtraces")
+        if header["unwind_max_depth"]:
+            folded, stack_details, stack_statuses = analyze_backtraces(
+                header, samples, functions, executable_ranges(elf), lr_only_entries(elf, functions), args.stack_root)
+            stack_summary = flamegraph_summary(stack_details, args.stack_root)
+            for row, detail in zip(timeline, stack_details):
+                row.update(detail)
         args.output.mkdir(parents=True, exist_ok=True)
+        if header["unwind_max_depth"]:
+            (args.output / "stacks.folded").write_text("".join(f"{stack} {count}\n" for stack, count in sorted(folded.items())))
+            (args.output / "stacks.note.txt").write_text(stack_summary["subtitle"] + "\n")
+        else:
+            (args.output / "stacks.folded").unlink(missing_ok=True)
+            (args.output / "stacks.note.txt").unlink(missing_ok=True)
         write_csv(args.output / "functions.csv", rows, ["address", "function", "hits", "percent"])
         write_csv(args.output / "samples.csv", timeline,
                   ["sample", "timestamp", "timestamp_ticks_since_start",
                    "time_us", "tick", "pc", "lr", "xpsr", "exception_return", "function"] +
-                  [f"pmu{i}_{field}" for i in range(len(header["pmu"]["events"])) for field in ("raw", "interval_delta")])
+                  [f"pmu{i}_{field}" for i in range(len(header["pmu"]["events"])) for field in ("raw", "interval_delta")] +
+                  (["unwind_status", "callers_raw", "callchain", "flamegraph_status"] if header["unwind_max_depth"] else []))
         if pmu_rows:
             write_csv(args.output / "events.csv", pmu_rows, [])
         else:
@@ -305,6 +468,8 @@ def main():
                    "nominal_sample_hz": nominal_sample_hz(header),
                    "requested_sample_hz": header["sample_hz"],
                    "pmu_events": pmu_rows,
+                   "unwind_status_counts": stack_statuses,
+                   "flamegraph": stack_summary,
                    "tick_units": "sampling_interrupts",
                    "elf_sha256": hashlib.sha256(elf).hexdigest(),
                    "capture_sha256": hashlib.sha256(capture).hexdigest(),
@@ -319,6 +484,9 @@ def main():
     print(f"Sampling rate: {nominal_sample_hz(header):.12g} Hz (requested {header['sample_hz']} Hz)")
     if not timing["timing_valid"]:
         print("WARNING: timing invalid; derived time fields omitted. " + timing["timing_diagnostic"])
+    if header["unwind_max_depth"]:
+        print("Backtraces (best effort): " + ", ".join(f"{key}={value}" for key, value in stack_statuses.items()))
+        print("Flamegraph: " + stack_summary["subtitle"])
     if pmu_rows:
         print("PMU event counts (init to stop; all execution, including ISR/gated-off time):")
         for event in pmu_rows:

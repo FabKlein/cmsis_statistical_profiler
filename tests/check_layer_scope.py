@@ -8,7 +8,7 @@
 # Description:  Check generated CMSIS compiler flags stay within profiler groups
 #
 # $Date:        22 September 2026
-# $Revision:    V.1.0.0
+# $Revision:    V.1.0.1
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -59,8 +59,8 @@ def check_build(build, compiler):
             walk(group, flags)
 
     walk(data, [])
-    if len(seen) != 5 or "application.c" not in seen:
-        raise RuntimeError(f"Expected application, three common sources and one timer; got {seen}")
+    if len(seen) != 6 or "application.c" not in seen:
+        raise RuntimeError(f"Expected application, 4 common sources and 1 timer; got {seen}")
 
 
 def main():

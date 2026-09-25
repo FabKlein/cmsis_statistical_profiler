@@ -1,6 +1,34 @@
 ; SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 ; SPDX-License-Identifier: Apache-2.0
 ; CMSIS Statistical Profiler: AC6 secure SSE-300, 512 KiB ITCM / DTCM.
+;
+; Memory layout (addresses increase downward; region sizes depend on the build).
+;
+;         ITCM: 512 KiB                       DTCM: 512 KiB
+; 0x10000000 +---------------------+  0x30000000 +---------------------+
+;            | ER_ITCM             |             | RW_DTCM             |
+;            | - Interrupt vectors |             | - Initialized data  |
+;            | - Startup/runtime   |             | - Zeroed data       |
+;            | - Application code  |             | - Capture buffer    |
+;            | - Profiler code     |             | - Thread PSP stacks |
+;            | - Constants         |             +---------------------+
+;            +---------------------+             | Free space          |
+;            | ER_EXIDX            |             |                     |
+;            | Code-to-recipe index|             |                     |
+;            +---------------------+  0x3007C000 +---------------------+
+;            | ER_EXTAB            |             | ARM_LIB_STACK       |
+;            | Unwind recipes      |             | MSP: 16 KiB         |
+;            +---------------------+             |          ^          |
+;            | RW data load image  |             | Grows toward lower  |
+;            | Copied into DTCM    |             | addresses           |
+;            +---------------------+             |                     |
+;            | Free space          |             | Initial SP          |
+; 0x10080000 +---------------------+  0x30080000 +---------------------+
+;
+; LR_ITCM contains the load image; the Arm runtime copies RW data and clears ZI.
+; ARM_LIB_STACK reserves the top 16 KiB; PSP stacks are separate ZI arrays.
+; Region end addresses are exclusive. See profiler.map for exact placement.
+;
 LR_ITCM 0x10000000 0x80000
 {
     ER_ITCM 0x10000000 0x80000
@@ -9,6 +37,8 @@ LR_ITCM 0x10000000 0x80000
         *(InRoot$$Sections)
         .ANY (+RO)
     }
+    ER_EXIDX +0 { *(.ARM.exidx*) }
+    ER_EXTAB +0 { *(.ARM.extab*) }
     RW_DTCM 0x30000000 0x7C000
     {
         .ANY (+RW +ZI)

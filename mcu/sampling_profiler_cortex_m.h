@@ -10,7 +10,7 @@
  * Description:  Cortex-M timer hooks, timestamp interface and IRQ entry
  *
  * $Date:        22 September 2026
- * $Revision:    V.1.0.0
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -115,32 +115,80 @@ uint32_t profiler_timer_period(uint32_t timer_hz, uint32_t max_period);
  * @param exception_return Original LR value at exception entry.
  * @note Enter via PROFILER_DEFINE_IRQ_HANDLER; never via an ordinary C ISR wrapper.
  */
+#if PROFILER_STACK_UNWIND
+/** @param[in] saved_r8_r11_r4_r7 Original callee registers saved by the naked entry. */
+void statistical_sampling_tick(const uint32_t *frame, uint32_t exception_return, const uint32_t *saved_r8_r11_r4_r7);
+#else
 void statistical_sampling_tick(const uint32_t *frame, uint32_t exception_return);
+#endif
 #ifdef __cplusplus
 }
 #endif
 
 /* Must be the actual vector entry: never call this from an ordinary C ISR.
- * Tail-branch preserves EXC_RETURN and the original MSP/PSP exception frame.
+ * Preserves EXC_RETURN and the original MSP/PSP exception frame.
  * No FP/vector instructions are permitted in the IRQ path. */
 /**
  * @brief Define the actual naked sampling vector entry without altering the frame.
  * @param name Vector handler symbol required by the device startup file.
  * @warning No floating-point or vector instructions are permitted in the IRQ path.
  */
-#define PROFILER_DEFINE_IRQ_HANDLER(name)                                                                              \
-    __attribute__((naked)) void name(void)                                                                             \
-    {                                                                                                                  \
-        __asm volatile("mov r1, lr\n"                                                                                  \
-                       "movs r2, #4\n"                                                                                 \
-                       "tst r1, r2\n"                                                                                  \
-                       "beq 1f\n"                                                                                      \
-                       "mrs r0, psp\n"                                                                                 \
-                       "b 2f\n"                                                                                        \
-                       "1: mrs r0, msp\n"                                                                              \
-                       "2: ldr r3, =statistical_sampling_tick\n"                                                       \
-                       "bx r3\n");                                                                                     \
-    }
+#if PROFILER_STACK_UNWIND
+    /* Armv6-M-compatible entry (including Cortex-M0/M0+). Select the original frame before modifying MSP.
+     * Save r8-r11, r4-r7, EXC_RETURN and 1 padding word (40 bytes, 8-byte aligned).
+     * Restore every callee-saved register before returning from the exception. */
+    #define PROFILER_DEFINE_IRQ_HANDLER(name)                                                                          \
+        __attribute__((naked)) void name(void)                                                                         \
+        {                                                                                                              \
+            /* r1 = original EXC_RETURN; bit 2 selects the interrupted stack. */                                       \
+            __asm volatile("mov    r1, lr\n"                                                                           \
+                           "movs   r2, #4\n"                                                                           \
+                           "tst    r1, r2\n"                                                                           \
+                           "beq    1f\n" /* r0 = original hardware frame, before any handler stack changes. */         \
+                           "mrs    r0, psp\n"                                                                          \
+                           "b      2f\n"                                                                               \
+                           "1:\n"                                                                                      \
+                           "mrs    r0, msp\n"                                                                          \
+                           "2:\n"            /* Handler mode uses MSP. Reserve padding to keep C-call alignment. */    \
+                           "sub    sp, #4\n" /* Preserve interrupted low callee registers and EXC_RETURN. */           \
+                           "push   {r4-r7, lr}\n" /* Armv6-M PUSH cannot save r8-r11 directly; stage through r4-r7. */ \
+                           "mov    r4, r8\n"                                                                           \
+                           "mov    r5, r9\n"                                                                           \
+                           "mov    r6, r10\n"                                                                          \
+                           "mov    r7, r11\n"                                                                          \
+                           "push   {r4-r7}\n" /* r2 points to saved r8-r11, then r4-r7, then EXC_RETURN/padding. */    \
+                           "mov    r2, sp\n"                                                                           \
+                           "ldr    r3, =statistical_sampling_tick\n" /* Call C with (frame, EXC_RETURN, saved          \
+                                                                        registers); BLX replaces LR. */                \
+                           "blx    r3\n" /* Restore high registers first, using low registers as scratch. */           \
+                           "pop    {r4-r7}\n"                                                                          \
+                           "mov    r8, r4\n"                                                                           \
+                           "mov    r9, r5\n"                                                                           \
+                           "mov    r10, r6\n"                                                                          \
+                           "mov    r11, r7\n" /* Restore low registers, reload EXC_RETURN, then discard padding. */    \
+                           "pop    {r4-r7}\n"                                                                          \
+                           "pop    {r3}\n"                                                                             \
+                           "add    sp, #4\n" /* EXC_RETURN makes hardware restore the original exception frame. */     \
+                           "bx     r3\n");                                                                             \
+        }
+#else
+    #define PROFILER_DEFINE_IRQ_HANDLER(name)                                                                          \
+        __attribute__((naked)) void name(void)                                                                         \
+        {                                                                                                              \
+            /* r1 = original EXC_RETURN; bit 2 selects the interrupted stack. */                                       \
+            __asm volatile("mov    r1, lr\n"                                                                           \
+                           "movs   r2, #4\n"                                                                           \
+                           "tst    r1, r2\n"                                                                           \
+                           "beq    1f\n" /* r0 = original hardware frame, before any handler stack changes. */         \
+                           "mrs    r0, psp\n"                                                                          \
+                           "b      2f\n"                                                                               \
+                           "1:\n"                                                                                      \
+                           "mrs    r0, msp\n"                                                                          \
+                           "2:\n" /* Tail-branch to C: keep LR = EXC_RETURN and leave MSP untouched. */                \
+                           "ldr    r3, =statistical_sampling_tick\n"                                                   \
+                           "bx     r3\n");                                                                             \
+        }
+#endif
 #ifndef PROFILER_IRQ_PRIORITY
     /**
      *     @brief Sampling IRQ priority; defaults to the lowest implemented priority.

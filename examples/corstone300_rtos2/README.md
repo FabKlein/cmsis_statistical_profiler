@@ -1,5 +1,8 @@
 # Corstone-300 CMSIS-RTOS2 illustration
 
+For a runnable 2-thread A–F/A1–F1 test with backtraces and a flamegraph, see
+[CMSIS-RTX call-tree test](CALL_TREE.md). The illustration below remains standalone.
+
 Add this example to a working secure, single-core M55 CMSIS-RTOS2 BSP project.
 It supplies application code, not a kernel, startup or linker script.
 2 workers run deterministic workloads and yield; a privileged controller captures
@@ -52,5 +55,5 @@ Leave precise stack bounds disabled: CMSIS-RTOS2 has no portable ISR-safe stack
 base/size query. Enabling it requires a kernel adapter or synchronized allocation
 registry covering task lifetimes, kernel tasks and interrupted-context selection.
 
-GCC/AC6 compile-checked against CMSIS 6.3.0 and BSP 1.5.0. No RTOS kernel has been
-linked or run. Use the [bare-metal example](../corstone300/README.md) for tested FVP capture.
+GCC/AC6 compile-checked against CMSIS 6.3.0 and BSP 1.5.0. This illustration has not been linked or run with a kernel; the separate
+[call-tree test](CALL_TREE.md) has been run with RTX. Use the [bare-metal example](../corstone300/README.md) for tested FVP capture.

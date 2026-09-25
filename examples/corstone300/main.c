@@ -10,7 +10,7 @@
  * Description:  Corstone-300 capture and workload validation example
  *
  * $Date:        22 September 2026
- * $Revision:    V.1.0.0
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -33,13 +33,19 @@ extern unsigned char __StackLimit[], __StackTop[];
 #endif
 
 volatile uint32_t profiler_example_result;
+#ifndef PROFILER_EXAMPLE_CALL_TREE
 static volatile uint32_t result;
+#endif
 volatile uint32_t application_millis;
 void SysTick_Handler(void) { ++application_millis; }
 
-#ifdef PROFILER_EXAMPLE_FLOAT
+#ifdef PROFILER_EXAMPLE_CALL_TREE
+extern int run_once(void);
+extern int validate(void);
+#else
+    #ifdef PROFILER_EXAMPLE_FLOAT
 static volatile float fp_result;
-#endif
+    #endif
 
 __attribute__((noinline)) static int run_once(void)
 {
@@ -47,23 +53,25 @@ __attribute__((noinline)) static int run_once(void)
     for (uint32_t i = 0; i < 10000U; ++i)
         value = value * 1664525U + 1013904223U;
     result = value;
-#ifdef PROFILER_EXAMPLE_FLOAT
+    #ifdef PROFILER_EXAMPLE_FLOAT
     float fp = 1.0f;
     for (uint32_t i = 0; i < 10000U; ++i)
         fp = fp * 0.5f + 1.0f;
     fp_result = fp;
-#endif
+    #endif
     return 1;
 }
 
 static int validate(void)
 {
-#ifdef PROFILER_EXAMPLE_FLOAT
+    #ifdef PROFILER_EXAMPLE_FLOAT
     if (fp_result != 2.0f)
         return 0;
-#endif
+    #endif
     return result == 0xF0D18BC8U;
 }
+
+#endif
 
 __attribute__((used, noinline)) static int capture(void) { return profile_workload(run_once, validate); }
 

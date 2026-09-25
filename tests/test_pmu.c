@@ -10,7 +10,7 @@
  * Description:  PMU lifecycle, chaining, ownership and snapshot tests
  *
  * $Date:        22 September 2026
- * $Revision:    V.1.0.0
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -90,7 +90,7 @@ int main(int argc, char **argv)
 #endif
     assert(sampling_profiler_init());
     assert(statistical_samples.header.version == 1U &&
-           statistical_samples.header.record_size == 24U + 4U * statistical_samples.header.pmu_count);
+           statistical_samples.header.record_base_bytes == 24U + 4U * statistical_samples.header.pmu_count);
 #if defined(TEST_PMU) && PROFILER_PMU_COUNT
     assert(statistical_samples.header.pmu_status == 2U);
     assert(PMU->CNTENSET == ((1U << 31) | ((1U << (2U * PROFILER_PMU_COUNT)) - 1U)));
@@ -110,7 +110,9 @@ int main(int argc, char **argv)
            !statistical_samples.header.pmu_count);
 #endif
     sampling_profiler_enable();
-    for (uint32_t i = 1U; i <= statistical_samples.header.capacity; ++i)
+    uint32_t capacity =
+        (PROFILER_SAMPLE_BUFFER_BYTES - PROFILER_HEADER_BYTES) / statistical_samples.header.record_base_bytes;
+    for (uint32_t i = 1U; i <= capacity; ++i)
     {
 #if defined(TEST_PMU) && PROFILER_PMU_COUNT
         for (uint32_t event = 0; event < PROFILER_PMU_COUNT; ++event)
@@ -122,8 +124,7 @@ int main(int argc, char **argv)
         record();
     }
     assert(sampling_profiler_full());
-    assert(statistical_samples.header.capacity ==
-           (PROFILER_SAMPLE_BUFFER_BYTES - PROFILER_HEADER_BYTES) / statistical_samples.header.record_size);
+    assert(statistical_samples.header.bytes_used == capacity * statistical_samples.header.record_base_bytes);
     sampling_profiler_stop(1U, 1U);
 #if defined(TEST_PMU) && PROFILER_PMU_COUNT
     assert(PMU->CNTENSET == (1U << 31));

@@ -8,7 +8,7 @@
 # Description:  Check FVP capture reports against explicit pass/fail criteria
 #
 # $Date:        22 September 2026
-# $Revision:    V.1.0.0
+# $Revision:    V.1.0.1
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -63,6 +63,14 @@ def check_report(report, reference):
     require(percent >= reference["minimum_workload_percent"], f"{workload} share too low: {percent:.2f}%")
     require(any(int(row["exception_return"], 16) == int(reference["required_exception_return"], 16)
                 for row in samples), "no extended PSP frame captured")
+    if "minimum_caller_depth" in reference:
+        usable = sum(row.get("unwind_status") not in ("invalid_trace", "function_entry") and
+                     sum(value != "0x00000000" for value in json.loads(row["callers_raw"])) >= reference["minimum_caller_depth"]
+                     for row in samples)
+        require(100 * usable / count >= reference["minimum_unwound_percent"] if count else False,
+                "too few samples with usable caller chains")
+        folded = (report / "stacks.folded").read_text().splitlines()
+        require(sum(int(line.rsplit(" ", 1)[1]) for line in folded) == sum(row.get("flamegraph_status", "included") == "included" for row in samples), "folded stacks lost samples")
     pmu = h["pmu"]
     expected_count = reference["expected"]["header"]["pmu"]["count"]
     require(len(events) == expected_count and len(summary["pmu_events"]) == expected_count,

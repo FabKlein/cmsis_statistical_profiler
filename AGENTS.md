@@ -17,8 +17,12 @@ Start with [README.md](README.md). Use [configuration](docs/CONFIGURATION.md),
 - Keep ISR code bounded and integer-only: no allocation, blocking, logging, FP or
   vector instructions. Preserve the original exception frame.
 - Maintain 1 [format](FORMAT.md): 6 base words plus `pmu_count` words, 24–40
-  bytes for 0–4 events. Change firmware, decoder and tests together; no legacy compatibility branches.
+  bytes for 0–4 events, plus optional EHABI depth/status and only the recovered caller words.
+  `PROFILER_UNWIND_MAX_DEPTH` defaults to 16; use header `bytes_used` and each
+  record's depth, never assume a fixed stride/capacity with backtraces. Change firmware, decoder and tests together; no legacy compatibility branches.
   PMU deltas are not per-function counts.
+- For [backtraces](docs/UNWINDING.md), bound every read and retain partial-trace status.
+  Require precise task-stack bounds; never call exception personality routines.
 - Preserve SPDX/project headers and Doxygen contracts. Use `.clang-format` for C/H;
   preserve protected device include order.
 - For behavior changes, run `python3 -B -m unittest discover -s tests -v`.

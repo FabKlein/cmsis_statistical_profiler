@@ -10,7 +10,7 @@
  * Description:  Cortex-M timestamping, frame validation and sampling backend
  *
  * $Date:        22 September 2026
- * $Revision:    V.1.0.0
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -22,6 +22,9 @@
  */
 
 #include "sampling_profiler_cortex_m.h"
+#if PROFILER_STACK_UNWIND
+    #include "sampling_profiler_unwind.h"
+#endif
 #include PROFILER_DEVICE_HEADER
 #include <stddef.h>
 
@@ -134,9 +137,10 @@ uint32_t profiler_port_millis(void) { return milliseconds; }
  * @brief Validate the 8 core frame words against readable RAM and optional stack bounds.
  * @param[in] frame Candidate frame address, not dereferenced by this check.
  * @param exception_return Selects the interrupted stack for precise bounds.
+ * @param[out] selected Intersection of the allocation and readable RAM region.
  * @return Nonzero when aligned and contained in all required bounds.
  */
-static int readable_frame(const uint32_t *frame, uint32_t exception_return)
+static int readable_frame(const uint32_t *frame, uint32_t exception_return, struct ProfilerStackBounds *selected)
 {
     uintptr_t address = (uintptr_t)frame;
     const size_t bytes = 8U * sizeof(uint32_t);
@@ -156,7 +160,18 @@ static int readable_frame(const uint32_t *frame, uint32_t exception_return)
         /* Subtraction avoids overflowing base+size or underflowing size-32. */
         if (stack_regions[i].bytes >= bytes && address >= stack_regions[i].address &&
             address - stack_regions[i].address <= stack_regions[i].bytes - bytes)
+        {
+            selected->base = stack_regions[i].address;
+            selected->bytes = stack_regions[i].bytes;
+#if PROFILER_PRECISE_STACK_BOUNDS
+            uintptr_t base = bounds.base > selected->base ? bounds.base : selected->base;
+            size_t a = bounds.bytes - (base - bounds.base);
+            size_t b = selected->bytes - (base - selected->base);
+            selected->base = base;
+            selected->bytes = a < b ? a : b;
+#endif
             return 1;
+        }
     }
     return 0;
 }
@@ -185,6 +200,10 @@ int profiler_port_init(struct ProfilerClock *clock)
     if (!configure_stack_regions() || !profiler_timestamp_init(&timestamp_hz) || !timestamp_hz)
         return 0;
 
+#if PROFILER_STACK_UNWIND
+    if (!profiler_unwind_init())
+        return 0;
+#endif
     uint32_t primask = __get_PRIMASK();
     __disable_irq();
     clock->timestamp_hz = timestamp_hz;
@@ -228,7 +247,13 @@ void profiler_port_flush(const void *address, uint32_t bytes)
     __DSB();
 }
 
-__attribute__((used, noinline)) void statistical_sampling_tick(const uint32_t *frame, uint32_t exception_return)
+__attribute__((used, noinline)) void statistical_sampling_tick(const uint32_t *frame,
+                                                               uint32_t exception_return
+#if PROFILER_STACK_UNWIND
+                                                               ,
+                                                               const uint32_t *saved_r8_r11_r4_r7
+#endif
+)
 {
     if (!profiler_timer_ack())
         return;
@@ -251,7 +276,8 @@ __attribute__((used, noinline)) void statistical_sampling_tick(const uint32_t *f
         sampling_profiler_reject(PROFILER_REJECT_UNSUPPORTED_FRAME);
         return;
     }
-    if (!readable_frame(frame, exception_return))
+    struct ProfilerStackBounds bounds;
+    if (!readable_frame(frame, exception_return, &bounds))
     {
         sampling_profiler_reject(PROFILER_REJECT_STACK_BOUNDS);
         return;
@@ -264,14 +290,46 @@ __attribute__((used, noinline)) void statistical_sampling_tick(const uint32_t *f
     }
     /* R0..xPSR are first in both basic and FP/MVE extended frames on this
      * backend. DCRS/security checks above exclude additional callee frames. */
-    struct ProfilerSample sample = {.timestamp = timestamp,
-                                    .tick = profiler_port_ticks(),
-                                    .pc = frame[6],
-                                    .lr = frame[5],
-                                    .xpsr = xpsr,
-                                    .exception_return = exception_return};
+    /* Assign mandatory fields explicitly: aggregate zero-initialization of the
+     * optional trace can introduce an ISR call to a vectorized libc memset. */
+    struct ProfilerSample sample;
+    sample.timestamp = timestamp;
+    sample.tick = profiler_port_ticks();
+    sample.pc = frame[6];
+    sample.lr = frame[5];
+    sample.xpsr = xpsr;
+    sample.exception_return = exception_return;
 #if PROFILER_PMU_COUNT
     profiler_pmu_snapshot(sample.pmu);
+#endif
+#if PROFILER_STACK_UNWIND
+    /* Hardware frame: core words, optionally 18 FP words, optionally alignment padding.
+     * Lazy FP stacking reserves the same space even when FP values were not written. */
+    uint32_t frame_bytes = ((exception_return & 0x10U) ? 8U : 26U) * 4U + ((xpsr & (1U << 9)) ? 4U : 0U);
+    uintptr_t address = (uintptr_t)frame;
+    if (bounds.bytes < frame_bytes || address - bounds.base > bounds.bytes - frame_bytes ||
+        address > UINT32_MAX - frame_bytes)
+    {
+        sample.unwind = PROFILER_UNWIND_BOUNDS << 8;
+        volatile uint32_t *callers = sample.callers;
+        for (uint32_t i = 0; i < PROFILER_UNWIND_MAX_DEPTH; ++i)
+            callers[i] = 0;
+    }
+    else
+    {
+        uint32_t regs[16];
+        for (uint32_t i = 0; i < 4U; ++i)
+        {
+            regs[i] = frame[i];
+            regs[i + 4U] = saved_r8_r11_r4_r7[i + 4U];
+            regs[i + 8U] = saved_r8_r11_r4_r7[i];
+        }
+        regs[12] = frame[4];
+        regs[13] = (uint32_t)address + frame_bytes;
+        regs[14] = frame[5];
+        regs[15] = frame[6];
+        profiler_unwind_capture(&sample, regs, &bounds);
+    }
 #endif
     sampling_profiler_record(&sample);
 }

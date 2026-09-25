@@ -1,12 +1,16 @@
 # Validation
 
-Checked on 22 September 2026:
+Updated on 24 September 2026:
 
 | Check | Coverage / result |
 |---|---|
-| 26 native/Python test groups | Lifecycle, rates, cache, timer stop/restart, PRIMASK, SysTick preservation, clock wraps, frame/bounds rejection, DTCM configuration and malformed/empty captures |
+| 39 native/Python test groups | Lifecycle, rates, cache, timer stop/restart, PRIMASK, SysTick preservation, clock wraps, frame/bounds rejection, DTCM configuration and malformed/empty captures |
+| EHABI backtraces | Native compact recipes, bounds, register reconstruction, basic/FP/padded MSP/PSP frames, wrong-task rejection, all PMU counts, variable record lengths, configurable depth limits, atomic full-buffer handling and folded-stack filtering; AC6/GCC architecture matrix includes the enabled IRQ entry |
+| Backtrace FVP | AC6/GCC PSP/FP captures recover `capture_on_psp;profile_workload;run_once`; 84 samples and valid timing. AC6 MSP also recovers callers and stops at missing runtime metadata. Physical hardware remains untested |
 | Host C++ symbols | Batched demangling, overloads, C names, unavailable/failed tools, CLI reports and opt-out |
 | PMU tests | All counts 0–4, capacity checks, availability, authentication, ownership, chaining, read retries, overflow, restart and shared cycle-counter preservation; compact records for every active count and when inactive |
+| A–F call-tree FVP | ATfE 22.1, 333 Hz, 16-caller limit: 151 samples, valid timing and workload counts; all 10 F samples reach Reset_Handler (10 callers). No depth truncation; host entry filtering isolates the 3 skipped-caller traces; finish-only F entries are retained. Root boundary stops with invalid_pc; SVG generated |
+| ATfE Clang 22.1.0 | Cortex-M architecture matrix passed with unwinding enabled; LLD-linked PSP/FP FVP capture: 84 samples, 0 rejected/unresolved, 97.62% recover 2 callers; timing and acceptance checks passed |
 | GCC 13.2.1 / AC6 6.24 | M0/M0+/M1/M3/M4/M7/M23/M33/M35P/M52/M55/M85; applicable security and custom timestamp settings |
 | Alif AMP adapter | Native tests cover all 12 channel selections, shared-clock preservation, other-channel isolation, busy/security rejection and restart; GCC/AC6 check HP/HE defaults and overrides |
 | Real SDK adapters | STM32N6, Corstone-300, Alif HP/HE; dedicated vectors, no SysTick/HAL ownership; GCC relocatable links |
@@ -14,6 +18,7 @@ Checked on 22 September 2026:
 | 4-event FVP | AC6: 84 samples, 100% workload hits, valid timing, all 4 event reports decoded; functional model totals are 0 |
 | PMU on/off FVP | 2 333 Hz captures each; final capture: 84 samples, validation passed, no rejected/unresolved PCs |
 | PMU software-increment diagnostic | 2,020,000 events on each chained pair, crossing low-half rollovers |
+| CMSIS-RTX call-tree FVP | ATfE 22.1 / RTX 5.9.1: 2 preemptively scheduled workers with separate static PSP stacks; 665 samples, valid timing, 0 rejected/unresolved, separate A–F/A1–F1 chains and successful workload validation. [Reproduce](../examples/corstone300_rtos2/CALL_TREE.md) |
 | CMSIS-RTOS2 illustration | GCC/AC6 compilation and exception-symbol checks only; no kernel linked/run |
 | CMSIS layers | Schema validation and generated AC6/GCC builds: application flags unchanged; core and all timer groups protected |
 | Timing checks | Frozen counters, rate mismatch, mid-capture drift and stop epochs; valid wraps, coarse counters and degraded reports |
@@ -47,16 +52,20 @@ python3 tests/compile_adapters.py \
   --sample-hz 125 333 2500 --pmu
 ```
 
+Add `--stack-unwind --output build/fvp-unwind` to the FVP runner below to require
+at least 90% of samples to recover 2 callers and verify folded-stack counts.
+
 Run `python3 tests/check_layer_scope.py --compiler AC6 GCC` to check compiler-option
 scope (requires csolution, PyYAML and the packs above). CI checks AC6.
 
-Supply `--cc /path/to/armclang` for AC6. SDKs are not downloaded by the scripts;
+Supply `--cc /path/to/armclang` for AC6. The architecture check and example
+builder also accept `--cc /path/to/ATfE/bin/clang`; the CI runner remains AC6-only. SDKs are not downloaded by the scripts;
 omit adapter SDK options you do not have. Temporary objects are built outside
 the source tree. FVP build/run instructions are in the
 [Corstone example](../examples/corstone300/README.md).
 
 Physical STM32N6, Alif and MPS3 FPGA execution, M0/non-secure runtime execution,
-and RTOS scheduling/stack integration remain unverified. FVP validates capture
+and other RTOS kernels/dynamic stack integration remain unverified. FVP validates capture
 flow and counter integration, not cycle-accurate silicon performance.
 
 ## CI reference

@@ -10,7 +10,7 @@
  * Description:  Board-independent sample storage and capture lifecycle
  *
  * $Date:        22 September 2026
- * $Revision:    V.1.0.0
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -26,8 +26,8 @@
 #include <string.h>
 
 _Static_assert(sizeof(struct ProfilerSamplingHeader) == PROFILER_HEADER_BYTES, "Header format");
-_Static_assert(PROFILER_SAMPLE_BUFFER_BYTES >=
-                   PROFILER_HEADER_BYTES + PROFILER_BASE_RECORD_BYTES + 4U * PROFILER_PMU_COUNT,
+_Static_assert(PROFILER_SAMPLE_BUFFER_BYTES >= PROFILER_HEADER_BYTES + PROFILER_BASE_RECORD_BYTES +
+                       4U * PROFILER_PMU_COUNT + 4U * PROFILER_STACK_UNWIND,
                "Buffer must hold a header and sample");
 #ifdef PROFILER_SRAM_REGION_BYTES
 _Static_assert(PROFILER_SAMPLE_BUFFER_BYTES <= PROFILER_SRAM_REGION_BYTES, "Buffer exceeds reserved sampling SRAM");
@@ -50,7 +50,7 @@ int sampling_profiler_init(void)
     memset((void *)&statistical_samples, 0, sizeof(statistical_samples));
     statistical_samples.header.magic = PROFILER_CAPTURE_MAGIC;
     statistical_samples.header.version = PROFILER_FORMAT_VERSION;
-    statistical_samples.header.record_size = PROFILER_BASE_RECORD_BYTES;
+    statistical_samples.header.record_base_bytes = PROFILER_BASE_RECORD_BYTES;
     statistical_samples.header.buffer_bytes = sizeof(statistical_samples);
     statistical_samples.header.sample_hz = PROFILER_SAMPLE_HZ;
     struct ProfilerClock clock;
@@ -62,8 +62,9 @@ int sampling_profiler_init(void)
 #if PROFILER_PMU_COUNT
     profiler_pmu_init();
 #endif
-    statistical_samples.header.record_size = PROFILER_BASE_RECORD_BYTES + 4U * statistical_samples.header.pmu_count;
-    statistical_samples.header.capacity = sizeof(statistical_samples.records) / statistical_samples.header.record_size;
+    statistical_samples.header.unwind_max_depth = PROFILER_STACK_UNWIND ? PROFILER_UNWIND_MAX_DEPTH : 0U;
+    statistical_samples.header.record_base_bytes =
+        PROFILER_BASE_RECORD_BYTES + 4U * statistical_samples.header.pmu_count + 4U * PROFILER_STACK_UNWIND;
     statistical_samples.header.start_timestamp = profiler_port_timestamp();
     statistical_samples.header.start_tick = profiler_port_ticks();
     initialized = 1;
@@ -120,9 +121,22 @@ void sampling_profiler_record(const struct ProfilerSample *sample)
     if (!statistical_sampling_gate)
         return;
     uint32_t index = statistical_samples.header.count;
-    if (index >= statistical_samples.header.capacity)
+    uint32_t bytes = statistical_samples.header.record_base_bytes;
+#if PROFILER_STACK_UNWIND
+    uint32_t depth = sample->unwind & 255U;
+    if (depth > PROFILER_UNWIND_MAX_DEPTH)
         return;
-    volatile uint32_t *record = &statistical_samples.records[index * (statistical_samples.header.record_size / 4U)];
+    bytes += 4U * depth;
+#endif
+    uint32_t used = statistical_samples.header.bytes_used;
+    if (bytes > sizeof(statistical_samples.records) - used)
+    {
+        statistical_samples.header.full = 1;
+        statistical_sampling_gate = 0;
+        statistical_samples.header.active = 0;
+        return;
+    }
+    volatile uint32_t *record = &statistical_samples.records[used / 4U];
     record[0] = sample->timestamp;
     record[1] = sample->tick;
     record[2] = sample->pc;
@@ -133,9 +147,16 @@ void sampling_profiler_record(const struct ProfilerSample *sample)
     for (uint32_t event = 0; event < statistical_samples.header.pmu_count; ++event)
         record[6U + event] = sample->pmu[event];
 #endif
+#if PROFILER_STACK_UNWIND
+    uint32_t offset = 6U + statistical_samples.header.pmu_count;
+    record[offset] = sample->unwind;
+    for (uint32_t i = 0; i < depth; ++i)
+        record[offset + 1U + i] = sample->callers[i];
+#endif
     profiler_port_barrier();
+    statistical_samples.header.bytes_used = used + bytes;
     statistical_samples.header.count = index + 1U;
-    if (index + 1U == statistical_samples.header.capacity)
+    if (sizeof(statistical_samples.records) - used - bytes < statistical_samples.header.record_base_bytes)
     {
         statistical_samples.header.full = 1;
         statistical_sampling_gate = 0;

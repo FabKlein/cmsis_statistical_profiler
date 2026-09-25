@@ -10,7 +10,7 @@
  * Description:  Board-independent capture configuration
  *
  * $Date:        22 September 2026
- * $Revision:    V.1.0.0
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -94,6 +94,17 @@
     #define PROFILER_PRECISE_STACK_BOUNDS 0
 #endif
 
+/** @brief Enable best-effort EHABI backtraces (0/1), default 0; needs exact stack bounds. */
+#ifndef PROFILER_STACK_UNWIND
+    #define PROFILER_STACK_UNWIND 0
+#endif
+#if PROFILER_STACK_UNWIND != 0 && PROFILER_STACK_UNWIND != 1
+    #error "PROFILER_STACK_UNWIND must be 0 or 1"
+#endif
+#if PROFILER_STACK_UNWIND && !PROFILER_PRECISE_STACK_BOUNDS
+    #error "Stack unwinding requires PROFILER_PRECISE_STACK_BOUNDS=1 and the stack bounds hook"
+#endif
+
 /* Optional PMU event snapshots; raw architectural event IDs keep the core
  * independent of device headers. The backend uses CMSIS PMU functions. */
 #ifndef PROFILER_PMU_COUNT
@@ -115,6 +126,14 @@
 /** @brief Fourth event; default 0x0011, CPU cycles. */
 #ifndef PROFILER_PMU_EVENT3
     #define PROFILER_PMU_EVENT3 0x0011U
+#endif
+
+/** @brief Maximum recovered callers; limits ISR work and temporary storage. */
+#ifndef PROFILER_UNWIND_MAX_DEPTH
+    #define PROFILER_UNWIND_MAX_DEPTH 16U
+#endif
+#if PROFILER_UNWIND_MAX_DEPTH < 1 || PROFILER_UNWIND_MAX_DEPTH > 255
+    #error "PROFILER_UNWIND_MAX_DEPTH must be 1..255"
 #endif
 
 #endif
