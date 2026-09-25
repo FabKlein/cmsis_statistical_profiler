@@ -9,8 +9,8 @@
  * Title:        test_alif_timer.c
  * Description:  Check per-core channel isolation and shared-clock ownership
  *
- * $Date:        22 September 2026
- * $Revision:    V.1.0.0
+ * $Date:        25 September 2026
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  * -------------------------------------------------------------------- */
@@ -35,6 +35,15 @@ uint32_t profiler_timer_period(uint32_t hz, uint32_t max)
     return hz / PROFILER_SAMPLE_HZ;
 }
 
+static enum ProfilerInitReason last_reason;
+int profiler_init_fail(enum ProfilerInitStage stage, enum ProfilerInitReason reason, uint32_t value0, uint32_t value1)
+{
+    assert(stage == PROFILER_INIT_TIMER);
+    last_reason = reason;
+    (void)value0;
+    (void)value1;
+    return 0;
+}
 int main(void)
 {
     const uint32_t channel = PROFILER_ALIF_UTIMER_CHANNEL;
@@ -50,21 +59,26 @@ int main(void)
     fake_timer.UTIMER_GLB_CLOCK_ENABLE = 1U << other;
     profiler_timer_stop(); /* Must not write anything before ownership. */
     assert(!fake_timer.UTIMER_GLB_CNTR_STOP);
-    assert(!profiler_timer_init(&clock)); /* Missing startup clock enable. */
+    assert(!profiler_timer_init(&clock));
+    assert(last_reason == PROFILER_INIT_BAD_CLOCK); /* Missing startup clock enable. */
     assert(fake_timer.UTIMER_GLB_CLOCK_ENABLE == (1U << other));
     fake_timer.UTIMER_GLB_CLOCK_ENABLE |= 1U << channel; /* Serialized board setup. */
     uint32_t clocks = fake_timer.UTIMER_GLB_CLOCK_ENABLE;
     fake_target[irq] = 1U;
     assert(!profiler_timer_init(&clock));
+    assert(last_reason == PROFILER_INIT_DENIED);
     fake_target[irq] = 0U;
     fake_enabled[irq] = 1U;
     assert(!profiler_timer_init(&clock));
+    assert(last_reason == PROFILER_INIT_BUSY);
     fake_enabled[irq] = 0U;
     CHANNEL.UTIMER_CNTR_CTRL = 1U;
     assert(!profiler_timer_init(&clock));
+    assert(last_reason == PROFILER_INIT_BUSY);
     CHANNEL.UTIMER_CNTR_CTRL = 0U;
     fake_timer.UTIMER_GLB_CNTR_RUNNING = CHANNEL_MASK;
     assert(!profiler_timer_init(&clock));
+    assert(last_reason == PROFILER_INIT_BUSY);
     fake_timer.UTIMER_GLB_CNTR_RUNNING = 1U << other;
     assert(profiler_timer_init(&clock));
     assert(clock.timestamp_hz == 123U && clock.timer_hz == PROFILER_TIMER_CLOCK_HZ);

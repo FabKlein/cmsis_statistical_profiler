@@ -7,8 +7,8 @@
 # Title:        cmsis_statistical_profiler.clayer.yml
 # Description:  Common capture core, Cortex-M backend and application settings
 #
-# $Date:        22 September 2026
-# $Revision:    V.1.0.1
+# $Date:        25 September 2026
+# $Revision:    V.1.0.2
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -17,13 +17,14 @@
 layer:
   description: Statistical capture core and Cortex-M backend (select 1 board and 1 timer)
   type: Profiler
-  # Application capture settings; applied consistently to every source file.
-  define:
-    - PROFILER_SAMPLE_HZ: 1000             # Requested samples/second.
-    - PROFILER_SAMPLE_BUFFER_BYTES: 65536  # RAM budget, including header; stops when full.
+  # Configure in the application cproject.yml, not this dependency.
+  # Defaults live in mcu/sampling_profiler_config.h. Example project definitions:
+  # define:
+    # - PROFILER_SAMPLE_HZ: 1000             # Requested samples/second.
+    # - PROFILER_SAMPLE_BUFFER_BYTES: 65536  # RAM budget, including header; stops when full.
     # Backtraces: enable both options below; requires unwind tables and bounds hooks.
     # Storage: 4-byte metadata + 4 bytes/caller. Setup: docs/UNWINDING.md.
-    - PROFILER_UNWIND_MAX_DEPTH: 16        # Caller limit; only recovered callers are stored.
+    # - PROFILER_UNWIND_MAX_DEPTH: 16        # Caller limit; only recovered callers are stored.
     # - PROFILER_STACK_UNWIND: 1           # Collect EHABI caller chains.
     # - PROFILER_PRECISE_STACK_BOUNDS: 1   # Validate against the interrupted task's stack.
     # Optional: 0–4 32-bit events, each using 2 chained hardware counters.

@@ -9,8 +9,8 @@
  * Title:        sampling_profiler_port.h
  * Description:  Internal capture core and platform backend interface
  *
- * $Date:        22 September 2026
- * $Revision:    V.1.0.0
+ * $Date:        25 September 2026
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -51,6 +51,11 @@ extern "C" {
  * @return 1 on success, 0 if the configuration or hardware is unavailable.
  */
 int profiler_port_init(struct ProfilerClock *clock);
+/** @brief Record an init failure and return 0; never call from the sampling ISR.
+ * @details Timer bad-clock context is input Hz/requested Hz; busy/denied context is IRQ/0.
+ * Unwind context is entry or region index/0. Other context values are 0 unless documented.
+ */
+int profiler_init_fail(enum ProfilerInitStage stage, enum ProfilerInitReason reason, uint32_t value0, uint32_t value1);
 /**
  * @brief Stop sampling interrupts while preserving the caller's interrupt mask.
  * @note Must be safe before initialization and on repeated calls.

@@ -9,8 +9,8 @@
  * Title:        test_pmu.c
  * Description:  PMU lifecycle, chaining, ownership and snapshot tests
  *
- * $Date:        22 September 2026
- * $Revision:    V.1.0.1
+ * $Date:        25 September 2026
+ * $Revision:    V.1.0.2
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -89,7 +89,7 @@ int main(int argc, char **argv)
     fake_dwt.CYCCNT = 0x12345678U;
 #endif
     assert(sampling_profiler_init());
-    assert(statistical_samples.header.version == 1U &&
+    assert(statistical_samples.header.version == 2U &&
            statistical_samples.header.record_base_bytes == 24U + 4U * statistical_samples.header.pmu_count);
 #if defined(TEST_PMU) && PROFILER_PMU_COUNT
     assert(statistical_samples.header.pmu_status == 2U);

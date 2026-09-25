@@ -41,6 +41,8 @@ each core has its own instance of the 3 layers shown above: **Board adapter**,
 
 ## Get started
 
+Follow the [3-stage integration guide](docs/INTEGRATION.md): PC sampling, PMU, then backtraces.
+
 | Target | Guide |
 |---|---|
 | Corstone-300 FVP / MPS3 FPGA | [Runnable example](examples/corstone300/README.md) |
@@ -64,8 +66,8 @@ Supplied adapters use secure M55 mappings; other CPUs need an appropriate adapte
 M0/M0+/M1/M23 need a [custom timestamp](adapters/template/profiler_timestamp.c.example).
 TCM is optional.
 
-Set `PROFILER_SAMPLE_HZ` and `PROFILER_SAMPLE_BUFFER_BYTES` in the
-[common layer](cmsis_statistical_profiler.clayer.yml). A 64 KiB buffer holds 2,723
+Set `PROFILER_SAMPLE_HZ` and `PROFILER_SAMPLE_BUFFER_BYTES` in your application
+project or configuration header ([staged integration](docs/INTEGRATION.md)). A 64 KiB buffer holds 2,723
 samples without PMU, 2,042 with 2 events or 1,634 with 4 events, without backtraces. Currently, recording
 stops when the buffer is full; existing records are not overwritten. Circular
 buffering and a repeated capture/export/resume workflow are planned: capture until
@@ -99,7 +101,11 @@ The helper checks that capture is complete and inactive, prints the header, and
 dumps the whole buffer, including unused space. For AMP, stop all captures before
 halting, then run it in each core's debugger context with its own ELF and filename.
 
-Decode with Python 3.8+ and the exact unstripped executable:
+For a packaged report, use [create_profiler_report.py](host/create_profiler_report.py);
+it preserves inputs/provenance and links decoded data, Perfetto and optional plots.
+See the [integration commands](docs/INTEGRATION.md).
+
+Decode directly with Python 3.8+ and the exact unstripped executable:
 
 ```sh
 python3 host/analyze_profiler_buffer.py --samples samples.bin --elf firmware.elf --output report
@@ -127,11 +133,11 @@ separate; independent timestamps are not automatically synchronized.
 See the [Armv8.1-M Performance Monitoring User Guide](https://documentation-service.arm.com/static/63f365789567172d4e2aadf5)
 for PMU events, counter chaining and usage guidance.
 
-Set `PROFILER_PMU_COUNT` to 0–4 in the common layer (default 0). Each 32-bit
+Set `PROFILER_PMU_COUNT` to 0-4 in your application (default 0). Each 32-bit
 event uses 2 hardware counters. Default events, in order: D-cache refill (`0x0003`),
 backend stall (`0x0024`), instructions retired (`0x0008`) and CPU cycles (`0x0011`).
 Override `PROFILER_PMU_EVENT0` through `PROFILER_PMU_EVENT3` as needed. Records
-use 24, 28, 32, 36 or 40 bytes for 0–4 active events.
+use 24, 28, 32, 36 or 40 bytes for 0-4 active events.
 Unavailable PMU collection falls back to PC sampling with a diagnostic status.
 
 PMU counts cover init through stop, including interrupts and gated-off execution.
@@ -140,13 +146,18 @@ Overflow or incoherent reads invalidate derived counts.
 
 ## Optional backtraces and FlameGraph
 
-Set `PROFILER_STACK_UNWIND=1` and `PROFILER_PRECISE_STACK_BOUNDS=1` in the common
-layer to collect caller addresses. `PROFILER_UNWIND_MAX_DEPTH` defaults to 16;
+Set `PROFILER_STACK_UNWIND=1` and `PROFILER_PRECISE_STACK_BOUNDS=1` in your application
+to collect caller addresses. `PROFILER_UNWIND_MAX_DEPTH` defaults to 16;
 each sample stores only its recovered callers (4-byte metadata + 4 bytes/caller). This requires
 compiler-generated EHABI tables, a linker-table hook and precise stack bounds.
 The decoder exports `stacks.folded` and trace-status diagnostics; incomplete traces
 remain visible without diagnostic frames; unreliable chains are excluded with counts.
 Use `--stack-root osThreadEntry` to select the graph base. See [setup and limitations](docs/UNWINDING.md).
+
+![F16 MobileNetV3 on STM32N6: sampled call stacks as a flamegraph](docs/images/stm32n6-mobilenetv3-f16-flamegraph.svg)
+
+*Example flamegraph: F16 MobileNetV3 on STM32N6. Frame widths represent included
+sample counts, not call counts or per-function PMU totals.*
 
 ## Visualize reports: HTML and Perfetto
 
@@ -198,7 +209,7 @@ unchanged. Use `--output` to retain multiple exports.
 
 - Top 20 function names by exclusive PC hits, plus a full function-name table.
 - Individual PC samples with function, time, PC, LR and sample index on hover.
-- 0–4 valid PMU event-rate graphs sharing the PC timeline's zoomable time axis.
+- 0-4 valid PMU event-rate graphs sharing the PC timeline's zoomable time axis.
 - Capture warnings, validation status, PMU totals and ELF/capture hashes.
 - Embedded Plotly JavaScript: works offline, with no CDN or server required.
 

@@ -9,8 +9,8 @@
  * Title:        test_architecture.c
  * Description:  Architecture, security state and custom timestamp tests
  *
- * $Date:        22 September 2026
- * $Revision:    V.1.0.0
+ * $Date:        25 September 2026
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -108,7 +108,7 @@ int main(int argc, char **argv)
     /* A custom timestamp does not depend on SystemCoreClock, DWT or TCM. */
     assert(sampling_profiler_init());
     assert(statistical_samples.header.timestamp_hz == 1000000U);
-    assert(statistical_samples.header.version == 1U);
+    assert(statistical_samples.header.version == 2U);
     fake_stack[5] = 0x10002001U;
     fake_stack[6] = 0x10001004U;
     fake_stack[7] = xPSR_T_Msk;

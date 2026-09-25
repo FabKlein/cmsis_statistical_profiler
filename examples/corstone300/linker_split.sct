@@ -1,0 +1,23 @@
+; SPDX-License-Identifier: Apache-2.0
+; SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+; AC6 split-code example, selected by build.py --call-tree --split-code.
+; Execution: ITCM 0x10000000 [vectors, A-E, tables] ... gap ... SRAM 0x11000000 [F].
+; Load: ITCM image; Arm scatter loading copies ER_SRAM before main.
+; Data/stacks: DTCM 0x30000000. Use the application's own map on other targets.
+LR_ITCM 0x10000000 0x80000
+{
+    ER_ITCM 0x10000000 0x80000
+    {
+        startup.o (.vectors, +First)
+        *(InRoot$$Sections)
+        .ANY (+RO)
+    }
+    ER_EXIDX +0 { *(.ARM.exidx*) }
+    ER_EXTAB +0 { *(.ARM.extab*) }
+    ER_SRAM 0x11000000 0x100000 { *(.sram_text) }
+    RW_DTCM 0x30000000 0x7C000
+    {
+        .ANY (+RW +ZI)
+    }
+    ARM_LIB_STACK 0x30080000 EMPTY -0x4000 {}
+}

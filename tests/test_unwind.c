@@ -9,8 +9,8 @@
  * Title:        test_unwind.c
  * Description:  Bounded compact EHABI unwinder regression tests
  *
- * $Date:        24 September 2026
- * $Revision:    V.1.0.0
+ * $Date:        25 September 2026
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -25,6 +25,8 @@ static struct ProfilerSample sample;
 static uint32_t regs[16];
 static struct ProfilerStackBounds bounds;
 static int bad_tables;
+static struct ProfilerCodeRegion regions[2] = {{0x10001000U, 0x3000U}};
+static size_t region_count = 1;
 
 static uint32_t relative(const uint32_t *word, uintptr_t target)
 {
@@ -33,7 +35,7 @@ static uint32_t relative(const uint32_t *word, uintptr_t target)
 int profiler_unwind_tables(struct ProfilerUnwindTables *tables)
 {
     *tables = (struct ProfilerUnwindTables){
-        0x10001000U, 0x3000U, index_words, bad_tables ? 7U : sizeof(index_words), extra, sizeof(extra)};
+        regions, region_count, index_words, bad_tables ? 7U : sizeof(index_words), extra, sizeof(extra)};
     return 1;
 }
 static void reset(uint32_t recipe)
@@ -62,8 +64,43 @@ static void expect(uint32_t depth, uint32_t status)
     for (uint32_t i = depth; i < PROFILER_UNWIND_MAX_DEPTH; ++i)
         assert(sample.callers[i] == 0U);
 }
+static enum ProfilerInitReason last_reason;
+int profiler_init_fail(enum ProfilerInitStage stage, enum ProfilerInitReason reason, uint32_t value0, uint32_t value1)
+{
+    (void)stage;
+    last_reason = reason;
+    (void)value0;
+    (void)value1;
+    return 0;
+}
 int main(void)
 {
+    /* Real code gaps reject both recovered PCs and cross-region recipe reuse. */
+    reset(0x80B0B0B0U);
+    regions[0].bytes = 0x100U;
+    regions[1] = (struct ProfilerCodeRegion){0x10002000U, 0x2000U};
+    region_count = 2;
+    assert(profiler_unwind_init());
+    /* A valid caller in another allocation must still unwind. */
+    expect(1, PROFILER_UNWIND_COMPLETE);
+    memset(&sample, 0, sizeof(sample));
+    regs[13] = (uint32_t)(uintptr_t)stack;
+    regs[15] = 0x10001004U;
+    regs[14] = 0x10001505U;
+    expect(0, PROFILER_UNWIND_INVALID_PC);
+    regs[13] = (uint32_t)(uintptr_t)stack;
+    regs[15] = 0x10002004U;
+    regs[14] = 0x10001005U;
+    index_words[2] = relative(index_words + 2, 0x10001100U);
+    index_words[3] = 0x80B0B0B0U;
+    assert(profiler_unwind_init());
+    expect(0, PROFILER_UNWIND_NO_TABLE);
+    regions[1].base = 0x10001080U;
+    assert(!profiler_unwind_init());
+    assert(last_reason == PROFILER_INIT_INVALID_CONFIG);
+    regions[0].bytes = 0x3000U;
+    region_count = 1;
+
     reset(0x808400B0U);
     stack[0] = 0x10002005U;
     expect(1, PROFILER_UNWIND_COMPLETE);

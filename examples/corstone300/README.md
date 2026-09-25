@@ -72,7 +72,10 @@ ITCM: 0x10000000 .. 0x10080000     DTCM: 0x30000000 .. 0x30080000
 +---------------------------+    +---------------------------+ 0x30080000
 ```
 
-Backtrace additions retain `.ARM.exidx`/`.ARM.extab` with `KEEP`, even during
+For application integration, see the [AC6 scatter-file steps](../../docs/UNWINDING.md#ac6-scatter-file-integration)
+or [GCC/LLVM linker-script steps](../../docs/UNWINDING.md#gcc--llvm-linker-script-integration).
+
+GNU-script backtrace additions retain `.ARM.exidx`/`.ARM.extab` with `KEEP`, even during
 linker garbage collection. Boundary symbols let [unwind_tables.c](unwind_tables.c)
 supply the index, recipes and executable-only `.text` range to the unwinder.
 `end` aliases the end of `.bss` for libc references pulled in by optional unwind
@@ -135,3 +138,8 @@ Traces still stop at unsupported startup boundaries; partial-stack status is
 reported outside the plotted hierarchy. Samples during
 entry/exit may skip callers; executable-address validation cannot detect every
 plausible incorrect chain. Unreliable entry samples are excluded from the graph and counted in its subtitle.
+
+For disjoint executable regions, add `--call-tree --split-code`. F executes in
+secure code SRAM; A–E remain in ITCM. See [split linker scripts and hook](../../docs/UNWINDING.md#split-executable-regions).
+Run `python3 host/check_profiler_elf.py --elf build/corstone300/profiler.elf --require-unwind --function functionF`
+from the repository root before capture.

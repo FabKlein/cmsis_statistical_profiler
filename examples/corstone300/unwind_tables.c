@@ -9,8 +9,8 @@
  * Title:        unwind_tables.c
  * Description:  Linker unwind table ranges for the Corstone-300 example
  *
- * $Date:        24 September 2026
- * $Revision:    V.1.0.0
+ * $Date:        25 September 2026
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -40,11 +40,28 @@ extern const uint32_t __profiler_extab_start[], __profiler_extab_end[];
     #define table_end __profiler_extab_end
 #endif
 
+#if PROFILER_EXAMPLE_SPLIT_CODE
+    #if defined(__ARMCC_VERSION)
+extern const uint32_t sram_start[] __asm("Image$$ER_SRAM$$Base");
+extern const uint32_t sram_end[] __asm("Image$$ER_SRAM$$Limit");
+    #else
+extern const uint32_t __sram_text_start[], __sram_text_end[];
+        #define sram_start __sram_text_start
+        #define sram_end __sram_text_end
+    #endif
+#endif
+
 /** @brief Report read-only ranges from this example's linker layout. */
 int profiler_unwind_tables(struct ProfilerUnwindTables *tables)
 {
-    tables->code_base = (uintptr_t)code_start;
-    tables->code_bytes = (uintptr_t)code_end - (uintptr_t)code_start;
+    static struct ProfilerCodeRegion code[2];
+    code[0] = (struct ProfilerCodeRegion){(uintptr_t)code_start, (uintptr_t)code_end - (uintptr_t)code_start};
+    tables->code = code;
+    tables->code_count = 1;
+#if PROFILER_EXAMPLE_SPLIT_CODE
+    code[1] = (struct ProfilerCodeRegion){(uintptr_t)sram_start, (uintptr_t)sram_end - (uintptr_t)sram_start};
+    tables->code_count = 2;
+#endif
     tables->exidx = index_start;
     tables->exidx_bytes = (uintptr_t)index_end - (uintptr_t)index_start;
     tables->extab = table_start;

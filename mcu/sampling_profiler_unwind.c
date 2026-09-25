@@ -9,8 +9,8 @@
  * Title:        sampling_profiler_unwind.c
  * Description:  Bounded compact EHABI stack tracing
  *
- * $Date:        24 September 2026
- * $Revision:    V.1.0.0
+ * $Date:        25 September 2026
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -73,26 +73,44 @@ static uintptr_t prel31(const uint32_t *word)
     return (uintptr_t)word + (intptr_t)(int32_t)offset;
 }
 
+/** @brief Locate a PC in an actual executable allocation, never in a gap. */
+static size_t code_region(uintptr_t address, size_t bytes)
+{
+    for (size_t i = 0; i < tables.code_count; ++i)
+        if (contains(tables.code[i].base, tables.code[i].bytes, address, bytes))
+            return i + 1U;
+    return 0;
+}
+
 int profiler_unwind_init(void)
 {
     ready = 0;
     tables = (struct ProfilerUnwindTables){0};
-    if (!profiler_unwind_tables(&tables) || !tables.code_bytes || tables.code_bytes > UINTPTR_MAX - tables.code_base ||
-        !tables.exidx || ((uintptr_t)tables.exidx & 3U) || !tables.exidx_bytes || (tables.exidx_bytes & 7U) ||
+    if (!profiler_unwind_tables(&tables) || !tables.exidx || !tables.exidx_bytes)
+        return profiler_init_fail(PROFILER_INIT_UNWIND, PROFILER_INIT_MISSING_TABLES, 0, 0);
+    if (!tables.code || !tables.code_count || tables.code_count > PROFILER_MAX_CODE_REGIONS ||
+        ((uintptr_t)tables.exidx & 3U) || (tables.exidx_bytes & 7U) ||
         !contains((uintptr_t)tables.exidx, tables.exidx_bytes, (uintptr_t)tables.exidx, tables.exidx_bytes) ||
         (tables.extab_bytes &&
          (!tables.extab || ((uintptr_t)tables.extab & 3U) || (tables.extab_bytes & 3U) ||
           !contains((uintptr_t)tables.extab, tables.extab_bytes, (uintptr_t)tables.extab, tables.extab_bytes))))
-        return 0;
+        return profiler_init_fail(PROFILER_INIT_UNWIND, PROFILER_INIT_MALFORMED_TABLES, 0, 0);
+    for (size_t i = 0; i < tables.code_count; ++i)
+    {
+        const struct ProfilerCodeRegion *r = &tables.code[i];
+        if (!r->bytes || (r->base & 1U) || r->bytes > UINTPTR_MAX - r->base ||
+            (i && r->base < tables.code[i - 1U].base + tables.code[i - 1U].bytes))
+            return profiler_init_fail(PROFILER_INIT_UNWIND, PROFILER_INIT_INVALID_CONFIG, (uint32_t)i, 0);
+    }
     /* Sorted starts permit binary search in the ISR. A terminal entry may point
      * just beyond executable code; it marks a boundary, not a callable address. */
     uintptr_t previous = 0;
     for (size_t i = 0; i < tables.exidx_bytes / 8U; ++i)
     {
         uintptr_t address = prel31(tables.exidx + 2U * i);
-        if ((tables.exidx[2U * i] & 0x80000000U) || (address & 1U) || address < tables.code_base ||
-            address - tables.code_base > tables.code_bytes || (i && address <= previous))
-            return 0;
+        if ((tables.exidx[2U * i] & 0x80000000U) || (address & 1U) || !code_region(address, 0) ||
+            (i && address <= previous))
+            return profiler_init_fail(PROFILER_INIT_UNWIND, PROFILER_INIT_MALFORMED_TABLES, (uint32_t)i, 0);
         previous = address;
     }
     ready = 1;
@@ -122,6 +140,10 @@ static uint32_t recipe(uint32_t pc, uint8_t bytes[32], uint32_t *length)
             hi = mid;
     }
     if (!lo)
+        return PROFILER_UNWIND_NO_TABLE;
+    /* A recipe from another allocation must not bleed across a code gap,
+     * even when the linker omitted an explicit CANTUNWIND boundary. */
+    if (code_region(prel31(tables.exidx + 2U * (lo - 1U)), 2U) != code_region(pc, 2U))
         return PROFILER_UNWIND_NO_TABLE;
     const uint32_t *entry = tables.exidx + 2U * (lo - 1U) + 1U;
     uint32_t word = *entry;
@@ -303,7 +325,7 @@ void profiler_unwind_capture(struct ProfilerSample *sample, uint32_t regs[16], c
              * addresses: -2 places lookup inside the call, not the next function. */
             if (depth && lookup >= 2U)
                 lookup -= 2U;
-            if (!contains(tables.code_base, tables.code_bytes, lookup, 2U))
+            if (!code_region(lookup, 2U))
             {
                 status = PROFILER_UNWIND_INVALID_PC;
                 break;
@@ -321,7 +343,7 @@ void profiler_unwind_capture(struct ProfilerSample *sample, uint32_t regs[16], c
             if (!regs[15])
                 break; /* Explicit zero return address terminates the chain. */
             uint32_t pc = regs[15] & ~1U;
-            if (!(regs[15] & 1U) || pc < 2U || !contains(tables.code_base, tables.code_bytes, pc - 2U, 2U))
+            if (!(regs[15] & 1U) || pc < 2U || !code_region(pc - 2U, 2U))
             {
                 status = PROFILER_UNWIND_INVALID_PC;
                 break;

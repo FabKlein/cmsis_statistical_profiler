@@ -7,8 +7,8 @@
 # Title:        analyze_profiler_buffer.py
 # Description:  Decode SRAM captures and report sampled functions using ELF symbols
 #
-# $Date:        22 September 2026
-# $Revision:    V.1.0.1
+# $Date:        25 September 2026
+# $Revision:    V.1.0.2
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -30,8 +30,8 @@ import sys
 
 
 MAGIC = 0x46504353
-FORMAT_VERSION = 1
-HEADER = struct.Struct("<42I")
+FORMAT_VERSION = 2
+HEADER = struct.Struct("<44I")
 REJECTION_NAMES = ("invalid_exc_return", "unsupported_frame", "stack_bounds", "invalid_xpsr")
 RECORD = struct.Struct("<6I")
 PMU_STATES = {0: "disabled", 1: "unavailable", 2: "active", 3: "busy", 4: "unsupported", 5: "access_denied"}
@@ -109,12 +109,21 @@ def demangle_functions(functions, tool=None):
 
 
 def read_capture(data):
+    if len(data) < 8:
+        raise ValueError("Truncated capture signature")
+    magic, version = struct.unpack_from("<II", data)
+    if magic != MAGIC:
+        raise ValueError("Not an SCPF capture")
+    if version != FORMAT_VERSION:
+        raise ValueError(f"Capture format {version} is unsupported; this decoder supports {FORMAT_VERSION}. "
+                         "Use the decoder shipped with that firmware or rebuild and recapture.")
     if len(data) < HEADER.size:
         raise ValueError("Truncated capture header")
     fields = HEADER.unpack_from(data)
     header = dict(zip(HEADER_NAMES, fields[:20]))
-    if header["magic"] != MAGIC or header["version"] != FORMAT_VERSION:
-        raise ValueError("Unsupported capture format; rebuild firmware and use its matching decoder")
+    header.update(header_bytes=fields[42], features=fields[43])
+    if fields[42] != HEADER.size or fields[43] != (int(fields[25] != 0) | (2 if fields[41] else 0)):
+        raise ValueError("Header length or feature flags disagree with capture format")
     reasons = dict(zip(REJECTION_NAMES, fields[20:24]))
     if sum(reasons.values()) & 0xFFFFFFFF != header["rejected"]:
         raise ValueError("Rejection total and reason counters disagree")
@@ -306,6 +315,9 @@ def lr_only_entries(data, functions):
     offset = struct.unpack_from("<I", data, 32)[0]
     size, count = struct.unpack_from("<HH", data, 46)
     safe = set()
+    code = executable_ranges(data)
+    def region(address):
+        return next((i for i, (base, size) in enumerate(code) if base <= address < base + size), None)
     for index in range(count):
         section = struct.unpack("<10I", checked_slice(data, offset + index * size, 40))
         if section[1] != 0x70000001 or not section[2] & 2:  # SHT_ARM_EXIDX, allocated
@@ -325,7 +337,7 @@ def lr_only_entries(data, functions):
         starts = [address for address, _ in entries]
         for address, _, _ in functions:
             entry = bisect_right(starts, address) - 1
-            if entry >= 0 and entries[entry][1] == 0x80B0B0B0:
+            if entry >= 0 and entries[entry][1] == 0x80B0B0B0 and region(entries[entry][0]) == region(address):
                 safe.add(address)
     return safe
 
@@ -406,7 +418,10 @@ def flamegraph_summary(details, root=None):
         text += ". Some stacks are partial (unwinding stopped early)."
     return dict(root=root, total_samples=len(details), included_samples=included,
                 excluded_unreliable=counts["unreliable"], excluded_root_missing=counts["root_missing"],
-                partial_samples=partial, subtitle=text)
+                partial_samples=partial,
+                root_reached_percent=(100 * included / len(details) if details and root else None),
+                recovered_caller_depth_counts=dict(sorted(Counter(len(json.loads(item["callers_raw"])) for item in details).items())),
+                subtitle=text)
 
 
 def write_csv(path, rows, empty_fields):
@@ -470,6 +485,12 @@ def main():
                    "pmu_events": pmu_rows,
                    "unwind_status_counts": stack_statuses,
                    "flamegraph": stack_summary,
+                   "storage": {"record_bytes": header["bytes_used"],
+                               "average_record_bytes": header["bytes_used"] / len(samples) if samples else None,
+                               "payload_occupancy_percent": 100 * header["bytes_used"] / (header["buffer_bytes"] - HEADER.size),
+                               "maximum_record_bytes": header["record_base_bytes"] + 4 * header["unwind_max_depth"],
+                               "buffer_exhausted": bool(header["full"]),
+                               "capture_finalized": bool(header["complete"])},
                    "tick_units": "sampling_interrupts",
                    "elf_sha256": hashlib.sha256(elf).hexdigest(),
                    "capture_sha256": hashlib.sha256(capture).hexdigest(),

@@ -9,8 +9,8 @@
  * Title:        sampling_profiler_config.h
  * Description:  Board-independent capture configuration
  *
- * $Date:        22 September 2026
- * $Revision:    V.1.0.1
+ * $Date:        25 September 2026
+ * $Revision:    V.1.0.2
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -30,7 +30,7 @@
  */
 /**
  * @def PROFILER_SAMPLE_BUFFER_BYTES
- * @brief Allocation budget including header and records; default 32 KiB, rounded down to words.
+ * @brief Allocation budget including header and records; default 64 KiB, rounded down to words.
  */
 /**
  * @def PROFILER_SAMPLE_HZ
@@ -50,7 +50,7 @@
  */
 /**
  * @def PROFILER_PMU_COUNT
- * @brief Number of 32-bit PMU events, 0–4; default 0 (disabled). Unavailable PMU uses compact records.
+ * @brief Number of 32-bit PMU events, 0-4; default 0 (disabled). Unavailable PMU uses compact records.
  */
 /**
  * @def PROFILER_PMU_EVENT0
@@ -74,7 +74,7 @@
     #define PROFILER_SAMPLING_ENABLED 1
 #endif
 #ifndef PROFILER_SAMPLE_BUFFER_BYTES
-    #define PROFILER_SAMPLE_BUFFER_BYTES (32U * 1024U)
+    #define PROFILER_SAMPLE_BUFFER_BYTES (64U * 1024U)
 #endif
 #ifndef PROFILER_SAMPLE_HZ
     #define PROFILER_SAMPLE_HZ 1000U

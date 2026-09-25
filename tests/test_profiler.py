@@ -7,8 +7,8 @@
 # Title:        test_profiler.py
 # Description:  Native capture and Python decoder regression tests
 #
-# $Date:        22 September 2026
-# $Revision:    V.1.0.1
+# $Date:        25 September 2026
+# $Revision:    V.1.0.2
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -43,7 +43,7 @@ class ProfilerTests(unittest.TestCase):
                 subprocess.run([str(binary), str(capture)], check=True)
                 header, samples = analyzer.read_capture(capture.read_bytes())
                 self.assertEqual(header["count"], 3)
-                self.assertEqual(header["version"], 1)
+                self.assertEqual(header["version"], 2)
                 self.assertEqual(header["record_base_bytes"], 24)
                 self.assertEqual(len(samples[0]), 6)
                 self.assertEqual(header["sample_hz"], rate)
@@ -100,7 +100,7 @@ class ProfilerTests(unittest.TestCase):
                     header, samples = analyzer.read_capture(data)
                     active = bool(count and available)
                     stride = 24 + (4 * count if active else 0)
-                    capacity = (240 + 12 * count - analyzer.HEADER.size) // stride
+                    capacity = (248 + 12 * count - analyzer.HEADER.size) // stride
                     self.assertEqual(header["pmu"]["status"], "disabled" if not count else "active" if available else "unavailable")
                     self.assertEqual(header["pmu"]["requested"], count)
                     self.assertEqual(header["record_base_bytes"], stride)
@@ -195,7 +195,7 @@ class ProfilerTests(unittest.TestCase):
     @staticmethod
     def capture_fields():
         return [analyzer.MAGIC, analyzer.FORMAT_VERSION, 24, analyzer.HEADER.size + 24, 24, 1, 0, 0,
-                1000000, 1000, 0, 0, 1000, 1, 1, 1, 1, 1, 1000, 1000000] + [0] * 22
+                1000000, 1000, 0, 0, 1000, 1, 1, 1, 1, 1, 1000, 1000000] + [0] * 22 + [analyzer.HEADER.size, 0]
 
     def test_independent_timer_clock(self):
         fields = self.capture_fields()

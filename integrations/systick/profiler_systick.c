@@ -9,8 +9,8 @@
  * Title:        profiler_systick.c
  * Description:  Exclusive SysTick sampling timer integration
  *
- * $Date:        22 September 2026
- * $Revision:    V.1.0.0
+ * $Date:        25 September 2026
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -25,8 +25,10 @@ static uint32_t owned;
 int profiler_timer_init(struct ProfilerClock *clock)
 {
     uint32_t period = profiler_timer_period(SystemCoreClock, 0x1000000U);
-    if (!period || (!owned && (SysTick->CTRL & SysTick_CTRL_ENABLE_Msk)))
-        return 0;
+    if (!period)
+        return profiler_init_fail(PROFILER_INIT_TIMER, PROFILER_INIT_BAD_CLOCK, SystemCoreClock, PROFILER_SAMPLE_HZ);
+    if (!owned && (SysTick->CTRL & SysTick_CTRL_ENABLE_Msk))
+        return profiler_init_fail(PROFILER_INIT_TIMER, PROFILER_INIT_BUSY, (uint32_t)SysTick_IRQn, 0);
     owned = 1U;
     profiler_timer_stop();
     SysTick->LOAD = period - 1U;

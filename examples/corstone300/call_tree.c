@@ -9,8 +9,8 @@
  * Title:        call_tree.c
  * Description:  Non-inlined A-F call tree for backtrace validation
  *
- * $Date:        22 September 2026
- * $Revision:    V.1.0.0
+ * $Date:        25 September 2026
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -22,8 +22,14 @@
 #define NOPS_100() __asm volatile(".rept 100\n nop\n .endr\n" ::: "memory")
 static volatile uint32_t leaf_calls;
 
+#if PROFILER_EXAMPLE_SPLIT_CODE
+    #define LEAF_PLACEMENT __attribute__((section(".sram_text")))
+#else
+    #define LEAF_PLACEMENT
+#endif
+
 /** Leaf: 100 NOPs and evidence that every call executed. */
-__attribute__((noinline)) void functionF(void)
+LEAF_PLACEMENT __attribute__((noinline)) void functionF(void)
 {
     NOPS_100();
     ++leaf_calls;

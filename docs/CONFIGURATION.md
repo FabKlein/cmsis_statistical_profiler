@@ -1,23 +1,27 @@
 # Configuration
 
-Set options project-wide through the clayer or compiler definitions. For an
-application header, define `PROFILER_USER_CONFIG="profiler_app_config.h"` and add
-its include directory. Application definitions override C defaults.
+Keep settings in the application cproject/compiler definitions, not the dependency
+layer. Alternatively define `PROFILER_USER_CONFIG="profiler_app_config.h"` and add
+its include directory. Use `#ifndef` around settings in that header: compiler
+settings then take precedence, followed by the application header, board defaults
+and finally `mcu/sampling_profiler_config.h`. No `#undef` overrides are needed.
+Apply settings consistently to every translation unit. Start with the
+[3 integration stages](INTEGRATION.md).
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `PROFILER_PMU_COUNT` | 0 | Request 0–4 chained 32-bit events; 0 disables collection; skip if unavailable or hardware capacity is insufficient |
+| `PROFILER_PMU_COUNT` | 0 | Request 0-4 chained 32-bit events; 0 disables collection; skip if unavailable or hardware capacity is insufficient |
 | `PROFILER_PMU_EVENT0`, `PROFILER_PMU_EVENT1` | `0x0003`, `0x0024` | Architectural event IDs: L1D cache refill and backend stall |
 | `PROFILER_PMU_EVENT2`, `PROFILER_PMU_EVENT3` | `0x0008`, `0x0011` | Instructions retired and CPU cycles; used for counts 3 and 4 respectively |
 | `PROFILER_TIMESTAMP_CUSTOM` | 0: DWT | 1 selects adapter-provided timestamp hooks |
 | `PROFILER_TIMER_CLOCK_HZ` | Required for Corstone/Alif | Actual timer input clock in Hz |
-| `PROFILER_ALIF_UTIMER_CHANNEL` | HP: 0; HE: 1 | Alif per-image channel, 0–11; startup enables shared clocks |
+| `PROFILER_ALIF_UTIMER_CHANNEL` | HP: 0; HE: 1 | Alif per-image channel, 0-11; startup enables shared clocks |
 | `PROFILER_IRQ_PRIORITY` | Lowest | CMSIS unshifted sampling interrupt priority |
 | `PROFILER_SAMPLE_HZ` | 1000 | Requested sampling interrupt frequency in Hz |
-| `PROFILER_SAMPLE_BUFFER_BYTES` | Layer: 64 KiB; C fallback: 32 KiB | Allocation budget including the 168-byte header |
+| `PROFILER_SAMPLE_BUFFER_BYTES` | 64 KiB | Allocation budget including the 176-byte header |
 | `PROFILER_SAMPLING_ENABLED` | 1 | Supplied handler/example switch; 0 still maintains ticks |
 | `PROFILER_STACK_BASE`, `PROFILER_STACK_BYTES` | Board RAM defaults | Application override for 1 readable stack RAM range |
-| `PROFILER_UNWIND_MAX_DEPTH` | 16 | Maximum recovered callers (1–255); bounds ISR work and temporary storage, not each stored record |
+| `PROFILER_UNWIND_MAX_DEPTH` | 16 | Maximum recovered callers (1-255); bounds ISR work and temporary storage, not each stored record |
 | `PROFILER_STACK_UNWIND` | 0 | 1 enables EHABI backtraces (4 bytes + 4 bytes/recovered caller); requires precise bounds and linker-table hook. See [unwinding](UNWINDING.md) |
 | `PROFILER_PRECISE_STACK_BOUNDS` | 0 | Enable an ISR-safe adapter hook that narrows RAM bounds to the interrupted stack |
 | `PROFILER_STACK_REGIONS` | Alternative to BASE/BYTES | Array initializer of `{CPU address, bytes}` readable stack regions |
@@ -28,7 +32,7 @@ its include directory. Application definitions override C defaults.
 
 ## Build and ownership
 
-Non-CMSIS builds compile the 3 `mcu/*.c` files and exactly 1 adapter timer.
+Non-CMSIS builds compile the 4 `mcu/*.c` files and exactly 1 adapter timer.
 Include `mcu/`, the adapter, CMSIS-Core and SDK headers; use C11, the correct CPU,
 and `-mcmse` only for secure builds. Supply device/RAM definitions from the board layer.
 
@@ -61,7 +65,8 @@ keep both stable. Avoid sleep, debugger halts and long interrupt masking.
 
 ## PMU and diagnostics
 
-PMU collection needs 4 16-bit counters chained into 2 32-bit counters.
+Each requested PMU event needs 2 16-bit counters chained into 1 32-bit counter;
+1-4 events use 2-8 hardware counters.
 The backend reserves the event bank, preserves the shared cycle counter and uses
 no PMU IRQ. Busy configuration, event IRQs or legacy DWT profiling prevent collection.
 Startup must permit privileged register access; failure leaves PC sampling available.
@@ -82,3 +87,17 @@ Each core owns its sampling IRQ, timestamps and PMU. Decode each dump with its o
 ELF; percentages are per core. Different fixed clocks work with per-capture metadata,
 but timestamps have independent epochs. No shared-buffer writes or SMP are supported.
 See [Alif setup and debugger retrieval](../adapters/alif_e8/README.md).
+
+## Initialization failures
+
+`sampling_profiler_init()` still returns 0 on failure. Inspect
+`*sampling_profiler_diagnostics()` in application code or GDB; it is reset by each
+init. `stage` distinguishes backend, stack, timestamp, unwind and timer failures.
+`reason` distinguishes unavailable, invalid configuration, busy, bad clock,
+denied, missing tables and malformed tables. PMU fallback remains in the header.
+
+For timer clock errors, context is input Hz/requested Hz (backend timing checks
+use input Hz/period); busy/denied errors identify the IRQ. Unwind validation
+identifies the offending region or index entry. Fix ownership/clocks/security,
+readable RAM bounds or linker ranges before retrying. These checks cannot prove
+MPU readability or protect against a bad application-supplied pointer.

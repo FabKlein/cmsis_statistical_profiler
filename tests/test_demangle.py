@@ -7,8 +7,8 @@
 # Title:        test_demangle.py
 # Description:  C++ symbol demangling regression tests
 #
-# $Date:        22 September 2026
-# $Revision:    V.1.0.1
+# $Date:        25 September 2026
+# $Revision:    V.1.0.2
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -63,7 +63,7 @@ class DemangleTests(unittest.TestCase):
 
     def test_cli_reports_and_opt_out(self):
         fields = [analyzer.MAGIC, analyzer.FORMAT_VERSION, 24, analyzer.HEADER.size + 24,
-                  24, 1, 0, 0, 1000000, 1000, 0, 0, 1000, 1, 1, 1, 1, 1, 1000, 1000000] + [0] * 22
+                  24, 1, 0, 0, 1000000, 1000, 0, 0, 1000, 1, 1, 1, 1, 1, 1000, 1000000] + [0] * 22 + [analyzer.HEADER.size, 0]
         data = analyzer.HEADER.pack(*fields) + analyzer.RECORD.pack(1000, 1, 0x1004, 0x2001, 1 << 24, 0xFFFFFFF9)
         for options, expected in [([], "Foo::run(int)"), (["--cxxfilt", "/custom/c++filt"], "Foo::run(int)"),
                                   (["--no-demangle"], "_ZN3Foo3runEi")]:

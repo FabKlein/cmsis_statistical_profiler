@@ -7,8 +7,8 @@
 # Title:        test_unwind.py
 # Description:  EHABI backtraces and folded-stack regression tests
 #
-# $Date:        24 September 2026
-# $Revision:    V.1.0.0
+# $Date:        25 September 2026
+# $Revision:    V.1.0.1
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -103,12 +103,13 @@ class UnwindTests(unittest.TestCase):
         callers = callers[:metadata & 255]
         stride = 28 + 4 * pmu + 4 * len(callers)
         fields = [analyzer.MAGIC, analyzer.FORMAT_VERSION, 28 + 4 * pmu, analyzer.HEADER.size + stride,
-                  stride, 1, 0, 0, 1000000, 1000, 0, 0, 1000, 1, 1, 1, 1, 1, 1000, 1000000] + [0] * 22
+                  stride, 1, 0, 0, 1000000, 1000, 0, 0, 1000, 1, 1, 1, 1, 1, 1000, 1000000] + [0] * 22 + [analyzer.HEADER.size, 0]
         if pmu:
             fields[24:27] = [2, pmu, pmu]
             fields[27:27 + pmu] = [3, 36, 8, 17][:pmu]
             fields[31] = 32
         fields[41] = 16
+        fields[43] = (1 if pmu else 0) | 2
         record = [1000, 1, 0x1004, 0x2001, 1 << 24, 0xFFFFFFFD] + [0] * pmu + [metadata] + callers
         return analyzer.HEADER.pack(*fields) + analyzer.struct.pack("<" + "I" * len(record), *record)
 

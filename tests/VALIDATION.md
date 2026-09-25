@@ -98,3 +98,18 @@ The runner selects `--reference-timestamp`, using the 100 MHz reference counter
 shared with TIMER0. The functional FVP's DWT rate disagrees with elapsed timer
 time; reference timestamps avoid that mismatch. CI still requires
 `timing_valid=true`; timestamps represent elapsed time, not CPU cycles.
+
+## Integration hardening
+
+Local Linux validation: native/unit tests, ATfE Cortex-M compile matrix,
+AC6 PSP/FP/PMU unwind capture and ATfE CMSIS-RTX dual-thread capture on Corstone-300
+FVP. Split ITCM/code-SRAM A–F images linked with AC6 6.24, GCC 13.2 and ATfE 22.1;
+all ran on FVP with valid timing and no unresolved PCs. Raw traces remain partial.
+AC6 requires `--no_compressexidx` to retain identical recipes across code regions.
+
+Reproduce split placement with the [example builder](../examples/corstone300/README.md):
+add `--call-tree --split-code --reference-timestamp --semihosting`, then use the
+same FVP/export procedure. Preflight each ELF with `--require-unwind --function functionF`.
+The host tests cover format mismatch, gap/order/recipe failures, buffer budgets,
+report input preservation and stale-output rejection. These results do not
+validate physical SRAM, hardware overhead or macOS portability.

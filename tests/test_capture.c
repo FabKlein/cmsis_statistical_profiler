@@ -9,8 +9,8 @@
  * Title:        test_capture.c
  * Description:  Capture lifecycle, sampling timer and frame validation tests
  *
- * $Date:        22 September 2026
- * $Revision:    V.1.0.0
+ * $Date:        25 September 2026
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -90,6 +90,8 @@ int main(int argc, char **argv)
     assert(profiler_port_ticks() == 0U && !statistical_samples.header.count);
     SystemCoreClock = 0U;
     assert(!sampling_profiler_init());
+    assert(sampling_profiler_diagnostics()->stage == PROFILER_INIT_TIMESTAMP);
+    assert(sampling_profiler_diagnostics()->reason == PROFILER_INIT_UNAVAILABLE);
     sampling_profiler_enable();
     assert(!statistical_sampling_gate);
     timer_busy = 1U;
@@ -105,6 +107,7 @@ int main(int argc, char **argv)
     DWT->CTRL = 0;
     fake_primask = 1U;
     assert(sampling_profiler_init());
+    assert(sampling_profiler_diagnostics()->reason == PROFILER_INIT_OK);
     assert(fake_primask == 1U && fake_priority == 3U); /* Preserve IRQ policy. */
     fake_primask = 0U;
     uint32_t period = (uint32_t)(((uint64_t)timer_hz + PROFILER_SAMPLE_HZ / 2U) / PROFILER_SAMPLE_HZ);

@@ -7,8 +7,8 @@
 # Title:        build.py
 # Description:  Build the Corstone-300 capture example with CMSIS and BSP packs
 #
-# $Date:        22 September 2026
-# $Revision:    V.1.0.1
+# $Date:        25 September 2026
+# $Revision:    V.1.0.2
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -41,12 +41,15 @@ def main():
     parser.add_argument("--captures", type=int, default=1, help="Repeat capture to exercise timer restart")
     parser.add_argument("--timer-clock-hz", type=int, required=True, help="Actual TIMER0 reference clock, Hz")
     parser.add_argument("--buffer-bytes", type=int, default=65536, help="Capture allocation budget, including header")
+    parser.add_argument("--split-code", action="store_true", help="Place functionF in separate code SRAM; requires --call-tree")
     args = parser.parse_args()
+    if args.split_code and not args.call_tree:
+        parser.error("--split-code requires --call-tree")
     args.stack_unwind = args.stack_unwind or args.call_tree
     if args.call_tree and args.float_workload:
         parser.error("--call-tree and --float-workload select different workloads")
-    if not 1 <= args.captures <= 100 or not 0 < args.timer_clock_hz <= 0xFFFFFFFF or not 0 < args.sample_hz <= 0xFFFFFFFF or not (192 + 4 * args.pmu_count + 4 * args.stack_unwind) <= args.buffer_bytes <= 0x7FFFFFFF:
-        parser.error("sample-hz must be a positive uint32; buffer-bytes must fit the 168-byte header plus 1 configured record, up to 2147483647")
+    if not 1 <= args.captures <= 100 or not 0 < args.timer_clock_hz <= 0xFFFFFFFF or not 0 < args.sample_hz <= 0xFFFFFFFF or not (200 + 4 * args.pmu_count + 4 * args.stack_unwind) <= args.buffer_bytes <= 0x7FFFFFFF:
+        parser.error("sample-hz must be a positive uint32; buffer-bytes must fit the 176-byte header plus 1 configured record, up to 2147483647")
     ac6 = "armclang" in Path(args.cc).name
     clang = "clang" in Path(args.cc).name
     root = Path(__file__).resolve().parents[2]
@@ -77,6 +80,8 @@ def main():
     flags.append(f"-DPROFILER_PMU_COUNT={args.pmu_count}")
     if args.call_tree:
         flags.append("-DPROFILER_EXAMPLE_CALL_TREE=1")
+    if args.split_code:
+        flags.append("-DPROFILER_EXAMPLE_SPLIT_CODE=1")
     if args.psp:
         flags.append("-DPROFILER_EXAMPLE_PSP=1")
     for directory in [root / "mcu", root / "adapters/corstone300", root / "examples", root / "examples/corstone300",
@@ -107,14 +112,15 @@ def main():
     elf = output / "profiler.elf"
     if ac6:
         compiler = Path(shutil.which(args.cc) or args.cc).resolve()
-        unwind_link = ["--keep=*(.ARM.exidx*)"] if args.stack_unwind else []
+        unwind_link = ["--keep=*(.ARM.exidx*)", "--no_compressexidx"] if args.stack_unwind else []
         subprocess.run([str(compiler.with_name("armlink")), "--cpu=Cortex-M55", "--library_type=microlib",
-                        "--entry=Reset_Handler", "--scatter=" + str(root / "examples/corstone300/linker.sct"),
+                        "--entry=Reset_Handler", "--scatter=" + str(root / "examples/corstone300" / ("linker_split.sct" if args.split_code else "linker.sct")),
                         "--map", "--list=" + str(output / "profiler.map"), "--output=" + str(elf)] + unwind_link + objects,
                        check=True)
     else:
-        subprocess.run([args.cc] + flags + ["-nostartfiles", "-T", str(root / "examples/corstone300/linker.ld"),
+        subprocess.run([args.cc] + flags + ["-nostartfiles", "-T", str(root / "examples/corstone300" / ("linker_split.ld" if args.split_code else "linker.ld")),
                        "-Wl,--gc-sections", "-Wl,-Map=" + str(output / "profiler.map")] + objects +
+                       (["-Wl,--no-merge-exidx-entries"] if args.stack_unwind else []) +
                        ([] if clang else ["--specs=nosys.specs"]) + ["-o", str(elf)], check=True)
     print(elf)
 

@@ -9,8 +9,8 @@
  * Title:        sampling_profiler_cortex_m.c
  * Description:  Cortex-M timestamping, frame validation and sampling backend
  *
- * $Date:        22 September 2026
- * $Revision:    V.1.0.1
+ * $Date:        25 September 2026
+ * $Revision:    V.1.0.2
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -197,8 +197,10 @@ void profiler_port_stop(void)
 int profiler_port_init(struct ProfilerClock *clock)
 {
     uint32_t timestamp_hz = 0U;
-    if (!configure_stack_regions() || !profiler_timestamp_init(&timestamp_hz) || !timestamp_hz)
-        return 0;
+    if (!configure_stack_regions())
+        return profiler_init_fail(PROFILER_INIT_STACK, PROFILER_INIT_INVALID_CONFIG, 0, 0);
+    if (!profiler_timestamp_init(&timestamp_hz) || !timestamp_hz)
+        return profiler_init_fail(PROFILER_INIT_TIMESTAMP, PROFILER_INIT_UNAVAILABLE, timestamp_hz, 0);
 
 #if PROFILER_STACK_UNWIND
     if (!profiler_unwind_init())
@@ -210,6 +212,8 @@ int profiler_port_init(struct ProfilerClock *clock)
     if (!profiler_timer_init(clock))
     {
         __set_PRIMASK(primask);
+        if (sampling_profiler_diagnostics()->reason == PROFILER_INIT_OK)
+            profiler_init_fail(PROFILER_INIT_TIMER, PROFILER_INIT_UNAVAILABLE, 0, 0);
         return 0;
     }
     /* 2-period decoding tolerance must stay below half a timestamp wrap. */
@@ -218,7 +222,7 @@ int profiler_port_init(struct ProfilerClock *clock)
     {
         profiler_timer_stop();
         __set_PRIMASK(primask);
-        return 0;
+        return profiler_init_fail(PROFILER_INIT_TIMER, PROFILER_INIT_BAD_CLOCK, clock->timer_hz, clock->timer_period);
     }
     timer_clock_hz = clock->timer_hz;
     uint64_t numerator = (uint64_t)clock->timer_period * 1000U;

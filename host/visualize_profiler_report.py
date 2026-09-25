@@ -153,8 +153,8 @@ def write_html(destination, summary, samples, rates, warnings):
                        margin=dict(l=360), template="plotly_white")
     timeline = make_subplots(rows=1 + len(rates), cols=1, shared_xaxes=True,
                              vertical_spacing=0.08,
-                             subplot_titles=["Sampled function — points, not durations"] + [
-                                 series["event"]["event"] + " — preceding interval rate"
+                             subplot_titles=["Sampled function - points, not durations"] + [
+                                 series["event"]["event"] + " - preceding interval rate"
                                  for series in rates])
     grouped = defaultdict(list)
     for sample in samples:
@@ -212,7 +212,7 @@ def write_html(destination, summary, samples, rates, warnings):
         '<p>Drag to zoom; double-click a plot to reset. Time axes are linked. '
         'Click a function legend to hide it, double-click to isolate it. '
         'Hotspot percentages and the table remain whole-capture statistics.</p>'
-        f'{plots}<h2>All functions — exclusive PC hits</h2>'
+        f'{plots}<h2>All functions - exclusive PC hits</h2>'
         '<table><thead><tr><th>Rank</th><th>Function</th><th>Hits</th><th>Share</th>'
         f'</tr></thead><tbody>{table}</tbody></table>'
         '<h2>PMU totals (initialization through stop)</h2>'

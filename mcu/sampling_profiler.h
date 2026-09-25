@@ -9,8 +9,8 @@
  * Title:        sampling_profiler.h
  * Description:  SRAM statistical sampling interface and capture format
  *
- * $Date:        22 September 2026
- * $Revision:    V.1.0.1
+ * $Date:        25 September 2026
+ * $Revision:    V.1.0.2
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -28,7 +28,6 @@
 
 #include "sampling_profiler_config.h"
 
-/** @brief Fixed maximum number of caller addresses, excluding the sampled PC. */
 /** @brief Best-effort unwind outcome; all failures preserve the valid prefix. */
 enum ProfilerUnwindStatus
 {
@@ -39,6 +38,37 @@ enum ProfilerUnwindStatus
     PROFILER_UNWIND_INVALID_PC,   /**< Return address outside executable code or not Thumb. */
     PROFILER_UNWIND_NO_PROGRESS,  /**< Stack moved backwards or repeated the same PC/SP. */
     PROFILER_UNWIND_DEPTH_LIMIT   /**< Configured maximum callers recovered; older frames were not attempted. */
+};
+
+/** @brief Initialization stage; NONE means no initialization failure. */
+enum ProfilerInitStage
+{
+    PROFILER_INIT_NONE,
+    PROFILER_INIT_BACKEND,
+    PROFILER_INIT_STACK,
+    PROFILER_INIT_TIMESTAMP,
+    PROFILER_INIT_UNWIND,
+    PROFILER_INIT_TIMER
+};
+/** @brief Failure category; PMU fallback remains in the capture header. */
+enum ProfilerInitReason
+{
+    PROFILER_INIT_OK,
+    PROFILER_INIT_UNAVAILABLE,
+    PROFILER_INIT_INVALID_CONFIG,
+    PROFILER_INIT_BUSY,
+    PROFILER_INIT_BAD_CLOCK,
+    PROFILER_INIT_DENIED,
+    PROFILER_INIT_MISSING_TABLES,
+    PROFILER_INIT_MALFORMED_TABLES
+};
+/** @brief Last initialization failure, readable without logging or a running timer. */
+struct ProfilerDiagnostics
+{
+    enum ProfilerInitStage stage;   /**< Failed subsystem. */
+    enum ProfilerInitReason reason; /**< Failure category. */
+    uint32_t value0;                /**< Context, defined by the failing subsystem. */
+    uint32_t value1;                /**< Context, defined by the failing subsystem. */
 };
 
 /**
@@ -58,7 +88,7 @@ struct ProfilerSample
     uint32_t pmu[PROFILER_PMU_COUNT]; /**< Staging snapshot; only active event words are stored. */
 #endif
 #if PROFILER_STACK_UNWIND
-    uint32_t unwind;                             /**< Depth in bits 0–7, ProfilerUnwindStatus in bits 8–15. */
+    uint32_t unwind;                             /**< Depth in bits 0-7, ProfilerUnwindStatus in bits 8-15. */
     uint32_t callers[PROFILER_UNWIND_MAX_DEPTH]; /**< Raw Thumb return addresses, immediate caller first. */
 #endif
 };
@@ -77,7 +107,7 @@ enum ProfilerRejection
 };
 
 /**
- * @brief Capture metadata stored as 42 little-endian 32-bit words.
+ * @brief Capture metadata stored as 44 little-endian 32-bit words.
  * @details All counters wrap modulo 2^32. Read after sampling_profiler_stop().
  */
 struct ProfilerSamplingHeader
@@ -104,23 +134,25 @@ struct ProfilerSamplingHeader
     uint32_t timer_hz;          /**< Actual sampling timer input frequency in Hz. */
     uint32_t rejected_reason[PROFILER_REJECT_REASON_COUNT]; /**< Per-reason rejection counters in enum order. */
     uint32_t pmu_status;       /**< 0 disabled, 1 unavailable, 2 active, 3 busy, 4 unsupported, 5 denied */
-    uint32_t pmu_count;        /**< Counter words per record: 1–4 when active, otherwise 0. */
+    uint32_t pmu_count;        /**< Counter words per record: 1-4 when active, otherwise 0. */
     uint32_t pmu_requested;    /**< Requested event count, including when collection is unavailable. */
     uint32_t pmu_events[4];    /**< Requested architectural event IDs; 0 when disabled. */
     uint32_t pmu_counter_bits; /**< 32 when active, otherwise 0. */
     uint32_t pmu_start[4];     /**< Counter snapshots at collection start. */
     uint32_t pmu_stop[4];      /**< Counter snapshots after collection stops. */
-    uint32_t pmu_flags;        /**< Bits 0–3: event overflow; bit 4: incoherent read. */
+    uint32_t pmu_flags;        /**< Bits 0-3: event overflow; bit 4: incoherent read. */
     uint32_t unwind_max_depth; /**< 0: absent; otherwise maximum EHABI caller depth. */
+    uint32_t header_bytes;     /**< Serialized header length; must match this format version. */
+    uint32_t features;         /**< Bit 0: active PMU words; bit 1: EHABI backtraces. */
 };
 
-/* 1 format: 6 base words, pmu_count event words, optional 9-word backtrace. */
+/* 1 supported format: base words, active PMU words, optional depth/status and actual callers. */
 /** @brief Capture signature identifying SCPF(Statistical Capture Profiler Format) data. */
 #define PROFILER_CAPTURE_MAGIC 0x46504353U /* SCPF */
 /** @brief Identifier checked by the matching host decoder. */
-#define PROFILER_FORMAT_VERSION 1U
+#define PROFILER_FORMAT_VERSION 2U
 /** @brief Size of the capture header in bytes. */
-#define PROFILER_HEADER_BYTES 168U
+#define PROFILER_HEADER_BYTES 176U
 /** @brief Size of the 6 mandatory record words in bytes. */
 #define PROFILER_BASE_RECORD_BYTES 24U
 /** @brief Whole words available for packed records within the allocation budget. */
@@ -155,6 +187,8 @@ extern volatile struct ProfilerSamplingBuffer statistical_samples;
  * PMU unavailability is recorded in metadata and does not fail initialization.
  */
 int sampling_profiler_init(void);
+/** @brief Last init result; reset on the next init, valid until then. Thread-mode use only. */
+const struct ProfilerDiagnostics *sampling_profiler_diagnostics(void);
 /**
  * @brief Enable recording for an initialized, incomplete, non-full capture.
  * @note Does nothing before successful initialization or after completion.

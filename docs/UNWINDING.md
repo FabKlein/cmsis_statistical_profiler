@@ -1,6 +1,6 @@
 # Optional backtraces
 
-Set these project-wide definitions in `cmsis_statistical_profiler.clayer.yml`:
+Set these definitions project-wide in your application:
 
 ```yaml
 - PROFILER_STACK_UNWIND: 1
@@ -9,7 +9,7 @@ Set these project-wide definitions in `cmsis_statistical_profiler.clayer.yml`:
 ```
 
 Disabled by default. Each enabled record adds 4 bytes for depth/status plus
-4 bytes per recovered caller. `PROFILER_UNWIND_MAX_DEPTH` (1–255, default 16)
+4 bytes per recovered caller. `PROFILER_UNWIND_MAX_DEPTH` (1-255, default 16)
 bounds ISR work and temporary caller storage; unused slots are never exported.
 The existing PC identifies the current function. Header `unwind_max_depth=0`
 means no backtraces; a nonzero value identifies EHABI and the compiled limit.
@@ -27,9 +27,10 @@ Rebuild firmware and use the matching decoder after this format change.
    increasing image size even though this profiler never calls that runtime.
 3. Implement `profiler_unwind_tables()` from
    [sampling_profiler_unwind.h](../mcu/sampling_profiler_unwind.h), supplying the
-   executable span and linker-derived table ranges. Initialization fails for
-   missing or structurally invalid ranges. This initial implementation supports
-   1 contiguous code span and 1 sorted index table per image.
+   executable region list and linker-derived table ranges. Initialization fails for
+   missing or structurally invalid ranges. Supply 1-8 sorted, nonoverlapping code
+   regions and 1 sorted index table per image. Gaps are never executable, and an
+   index recipe cannot extend from 1 region into another.
 4. Implement `profiler_stack_bounds()` for the interrupted MSP/PSP allocation.
    Bounds are intersected with the existing RAM whitelist. With an RTOS, identify
    the interrupted task, validate that its frame belongs to that stack, and reject
@@ -40,6 +41,119 @@ add `--stack-unwind` to its build command. This also enables precise bounds and
 compiler metadata generation. The [RTX dual-thread test](../examples/corstone300_rtos2/CALL_TREE.md)
 validates static PSP stack bounds and separate call trees on FVP.
 No board-specific logic belongs in the unwinder.
+
+### AC6 scatter-file integration
+
+Inside the existing load region, add these execution regions **after the code/RO
+region and before the RAM regions**, as in [linker.sct](../examples/corstone300/linker.sct):
+
+```text
+    ER_EXIDX +0 { *(.ARM.exidx*) }
+    ER_EXTAB +0 { *(.ARM.extab*) }
+```
+
+`+0` places each region immediately after the preceding execution region.
+`ER_EXIDX` holds the code-to-recipe index; `ER_EXTAB` holds recipes too large for
+an inline index entry. Both must remain readable during capture. Allow room for
+them in the load region; these additions do not increase its configured size.
+
+Compile profiled sources with `-funwind-tables` and add the armlink option
+`--keep=*(.ARM.exidx*)` (quote it when invoking through a shell) and
+`--no_compressexidx` to retain entries at disjoint code-region boundaries. Placement alone
+does not generate tables or guarantee retention. Prebuilt libraries need their
+own unwind metadata; missing metadata stops the trace.
+
+Add [unwind_tables.c](../examples/corstone300/unwind_tables.c) to the application,
+or implement its hook using these linker symbols:
+
+| Hook range | AC6 boundary symbols |
+|---|---|
+| Code | `Image$$ER_ITCM$$Base` / `Image$$ER_ITCM$$Limit` |
+| Index | `Image$$ER_EXIDX$$Base` / `Image$$ER_EXIDX$$Limit` |
+| Recipes | `Image$$ER_EXTAB$$Base` / `Image$$ER_EXTAB$$Limit` |
+
+`ER_ITCM` is the example's code-region name, not a TCM requirement. Substitute
+your code region's name in the hook. If you rename the table regions, update
+their symbol references too. For split code placement, add each execution region
+to the hook; do not enclose ITCM and SRAM in 1 broad range.
+
+Check the map file for the regions and resolved boundary symbols. The index must
+be nonempty; `.ARM.extab` may be empty when all recipes fit inline. Finally,
+confirm `sampling_profiler_init()` succeeds. The precise stack-bounds hook from
+step 4 is still required; scatter-file changes alone do not enable backtraces.
+
+### GCC / LLVM linker-script integration
+
+GCC with GNU ld and ATfE Clang with LLD use the same example
+[linker.ld](../examples/corstone300/linker.ld). Adapt the sections below inside
+your existing `SECTIONS` block; `CODE` means your CPU-readable code memory region,
+not necessarily TCM. Merge with existing sections instead of defining duplicates.
+
+```text
+.text :
+{
+    __profiler_code_start = .;
+    *(.text*)
+    __profiler_code_end = .;
+    *(.rodata*)
+} > CODE
+.ARM.extab :
+{
+    __profiler_extab_start = .;
+    KEEP(*(.ARM.extab*))
+    __profiler_extab_end = .;
+} > CODE
+.ARM.exidx :
+{
+    __exidx_start = .;
+    KEEP(*(.ARM.exidx*))
+    __exidx_end = .;
+} > CODE
+```
+
+Preserve your startup/vector selectors, alignment, memory limits and data/stack
+placement. The code bounds must cover the executable span being unwound; adapt
+for custom code sections. Keep unwind tables separate from `.text`/`.rodata`
+and remove any rule that discards them. `KEEP` retains them with `--gc-sections`.
+The linker orders the EHABI index; do not sort its input sections by name.
+
+Compile profiled C/C++ sources with `-funwind-tables`, then link with your script
+using `-T firmware.ld -Wl,--no-merge-exidx-entries`. Retaining individual index
+entries prevents equal recipes being merged across separate code regions. For Clang, select the embedded target, for example
+`--target=arm-none-eabi -mcpu=cortex-m55 -mthumb`, and use the matching runtime
+and linker. ATfE supplies these; a host LLVM installation alone may not.
+See [build.py](../examples/corstone300/build.py) for the tested GCC/ATfE commands.
+
+Add [unwind_tables.c](../examples/corstone300/unwind_tables.c), or adapt its
+non-AC6 branch. It consumes the 6 boundary symbols above; renaming a symbol
+requires updating the hook. Addresses are execution addresses, not load-image
+addresses. The example's `PROVIDE(end = __bss_end__)` satisfies optional libc
+references; it is not a profiler requirement or a heap allocator.
+
+### Integration checklist and examples
+
+1. Enable `PROFILER_STACK_UNWIND=1`, `PROFILER_PRECISE_STACK_BOUNDS=1` and
+   `PROFILER_UNWIND_MAX_DEPTH=16` consistently across application/profiler sources.
+   The common clayer includes `mcu/sampling_profiler_unwind.c`; manual builds must
+   add it. Keep the layer's ISR compiler restrictions.
+2. Generate/retain the tables using the toolchain instructions above. Link exactly
+   1 `profiler_unwind_tables()` and 1 precise `profiler_stack_bounds()` implementation.
+   The board timer must use `PROFILER_DEFINE_IRQ_HANDLER` to preserve registers.
+3. Inspect the final ELF/map: a nonempty `.ARM.exidx`, resolved hook boundaries,
+   and unwind recipes for the workload. With GCC use `arm-none-eabi-readelf --unwind firmware.elf`; with LLVM use `llvm-readelf --unwind firmware.elf`. Table presence
+   alone is insufficient if the workload entries are all `CANTUNWIND`.
+4. Confirm initialization succeeds, capture known nested calls, stop and export.
+   Decode with the exact ELF; check recovered chains and `unwind_status_counts`,
+   not just PC hits. Render `stacks.folded` with its inclusion-count subtitle.
+
+| Example | Integration reference |
+|---|---|
+| Bare-metal GCC/AC6/ATfE | [Build/run guide](../examples/corstone300/README.md): add `--stack-unwind`; [main.c](../examples/corstone300/main.c) supplies MSP/PSP bounds |
+| Known A-F call tree | Same builder with `--call-tree`; enables unwinding and disables workload inlining/sibling calls |
+| CMSIS-RTX / ATfE | [2-thread FVP guide](../examples/corstone300_rtos2/CALL_TREE.md), [builder](../examples/corstone300_rtos2/build_call_tree.py), [static stack registry](../examples/corstone300_rtos2/call_tree_main.c) |
+
+Use these as integration patterns; retain the target application's memory map,
+startup, interrupt ownership and stack allocations.
 
 ## Execution and limits
 
@@ -110,3 +224,48 @@ represent sample counts, not per-function PMU counts. See the
 [Arm EHABI frame unwinding instructions](https://github.com/ARM-software/abi-aa/blob/main/ehabi32/ehabi32.rst#103-frame-unwinding-instructions)
 for how unwind recipes describe stack-pointer adjustments and register recovery
 to reconstruct caller frames.
+
+## Split executable regions
+
+Use `build.py --call-tree --split-code` in the Corstone example. It places A-E in
+ITCM and F in separate code SRAM, with 1 sorted index and 2 regions in
+[unwind_tables.c](../examples/corstone300/unwind_tables.c):
+
+```text
+ITCM: 0x10000000 [vectors, A-E, tables] ... gap ... SRAM: 0x11000000 [F]
+                  code[0]                                     code[1]
+```
+
+[GCC/LLD linker_split.ld](../examples/corstone300/linker_split.ld) exports SRAM
+bounds and a load address; [startup.c](../examples/corstone300/startup.c) copies
+the code before use. [AC6 linker_split.sct](../examples/corstone300/linker_split.sct)
+uses `ER_SRAM`, copied by scatter loading. Adapt addresses and startup/cache
+maintenance to your board. Code regions use execution addresses and exclude gaps;
+no hand-written CANTUNWIND sentinel is needed. Keep the region array alive and
+immutable throughout capture. An absent recipe at a new region stops unwinding.
+
+## Check the ELF before capture
+
+[ELF preflight](../host/check_profiler_elf.py) checks the compiled firmware without
+running it. **1 command checks the unwind tables and coverage of all sized function
+symbols in executable sections. You do not need to list functions individually.**
+
+```sh
+python3 host/check_profiler_elf.py --elf firmware.elf --require-unwind --output preflight.json
+```
+
+- Invalid table structure, missing tables or missing integration hooks cause failure.
+- Functions with missing or unsupported metadata produce a warning summary.
+- `preflight.json` contains the result for each function, including those that pass.
+
+Optionally add `--function functionF` to the same command to make missing or
+unsupported coverage for that function cause failure too. Repeat `--function`
+for other required functions; the checker still examines the whole ELF.
+
+If a needed library function lacks metadata, rebuild that library with
+`-funwind-tables` and retain its tables at link time. Enabling tables only for
+application sources cannot repair a prebuilt library.
+
+A pass confirms the checked metadata structure, not correct runtime backtraces.
+The checker does not validate every unwind instruction or runtime stack access;
+follow it with a capture of known nested calls.

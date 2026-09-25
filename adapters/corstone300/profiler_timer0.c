@@ -9,8 +9,8 @@
  * Title:        profiler_timer0.c
  * Description:  Corstone-300 TIMER0 sampling adapter
  *
- * $Date:        22 September 2026
- * $Revision:    V.1.0.0
+ * $Date:        25 September 2026
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -36,9 +36,15 @@ int profiler_timer_init(struct ProfilerClock *clock)
 {
     uint32_t period = profiler_timer_period(PROFILER_TIMER_CLOCK_HZ, UINT32_MAX);
     const struct cnt_control_base_reg_map_t *counter = (const void *)0x58100000UL;
-    if (!(counter->cntcr & 1U) || !period || !(TIMER->cntp_cfg & 1U) || NVIC_GetTargetState(TIMER0_IRQn) ||
-        (!owned && ((TIMER->cntp_ctl & 1U) || NVIC_GetEnableIRQ(TIMER0_IRQn))))
-        return 0;
+    if (!(counter->cntcr & 1U) || !period)
+        return profiler_init_fail(
+            PROFILER_INIT_TIMER, PROFILER_INIT_BAD_CLOCK, PROFILER_TIMER_CLOCK_HZ, PROFILER_SAMPLE_HZ);
+    if (!(TIMER->cntp_cfg & 1U))
+        return profiler_init_fail(PROFILER_INIT_TIMER, PROFILER_INIT_UNAVAILABLE, TIMER0_IRQn, 0);
+    if (NVIC_GetTargetState(TIMER0_IRQn))
+        return profiler_init_fail(PROFILER_INIT_TIMER, PROFILER_INIT_DENIED, TIMER0_IRQn, 0);
+    if (!owned && ((TIMER->cntp_ctl & 1U) || NVIC_GetEnableIRQ(TIMER0_IRQn)))
+        return profiler_init_fail(PROFILER_INIT_TIMER, PROFILER_INIT_BUSY, TIMER0_IRQn, 0);
     owned = 1U;
     profiler_timer_stop();
     TIMER->cntfrq = PROFILER_TIMER_CLOCK_HZ; /* Informational; does not change clock. */

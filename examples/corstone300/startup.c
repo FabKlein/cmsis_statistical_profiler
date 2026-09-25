@@ -9,8 +9,8 @@
  * Title:        startup.c
  * Description:  Corstone-300 startup and interrupt vector table
  *
- * $Date:        22 September 2026
- * $Revision:    V.1.0.0
+ * $Date:        25 September 2026
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -42,6 +42,14 @@ void Reset_Handler(void)
         *dest = *source++;
     for (uint32_t *dest = &__bss_start__; dest < &__bss_end__; ++dest)
         *dest = 0;
+    #if PROFILER_EXAMPLE_SPLIT_CODE
+    extern uint32_t __sram_text_load, __sram_text_start, __sram_text_end;
+    source = &__sram_text_load;
+    for (uint32_t *dest = &__sram_text_start; dest < &__sram_text_end; ++dest)
+        *dest = *source++;
+    __DSB();
+    __ISB();
+    #endif
     SystemInit();
     (void)main();
 #endif

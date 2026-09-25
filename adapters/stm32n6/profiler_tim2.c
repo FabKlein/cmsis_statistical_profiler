@@ -9,8 +9,8 @@
  * Title:        profiler_tim2.c
  * Description:  STM32N6 TIM2 sampling adapter
  *
- * $Date:        22 September 2026
- * $Revision:    V.1.0.0
+ * $Date:        25 September 2026
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -28,9 +28,12 @@ int profiler_timer_init(struct ProfilerClock *clock)
 {
     uint32_t hz = HAL_RCCEx_GetTIMGFreq();
     uint32_t period = profiler_timer_period(hz, UINT32_MAX);
-    if (!period || NVIC_GetTargetState(TIM2_IRQn) ||
-        (!owned && (__HAL_RCC_TIM2_IS_CLK_ENABLED() || NVIC_GetEnableIRQ(TIM2_IRQn))))
-        return 0;
+    if (!period)
+        return profiler_init_fail(PROFILER_INIT_TIMER, PROFILER_INIT_BAD_CLOCK, hz, PROFILER_SAMPLE_HZ);
+    if (NVIC_GetTargetState(TIM2_IRQn))
+        return profiler_init_fail(PROFILER_INIT_TIMER, PROFILER_INIT_DENIED, TIM2_IRQn, 0);
+    if (!owned && (__HAL_RCC_TIM2_IS_CLK_ENABLED() || NVIC_GetEnableIRQ(TIM2_IRQn)))
+        return profiler_init_fail(PROFILER_INIT_TIMER, PROFILER_INIT_BUSY, TIM2_IRQn, 0);
     __HAL_RCC_TIM2_CLK_ENABLE();
     owned = 1U;
     profiler_timer_stop();

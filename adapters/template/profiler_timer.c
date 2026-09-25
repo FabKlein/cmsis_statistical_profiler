@@ -9,8 +9,8 @@
  * Title:        profiler_timer.c
  * Description:  Board sampling timer adapter template
  *
- * $Date:        22 September 2026
- * $Revision:    V.1.0.0
+ * $Date:        25 September 2026
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -42,10 +42,12 @@ int profiler_timer_init(struct ProfilerClock *clock)
     uint32_t period = profiler_timer_period(hz, TIMER_MAX_PERIOD);
 #if defined(__ARM_FEATURE_CMSE) && (__ARM_FEATURE_CMSE == 3)
     if (NVIC_GetTargetState(TIMER_IRQ))
-        return 0; /* Secure build requires a Secure sampling IRQ. */
+        return profiler_init_fail(PROFILER_INIT_TIMER, PROFILER_INIT_DENIED, TIMER_IRQ, 0);
 #endif
-    if (!period || (!owned && NVIC_GetEnableIRQ(TIMER_IRQ)))
-        return 0;
+    if (!period)
+        return profiler_init_fail(PROFILER_INIT_TIMER, PROFILER_INIT_BAD_CLOCK, hz, PROFILER_SAMPLE_HZ);
+    if (!owned && NVIC_GetEnableIRQ(TIMER_IRQ))
+        return profiler_init_fail(PROFILER_INIT_TIMER, PROFILER_INIT_BUSY, TIMER_IRQ, 0);
 
     /* TODO(timer): before any writes, reject an already claimed/configured
      * peripheral on first init (!owned), even if its IRQ is disabled. Check

@@ -9,8 +9,8 @@
  * Title:        sampling_profiler_unwind.h
  * Description:  Bounded EHABI stack tracing interface
  *
- * $Date:        24 September 2026
- * $Revision:    V.1.0.0
+ * $Date:        25 September 2026
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -23,15 +23,24 @@
 #define PROFILER_UNWIND_H
 #include "sampling_profiler_cortex_m.h"
 
+/** @brief 1 executable allocation; gaps between allocations are never executable. */
+struct ProfilerCodeRegion
+{
+    uintptr_t base; /**< Execution address, not the load-image address. */
+    size_t bytes;   /**< Nonzero size, excluding the end. */
+};
+/** @brief Bound the region search cost in the sampling ISR. */
+#define PROFILER_MAX_CODE_REGIONS 8U
+
 /** @brief Application-owned, immutable, CPU-readable code and unwind table ranges. */
 struct ProfilerUnwindTables
 {
-    uintptr_t code_base;   /**< First executable address; 1 contiguous image in this implementation. */
-    size_t code_bytes;     /**< Executable address span, excluding the end. */
-    const uint32_t *exidx; /**< Sorted .ARM.exidx table, 2 words per entry. */
-    size_t exidx_bytes;    /**< Table size; includes any linker-generated end sentinel. */
-    const uint32_t *extab; /**< Optional .ARM.extab range, NULL if empty. */
-    size_t extab_bytes;    /**< Readable size of .ARM.extab. */
+    const struct ProfilerCodeRegion *code; /**< Immutable regions sorted by address, without overlap. */
+    size_t code_count;                     /**< 1..PROFILER_MAX_CODE_REGIONS; independent of table placement. */
+    const uint32_t *exidx;                 /**< Sorted .ARM.exidx table, 2 words per entry. */
+    size_t exidx_bytes;                    /**< Table size; includes any linker-generated end sentinel. */
+    const uint32_t *extab;                 /**< Optional .ARM.extab range, NULL if empty. */
+    size_t extab_bytes;                    /**< Readable size of .ARM.extab. */
 };
 #ifdef __cplusplus
 extern "C" {

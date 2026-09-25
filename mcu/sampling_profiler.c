@@ -9,8 +9,8 @@
  * Title:        sampling_profiler.c
  * Description:  Board-independent sample storage and capture lifecycle
  *
- * $Date:        22 September 2026
- * $Revision:    V.1.0.1
+ * $Date:        25 September 2026
+ * $Revision:    V.1.0.2
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -38,6 +38,14 @@ _Static_assert(PROFILER_SAMPLE_HZ > 0U && PROFILER_SAMPLE_HZ <= UINT32_MAX,
 PROFILER_BUFFER_ATTRIBUTES volatile struct ProfilerSamplingBuffer statistical_samples;
 volatile uint32_t statistical_sampling_gate;
 static uint32_t initialized;
+static struct ProfilerDiagnostics diagnostics;
+
+const struct ProfilerDiagnostics *sampling_profiler_diagnostics(void) { return &diagnostics; }
+int profiler_init_fail(enum ProfilerInitStage stage, enum ProfilerInitReason reason, uint32_t value0, uint32_t value1)
+{
+    diagnostics = (struct ProfilerDiagnostics){stage, reason, value0, value1};
+    return 0;
+}
 
 int sampling_profiler_init(void)
 {
@@ -47,15 +55,21 @@ int sampling_profiler_init(void)
     profiler_pmu_stop();
 #endif
     initialized = 0;
+    diagnostics = (struct ProfilerDiagnostics){0};
     memset((void *)&statistical_samples, 0, sizeof(statistical_samples));
     statistical_samples.header.magic = PROFILER_CAPTURE_MAGIC;
     statistical_samples.header.version = PROFILER_FORMAT_VERSION;
+    statistical_samples.header.header_bytes = PROFILER_HEADER_BYTES;
     statistical_samples.header.record_base_bytes = PROFILER_BASE_RECORD_BYTES;
     statistical_samples.header.buffer_bytes = sizeof(statistical_samples);
     statistical_samples.header.sample_hz = PROFILER_SAMPLE_HZ;
     struct ProfilerClock clock;
     if (!profiler_port_init(&clock))
+    {
+        if (diagnostics.reason == PROFILER_INIT_OK)
+            profiler_init_fail(PROFILER_INIT_BACKEND, PROFILER_INIT_UNAVAILABLE, 0, 0);
         return 0;
+    }
     statistical_samples.header.timestamp_hz = clock.timestamp_hz;
     statistical_samples.header.timer_period = clock.timer_period;
     statistical_samples.header.timer_hz = clock.timer_hz;
@@ -65,6 +79,8 @@ int sampling_profiler_init(void)
     statistical_samples.header.unwind_max_depth = PROFILER_STACK_UNWIND ? PROFILER_UNWIND_MAX_DEPTH : 0U;
     statistical_samples.header.record_base_bytes =
         PROFILER_BASE_RECORD_BYTES + 4U * statistical_samples.header.pmu_count + 4U * PROFILER_STACK_UNWIND;
+    statistical_samples.header.features =
+        (statistical_samples.header.pmu_count ? 1U : 0U) | (PROFILER_STACK_UNWIND ? 2U : 0U);
     statistical_samples.header.start_timestamp = profiler_port_timestamp();
     statistical_samples.header.start_tick = profiler_port_ticks();
     initialized = 1;

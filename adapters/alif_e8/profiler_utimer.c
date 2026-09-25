@@ -9,8 +9,8 @@
  * Title:        profiler_utimer.c
  * Description:  Alif Ensemble E8 per-core UTIMER sampling adapter
  *
- * $Date:        22 September 2026
- * $Revision:    V.1.0.0
+ * $Date:        25 September 2026
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -37,11 +37,15 @@ int profiler_timer_init(struct ProfilerClock *clock)
 {
     uint32_t period = profiler_timer_period(PROFILER_TIMER_CLOCK_HZ, UINT32_MAX);
     /* Startup owns the shared clock register and reserves this channel across cores. */
-    if (!period || !(UTIMER->UTIMER_GLB_CLOCK_ENABLE & CHANNEL_MASK) || NVIC_GetTargetState(PROFILER_ALIF_TIMER_IRQ) ||
-        (!owned &&
-         ((UTIMER->UTIMER_GLB_CNTR_RUNNING & CHANNEL_MASK) || (CHANNEL.UTIMER_CNTR_CTRL & 1U) ||
-          NVIC_GetEnableIRQ(PROFILER_ALIF_TIMER_IRQ))))
-        return 0;
+    if (!period || !(UTIMER->UTIMER_GLB_CLOCK_ENABLE & CHANNEL_MASK))
+        return profiler_init_fail(
+            PROFILER_INIT_TIMER, PROFILER_INIT_BAD_CLOCK, PROFILER_TIMER_CLOCK_HZ, PROFILER_SAMPLE_HZ);
+    if (NVIC_GetTargetState(PROFILER_ALIF_TIMER_IRQ))
+        return profiler_init_fail(PROFILER_INIT_TIMER, PROFILER_INIT_DENIED, PROFILER_ALIF_TIMER_IRQ, 0);
+    if (!owned &&
+        ((UTIMER->UTIMER_GLB_CNTR_RUNNING & CHANNEL_MASK) || (CHANNEL.UTIMER_CNTR_CTRL & 1U) ||
+         NVIC_GetEnableIRQ(PROFILER_ALIF_TIMER_IRQ)))
+        return profiler_init_fail(PROFILER_INIT_TIMER, PROFILER_INIT_BUSY, PROFILER_ALIF_TIMER_IRQ, 0);
     owned = 1U;
     CHANNEL.UTIMER_START_0_SRC = 0U;
     CHANNEL.UTIMER_STOP_0_SRC = 0U;
