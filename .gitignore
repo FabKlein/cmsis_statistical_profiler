@@ -2,3 +2,12 @@ build/
 __pycache__/
 *.pyc
 sampling-report/
+# Toolbox outputs; the application-owned FreeRTOS RTE config stays tracked.
+examples/corstone300_rtos2/.cmsis/
+examples/corstone300_rtos2/*.cbuild*.yml
+examples/corstone300_rtos2/out/
+examples/corstone300_rtos2/tmp/
+examples/corstone300_rtos2/RTE/_*/
+examples/corstone300_rtos2/RTE/CMSIS/
+examples/corstone300_rtos2/RTE/RTOS/*.base*
+examples/corstone300_rtos2/RTE/RTOS/*.update*

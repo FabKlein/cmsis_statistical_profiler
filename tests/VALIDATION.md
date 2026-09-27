@@ -4,7 +4,7 @@ Updated on 30 September 2026:
 
 | Check | Coverage / result |
 |---|---|
-| 39 native/Python test groups | Lifecycle, rates, cache, timer stop/restart, PRIMASK, SysTick preservation, clock wraps, frame/bounds rejection, DTCM configuration and malformed/empty captures |
+| 56 native/Python tests (1 skipped) | Lifecycle, rates, cache, timer stop/restart, PRIMASK, SysTick preservation, clock wraps, frame/bounds rejection, DTCM configuration and malformed/empty captures |
 | EHABI backtraces | Native compact recipes, bounds, register reconstruction, basic/FP/padded MSP/PSP frames, wrong-task rejection, all PMU counts, variable record lengths, configurable depth limits, atomic full-buffer handling and folded-stack filtering; AC6/GCC architecture matrix includes the enabled IRQ entry |
 | Backtrace FVP | AC6/GCC PSP/FP captures recover `capture_on_psp;profile_workload;run_once`; 84 samples and valid timing. AC6 MSP also recovers callers and stops at missing runtime metadata. Physical hardware remains untested |
 | Host C++ symbols | Batched demangling, overloads, C names, unavailable/failed tools, CLI reports and opt-out |
@@ -19,8 +19,10 @@ Updated on 30 September 2026:
 | 4-event FVP | AC6: 84 samples, 100% workload hits, valid timing, all 4 event reports decoded; functional model totals are 0 |
 | PMU on/off FVP | 2 333 Hz captures each; final capture: 84 samples, validation passed, no rejected/unresolved PCs |
 | PMU software-increment diagnostic | 2,020,000 events on each chained pair, crossing low-half rollovers |
-| CMSIS-RTX call-tree FVP | ATfE 22.1 / RTX 5.9.1: 2 preemptively scheduled workers with separate static PSP stacks; 665 samples, valid timing, 0 rejected/unresolved, separate A–F/A1–F1 chains and successful workload validation. [Reproduce](../examples/corstone300_rtos2/CALL_TREE.md) |
+| CMSIS-FreeRTOS call-tree FVP | Toolbox 2.13.0 / ATfE 22.1 / CMSIS-FreeRTOS 11.2.0: 664 samples, valid timing, 0 rejected frames, both static PSP workers validated; 660 plotted chains, 4 excluded. [Reproduce](../examples/corstone300_freertos/README.md) |
+| CMSIS-RTX call-tree FVP | Toolbox 2.13.0 / ATfE 22.1 / RTX 5.9.1: 2 preemptively scheduled workers with separate static PSP stacks; 665 samples, valid timing, 0 rejected/unresolved, separate A–F/A1–F1 chains and successful workload validation. [Reproduce](../examples/corstone300_rtos2/CALL_TREE.md) |
 | CMSIS-RTOS2 illustration | GCC/AC6 compilation and exception-symbol checks only; no kernel linked/run |
+| Toolbox RTOS builds | Both contexts build from a clean copy without generated RTE files; failed-build regression rejects stale ELF/capture artifacts |
 | CMSIS layers | Schema validation and generated AC6/GCC builds: application flags unchanged; core and all timer groups protected |
 | Timing checks | Frozen counters, rate mismatch, mid-capture drift and stop epochs; valid wraps, coarse counters and degraded reports |
 | CI regression | Workflow passes actionlint; AC6/FVP uses reference-counter timestamps and requires valid cumulative timing |
@@ -117,3 +119,47 @@ same FVP/export procedure. Preflight each ELF with `--require-unwind --function 
 The host tests cover format mismatch, gap/order/recipe failures, buffer budgets,
 report input preservation and stale-output rejection. These results do not
 validate physical SRAM, hardware overhead or macOS portability.
+
+## Selective AC6 retention
+
+Validated on Linux with AC6 6.24 using the split-code Corstone objects: first link
+without blanket retention, generate rules with `select_profiler_unwind.py` and
+`--code-section .sram_text`, then link again through `--via` with
+`--no_compressexidx`. Final ELF preflight passed for functions E/F. An added
+unreferenced function stayed absent in both passes but survived blanket EXIDX
+retention, confirming the intended dead-code behavior. This was a link/preflight
+check, not a new hardware or FVP run.
+
+`tests/test_select_unwind.py` covers sanitized MobileNet map rows, populated `E`,
+duplicate/custom sections, non-code/discarded rows, malformed input, literal `$`
+names and failure handling. Object/archive associations remain unverified.
+
+## GCC/LLVM retention
+
+Local Linux link tests used GCC 13.2.1 / GNU ld 2.42 and ATfE 22.1 / LLD 22.1.0,
+with `-funwind-tables -ffunction-sections -fdata-sections`, `--gc-sections` and
+`--no-merge-exidx-entries`. The split-code Corstone image was augmented with live
+and unused functions, both inline and EXTAB recipes, in a direct object and a
+selected archive member. An entirely unreferenced archive member stayed absent.
+
+| EHABI selectors | GNU ld: unused functions retained | LLD: unused functions retained |
+|---|---|---|
+| No `KEEP` | 0/4 | 0/4 |
+| EXIDX `KEEP` | 4/4 | 0/4 |
+| EXTAB `KEEP` | 0/4 | 0/4 |
+| Both `KEEP` | 4/4 | 0/4 |
+
+All variants passed final ELF preflight for the live inline/EXTAB probes and
+functions E/F. Ordinary selectors preserve the needed recipes in 1 pass on these
+toolchains; blanket EXIDX retention is harmful with GNU ld. These are link tests,
+not hardware/FVP, LTO, or arbitrary library/assembly validation.
+
+Build the [Corstone example](../examples/corstone300/README.md) with
+`--call-tree --split-code`, then run with the **same compiler**:
+
+```sh
+python3 tests/check_unwind_retention.py --cc arm-none-eabi-gcc --objects build/corstone300 --output build/retention-gcc
+```
+
+Repeat with ATfE Clang and its own example build directory. Use an empty output
+directory; each run saves 4 ELFs, maps, logs, preflight reports and `results.json`.

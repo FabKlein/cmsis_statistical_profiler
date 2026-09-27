@@ -7,8 +7,8 @@
 # Title:        corstone300_timer0.clayer.yml
 # Description:  Corstone-300 TIMER0 sampling adapter layer
 #
-# $Date:        22 September 2026
-# $Revision:    V.1.0.0
+# $Date:        27 September 2026
+# $Revision:    V.1.0.1
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -22,6 +22,10 @@ layer:
       # Restrict ISR code generation without changing application optimization.
       misc:
         - for-compiler: AC6
+          C:
+            - -fno-vectorize
+            - -fno-slp-vectorize
+        - for-compiler: CLANG
           C:
             - -fno-vectorize
             - -fno-slp-vectorize

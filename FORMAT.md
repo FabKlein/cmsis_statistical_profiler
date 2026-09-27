@@ -5,6 +5,9 @@ records. Each occupies `record_base_bytes + 4 * depth` bytes (depth is 0 without
 backtraces). Dump the whole
 `statistical_samples` object, including unused buffer space. Use the matching firmware and decoder.
 
+The current header contains no firmware build ID. External capture/ELF hashes
+identify archived files but cannot verify which firmware produced a capture.
+
 ## Header
 
 | Word | Field | Meaning |

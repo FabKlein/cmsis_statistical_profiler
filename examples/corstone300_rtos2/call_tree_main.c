@@ -7,10 +7,10 @@
 /* ----------------------------------------------------------------------
  * Project:      CMSIS Statistical Profiler
  * Title:        call_tree_main.c
- * Description:  CMSIS-RTX dual-thread backtrace test
+ * Description:  CMSIS-RTOS2 dual-thread backtrace test
  *
- * $Date:        22 September 2026
- * $Revision:    V.1.0.0
+ * $Date:        27 September 2026
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -22,6 +22,16 @@
 #include "sampling_profiler_cortex_m.h"
 #include "sampling_profiler_port.h"
 #include "syscounter_armv8-m_cntrl_reg_map.h"
+
+#if PROFILER_EXAMPLE_FREERTOS
+    #include "FreeRTOS.h"
+    #include "task.h"
+/* FreeRTOS requires both static TCB and stack storage for each static task. */
+static StaticTask_t control_blocks[3];
+    #define THREAD_CONTROL_BLOCK(index) .cb_mem = &control_blocks[index], .cb_size = sizeof(control_blocks[index]),
+#else
+    #define THREAD_CONTROL_BLOCK(index)
+#endif
 
 extern int run_once(void), validate(void), run_once1(void), validate1(void);
 extern void example_exit(uint32_t status);
@@ -74,6 +84,25 @@ __attribute__((noinline)) static void worker1(void *arg)
     }
 }
 
+#if PROFILER_EXAMPLE_FREERTOS
+/** Common application root; never interpret FreeRTOS's synthetic task-return LR as a caller. */
+__attribute__((noinline)) static void worker_entry(void *arg)
+{
+    if ((uintptr_t)arg == 0U)
+        worker(0);
+    else
+        worker1(0);
+}
+
+/** Fail the test if a kernel stack check detects corruption. */
+void vApplicationStackOverflowHook(TaskHandle_t task, char *name)
+{
+    (void)task;
+    (void)name;
+    example_exit(21U);
+}
+#endif
+
 static int semihost(uint32_t operation, const void *arguments)
 {
     register uint32_t r0 __asm("r0") = operation;
@@ -108,16 +137,21 @@ static void controller(void *arg)
 {
     (void)arg;
     const osThreadAttr_t attr[2] = {{.name = "A-F",
-                                     .attr_bits = osThreadPrivileged,
+                                     THREAD_CONTROL_BLOCK(0).attr_bits = osThreadPrivileged,
                                      .stack_mem = stacks[0],
                                      .stack_size = sizeof(stacks[0]),
                                      .priority = osPriorityNormal},
                                     {.name = "A1-F1",
-                                     .attr_bits = osThreadPrivileged,
+                                     THREAD_CONTROL_BLOCK(1).attr_bits = osThreadPrivileged,
                                      .stack_mem = stacks[1],
                                      .stack_size = sizeof(stacks[1]),
                                      .priority = osPriorityNormal}};
+#if PROFILER_EXAMPLE_FREERTOS
+    osThreadId_t threads[2] = {osThreadNew(worker_entry, (void *)0U, &attr[0]),
+                               osThreadNew(worker_entry, (void *)1U, &attr[1])};
+#else
     osThreadId_t threads[2] = {osThreadNew(worker, 0, &attr[0]), osThreadNew(worker1, 0, &attr[1])};
+#endif
     if (!threads[0] || !threads[1] || !sampling_profiler_init())
         example_exit(10);
     uint32_t start = osKernelGetTickCount();
@@ -146,7 +180,7 @@ int main(void)
     if (osKernelInitialize() != osOK)
         example_exit(13);
     const osThreadAttr_t attr = {.name = "controller",
-                                 .attr_bits = osThreadPrivileged,
+                                 THREAD_CONTROL_BLOCK(2).attr_bits = osThreadPrivileged,
                                  .stack_mem = stacks[2],
                                  .stack_size = sizeof(stacks[2]),
                                  .priority = osPriorityAboveNormal};

@@ -1,7 +1,7 @@
 # Corstone-300 CMSIS-RTOS2 illustration
 
 For a runnable 2-thread A–F/A1–F1 test with backtraces and a flamegraph, see
-[CMSIS-RTX call-tree test](CALL_TREE.md). The illustration below remains standalone.
+[Toolbox RTX/FreeRTOS call-tree test](CALL_TREE.md). The illustration below remains standalone.
 
 Add this example to a working secure, single-core M55 CMSIS-RTOS2 BSP project.
 It supplies application code, not a kernel, startup or linker script.

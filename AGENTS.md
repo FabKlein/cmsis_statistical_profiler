@@ -42,11 +42,16 @@ and provenance. Do not guess bounds or ownership. Report validation limits.
   [AC6](docs/UNWINDING.md#ac6-scatter-file-integration) or
   [GCC/LLVM](docs/UNWINDING.md#gcc--llvm-linker-script-integration) instructions,
   and supply both table-range and precise stack-bounds hooks. Defines alone are insufficient.
+  For large AC6 images, use [selective 2-pass retention](docs/UNWINDING.md#ac6-table-retention)
+  to avoid retaining unused code; recheck the final ELF after the second link.
   Adapt the existing memory map; verify final ELF recipes and known caller chains.
   The decoder writes `stacks.folded`; render with external `flamegraph.pl` and use
   `stacks.note.txt` as the subtitle. `--stack-root NAME` selects the graph base.
   Unreliable/root-missing chains are excluded and counted; PC/PMU statistics remain intact.
-  See the [RTX dual-thread FVP test](examples/corstone300_rtos2/CALL_TREE.md).
+  See the [RTX](examples/corstone300_rtos2/CALL_TREE.md) and
+  [FreeRTOS](examples/corstone300_freertos/README.md) dual-thread FVP tests.
+  Build their shared `call_tree.csolution.yml` with CMSIS-Toolbox;
+  `tests/run_rtos_fvp.py --kernel rtx|freertos` builds, checks and runs the capture.
 - Preserve SPDX/project headers and Doxygen contracts. Use `.clang-format` for C/H;
   preserve protected device include order.
 - For behavior changes, run `python3 -B -m unittest discover -s tests -v`.

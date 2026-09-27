@@ -10,5 +10,12 @@
 
 - [ ] Capture the unwind termination address; current records retain status and
   recovered prefix only. Root reached and complete unwind remain distinct.
+- [ ] Embed an immutable build ID in loadable read-only firmware data, copy it
+  into capture metadata and compare it with the supplied ELF during decoding.
+  Generate it per build and retain it through linking; bump the capture format.
+  Keep the full ELF SHA-256 separately for artifact integrity, avoiding a
+  self-referential hash of the ELF containing its own ID.
+- [ ] Resolve selective AC6 retention through input ELF/archive EXIDX associations;
+  the current helper infers names from the first-pass map and uses object wildcards.
 - [ ] Reproduce reported macOS test failures with logs/toolchain details; native
   firmware tests currently require Linux ELF and low 32-bit addresses.

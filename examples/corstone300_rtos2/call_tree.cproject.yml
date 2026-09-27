@@ -1,0 +1,78 @@
+# SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# ----------------------------------------------------------------------
+# Project:      CMSIS Statistical Profiler
+# Title:        call_tree.cproject.yml
+# Description:  Shared RTOS application with the 3 profiler layers
+#
+# $Date:        27 September 2026
+# $Revision:    V.1.0.0
+#
+# Target :  Arm(R) M-Profile Architecture
+# ----------------------------------------------------------------------
+
+project:
+  output:
+    base-name: profiler
+    type: [elf]
+  debug: on
+  optimize: balanced
+  language-C: c11
+  define:
+    - PROFILER_USER_CONFIG: '"profiler_config.h"'
+    - PROFILER_SAMPLE_HZ: 333
+    - PROFILER_SAMPLE_BUFFER_BYTES: 131072
+    - PROFILER_TIMER_CLOCK_HZ: 100000000
+    - PROFILER_TIMESTAMP_CUSTOM: 1
+    - PROFILER_STACK_UNWIND: 1
+    - PROFILER_PRECISE_STACK_BOUNDS: 1
+    - PROFILER_UNWIND_MAX_DEPTH: 16
+  add-path:
+    - ../corstone300
+    - $Pack(ARM::V2M_MPS3_SSE_300_BSP)$/Device/Include
+  # Keep this integer test workload scalar; ISR restrictions also live in the layers.
+  misc:
+    - for-compiler: CLANG
+      C: [-ffunction-sections, -fdata-sections, -fno-vectorize, -fno-slp-vectorize]
+      Link: [-nostartfiles, "-Wl,--gc-sections", "-Wl,--no-merge-exidx-entries"]
+  linker:
+    - script: ../corstone300/linker.ld
+  layers:
+    - layer: ../../cmsis_statistical_profiler.clayer.yml
+    - layer: ../../adapters/corstone300/corstone300.clayer.yml
+    - layer: ../../adapters/corstone300/corstone300_timer0.clayer.yml
+  components:
+    - component: ARM::CMSIS:CORE
+    - component: ARM::CMSIS:OS Tick:SysTick
+    - component: ARM::CMSIS:RTOS2:Keil RTX5&Source
+      for-context: .RTX
+    - component: ARM::CMSIS:RTOS2:FreeRTOS&Cortex-M
+      for-context: .FreeRTOS
+    - component: ARM::RTOS&FreeRTOS:Config&CMSIS RTOS2
+      for-context: .FreeRTOS
+    - component: ARM::RTOS&FreeRTOS:Core&Cortex-M
+      for-context: .FreeRTOS
+    - component: ARM::RTOS&FreeRTOS:Event Groups
+      for-context: .FreeRTOS
+    - component: ARM::RTOS&FreeRTOS:Heap&Heap_4
+      for-context: .FreeRTOS
+    - component: ARM::RTOS&FreeRTOS:Timers
+      for-context: .FreeRTOS
+  groups:
+    - group: Application
+      # Only profiled application code needs EHABI metadata in this test.
+      misc:
+        - for-compiler: CLANG
+          C: [-funwind-tables, -fno-inline, -fno-optimize-sibling-calls]
+      files:
+        - file: call_tree_main.c
+        - file: call_tree_startup.c
+        - file: ../corstone300/call_tree.c
+        - file: call_tree_clone.c
+    - group: Platform hooks
+      files:
+        - file: ../corstone300/reference_timestamp.c
+        - file: ../corstone300/unwind_tables.c
+        - file: $Pack(ARM::V2M_MPS3_SSE_300_BSP)$/Device/Source/system_SSE300MPS3.c

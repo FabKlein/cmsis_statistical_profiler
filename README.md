@@ -53,7 +53,7 @@ Follow the [3-stage integration guide](docs/INTEGRATION.md): PC sampling, PMU, t
 | NXP MIMXRT685 | [CTIMER4 adapter](adapters/nxp_rt685/README.md) |
 | Himax WE2 / HX6538 | [TIMER4 adapter and UART retrieval](adapters/himax_we2/README.md) |
 | Free SysTick | [Generic exclusive integration](integrations/systick/README.md) |
-| CMSIS-RTOS2 | [RTX dual-thread FVP test](examples/corstone300_rtos2/CALL_TREE.md), [integration illustration](examples/corstone300_rtos2/README.md) |
+| CMSIS-RTOS2 | [RTX](examples/corstone300_rtos2/CALL_TREE.md) / [FreeRTOS](examples/corstone300_freertos/README.md) dual-thread Toolbox/FVP tests, [integration illustration](examples/corstone300_rtos2/README.md) |
 | New board | [Adapter template](adapters/template/README.md) |
 
 Select the common layer, 1 board and 1 board timer:

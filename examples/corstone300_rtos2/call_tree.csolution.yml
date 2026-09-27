@@ -1,0 +1,42 @@
+# SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# ----------------------------------------------------------------------
+# Project:      CMSIS Statistical Profiler
+# Title:        call_tree.csolution.yml
+# Description:  Dual-thread RTX and FreeRTOS FVP test builds
+#
+# $Date:        27 September 2026
+# $Revision:    V.1.0.0
+#
+# Target :  Arm(R) M-Profile Architecture
+# ----------------------------------------------------------------------
+
+solution:
+  created-for: CMSIS-Toolbox@2.13.0
+  compiler: CLANG@22.1.0
+  packs:
+    - pack: ARM::CMSIS@6.3.0
+    - pack: ARM::V2M_MPS3_SSE_300_BSP@1.5.0
+    - pack: ARM::CMSIS-RTX@5.9.1
+      for-context: .RTX
+    - pack: ARM::CMSIS-FreeRTOS@11.2.0
+      for-context: .FreeRTOS
+  target-types:
+    - type: Corstone300
+      device: ARM::SSE-300-MPS3
+      processor:
+        trustzone: secure-only
+        fpu: dp
+        mve: fp
+  build-types:
+    - type: RTX
+      define:
+        - OS_TIMER_THREAD_STACK_SIZE: 0
+        - OS_THREAD_WATCHDOG: 0
+    - type: FreeRTOS
+      define:
+        - PROFILER_EXAMPLE_FREERTOS: 1
+  projects:
+    - project: call_tree.cproject.yml

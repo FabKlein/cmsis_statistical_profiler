@@ -27,9 +27,9 @@ SECTIONS
         __sram_text_end = .;
     } > SRAM AT > ITCM
     __sram_text_load = LOADADDR(.sram_text);
-    /* Keep EHABI recipes/index with --gc-sections; unwind_tables.c exports these ranges. */
-    .ARM.extab : { __profiler_extab_start = .; KEEP(*(.ARM.extab*)) __profiler_extab_end = .; } > ITCM
-    .ARM.exidx : { __exidx_start = .; KEEP(*(.ARM.exidx*)) __exidx_end = .; } > ITCM
+    /* Follow live code with --gc-sections; blanket EXIDX KEEP can retain dead code in GNU ld. */
+    .ARM.extab : { __profiler_extab_start = .; *(.ARM.extab*) __profiler_extab_end = .; } > ITCM
+    .ARM.exidx : { __exidx_start = .; *(.ARM.exidx*) __exidx_end = .; } > ITCM
     .data : ALIGN(4)
     {
         __data_start__ = .;

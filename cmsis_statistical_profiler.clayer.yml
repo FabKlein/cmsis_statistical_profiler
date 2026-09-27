@@ -7,8 +7,8 @@
 # Title:        cmsis_statistical_profiler.clayer.yml
 # Description:  Common capture core, Cortex-M backend and application settings
 #
-# $Date:        25 September 2026
-# $Revision:    V.1.0.2
+# $Date:        27 September 2026
+# $Revision:    V.1.0.3
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -64,6 +64,10 @@ layer:
       # the ISR path and inspect generated code after compiler or LTO changes.
       misc:
         - for-compiler: AC6
+          C:
+            - -fno-vectorize
+            - -fno-slp-vectorize
+        - for-compiler: CLANG
           C:
             - -fno-vectorize
             - -fno-slp-vectorize

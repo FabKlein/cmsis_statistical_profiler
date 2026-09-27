@@ -22,7 +22,8 @@ Rebuild firmware and use the matching decoder after this format change.
    C++ sources, rather than only the profiler group. Frame pointers are not required.
    Assembly functions need unwind annotations; missing metadata stops the trace.
 2. Retain `.ARM.exidx` and `.ARM.extab` in CPU-readable, immutable memory. GNU
-   linker scripts can use `KEEP`; AC6 may need `--keep=*(.ARM.exidx*)`.
+   use the [GCC/LLVM section placement](#gcc--llvm-linker-script-integration) or
+   the [AC6 retention strategy](#ac6-table-retention) below.
    Toolchains may pull in their exception runtime through table references,
    increasing image size even though this profiler never calls that runtime.
 3. Implement `profiler_unwind_tables()` from
@@ -57,11 +58,11 @@ region and before the RAM regions**, as in [linker.sct](../examples/corstone300/
 an inline index entry. Both must remain readable during capture. Allow room for
 them in the load region; these additions do not increase its configured size.
 
-Compile profiled sources with `-funwind-tables` and add the armlink option
-`--keep=*(.ARM.exidx*)` (quote it when invoking through a shell) and
-`--no_compressexidx` to retain entries at disjoint code-region boundaries. Placement alone
-does not generate tables or guarantee retention. Prebuilt libraries need their
-own unwind metadata; missing metadata stops the trace.
+Compile profiled sources with `-funwind-tables` and link with
+`--no_compressexidx` to retain entries at disjoint code-region boundaries.
+Choose [blanket or selective retention](#ac6-table-retention) according to image
+size. Placement alone does not generate tables or guarantee retention. Prebuilt
+libraries need their own unwind metadata; missing metadata stops the trace.
 
 Add [unwind_tables.c](../examples/corstone300/unwind_tables.c) to the application,
 or implement its hook using these linker symbols:
@@ -82,6 +83,56 @@ be nonempty; `.ARM.extab` may be empty when all recipes fit inline. Finally,
 confirm `sampling_profiler_init()` succeeds. The precise stack-bounds hook from
 step 4 is still required; scatter-file changes alone do not enable backtraces.
 
+### AC6 table retention
+
+The small Corstone example uses `--keep="*(.ARM.exidx*)"`. This can also retain
+otherwise-unused code through table references and overflow a large application's
+code allocation. For tight memory budgets, use a map-driven 2-pass link:
+
+1. Compile application and libraries with `-funwind-tables`.
+2. Clear `out/profiler_unwind_keep.rsp` and link with normal dead-code elimination,
+   without blanket EXIDX retention. Generate a fresh linker map.
+3. Run [select_profiler_unwind.py](../host/select_profiler_unwind.py) on the first
+   map. It selects retained **Code RO input sections** named `.text` or `.text.*`
+   and writes the response file automatically:
+
+   ```sh
+   python3 host/select_profiler_unwind.py out/firmware.map out/profiler_unwind_keep.rsp
+   ```
+
+   Generated rules look like:
+
+   ```text
+   --keep="*(.ARM.exidx.text.app_main)"
+   --keep="*(.ARM.exidx.text.preprocess_rgb565)"
+   ```
+
+4. Force a second link with the same inputs/settings, adding
+   `--via=out/profiler_unwind_keep.rsp --no_compressexidx`. Keep the
+   `ER_EXIDX`/`ER_EXTAB` scatter selectors shown above.
+5. Check the final map for memory usage and run [ELF preflight](#check-the-elf-before-capture).
+   Require coverage for important kernels, wrappers, preprocessing and dispatch
+   functions using `--function`. Validate this final executable on the target.
+
+Generate the rules afresh for each build; do not maintain a manual kernel list or
+reuse a response file from an earlier image. Make response-file changes trigger
+relinking. Abort if selection fails; an earlier response file may still exist.
+Pass the file directly to armlink with `--via`; do not expand its contents through
+the shell, especially names containing `$Sub$$`.
+
+The parser accepts AC6 section tables with a blank or populated `E` column.
+For custom code sections, add repeated `--code-section NAME` options, for example
+`--code-section .sram_text` for the split-code example. Other section names are
+omitted with a warning. Provide the full map or an excerpt containing its table header.
+
+**Names are inferred, not verified against input objects.** Bare `.text` produces
+`.ARM.exidx.text`, which may not exist and can cause an unmatched-rule linker
+warning. Object wildcard `*` can retain identical section names from multiple
+objects. The second link may introduce more functions, and selection cannot
+create missing metadata. Final ELF checks remain necessary. See
+[validation](../tests/VALIDATION.md#selective-ac6-retention) for the tested scope;
+the default FVP builder still uses blanket retention.
+
 ### GCC / LLVM linker-script integration
 
 GCC with GNU ld and ATfE Clang with LLD use the same example
@@ -100,13 +151,13 @@ not necessarily TCM. Merge with existing sections instead of defining duplicates
 .ARM.extab :
 {
     __profiler_extab_start = .;
-    KEEP(*(.ARM.extab*))
+    *(.ARM.extab*)
     __profiler_extab_end = .;
 } > CODE
 .ARM.exidx :
 {
     __exidx_start = .;
-    KEEP(*(.ARM.exidx*))
+    *(.ARM.exidx*)
     __exidx_end = .;
 } > CODE
 ```
@@ -114,7 +165,12 @@ not necessarily TCM. Merge with existing sections instead of defining duplicates
 Preserve your startup/vector selectors, alignment, memory limits and data/stack
 placement. The code bounds must cover the executable span being unwound; adapt
 for custom code sections. Keep unwind tables separate from `.text`/`.rodata`
-and remove any rule that discards them. `KEEP` retains them with `--gc-sections`.
+and remove any rule that discards them. With `--gc-sections`, the tested GNU ld
+and LLD versions retain unwind metadata for live code without `KEEP`. Blanket
+EXIDX `KEEP` retained unused code with GNU ld 2.42; LLD 22.1 discarded that code.
+Use ordinary selectors above for both. No 2-pass selector is needed for these
+builds; validate the final ELF after toolchain or linker-option changes. See
+[retention tests](../tests/VALIDATION.md#gccllvm-retention).
 The linker orders the EHABI index; do not sort its input sections by name.
 
 Compile profiled C/C++ sources with `-funwind-tables`, then link with your script
@@ -150,7 +206,8 @@ references; it is not a profiler requirement or a heap allocator.
 |---|---|
 | Bare-metal GCC/AC6/ATfE | [Build/run guide](../examples/corstone300/README.md): add `--stack-unwind`; [main.c](../examples/corstone300/main.c) supplies MSP/PSP bounds |
 | Known A-F call tree | Same builder with `--call-tree`; enables unwinding and disables workload inlining/sibling calls |
-| CMSIS-RTX / ATfE | [2-thread FVP guide](../examples/corstone300_rtos2/CALL_TREE.md), [builder](../examples/corstone300_rtos2/build_call_tree.py), [static stack registry](../examples/corstone300_rtos2/call_tree_main.c) |
+| CMSIS-FreeRTOS / ATfE | [2-thread FVP guide and configuration](../examples/corstone300_freertos/README.md); shares the RTX application and static stack registry |
+| CMSIS-RTX / ATfE | [2-thread FVP guide](../examples/corstone300_rtos2/CALL_TREE.md), [Toolbox project](../examples/corstone300_rtos2/call_tree.cproject.yml), [static stack registry](../examples/corstone300_rtos2/call_tree_main.c) |
 
 Use these as integration patterns; retain the target application's memory map,
 startup, interrupt ownership and stack allocations.
@@ -226,6 +283,23 @@ for how unwind recipes describe stack-pointer adjustments and register recovery
 to reconstruct caller frames.
 
 ## Split executable regions
+
+Existing application hooks using `code_base`/`code_bytes` must migrate to
+`code`/`code_count` before rebuilding. For a previously contiguous range:
+
+```c
+/* Before: tables->code_base = base; tables->code_bytes = bytes; */
+/* Inside profiler_unwind_tables(), with linker-derived base and bytes: */
+static struct ProfilerCodeRegion code[1];
+code[0] = (struct ProfilerCodeRegion){base, bytes};
+tables->code = code;
+tables->code_count = 1;
+/* Keep the existing exidx/extab assignments. */
+```
+
+For split placement, supply a sorted entry per executable allocation instead of
+1 broad span. Existing captures remain decodable with their saved matching
+decoder and ELF; rebuilding does not convert old captures to the current format.
 
 Use `build.py --call-tree --split-code` in the Corstone example. It places A-E in
 ITCM and F in separate code SRAM, with 1 sorted index and 2 regions in
