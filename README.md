@@ -200,6 +200,7 @@ python3 -m webbrowser "file:///absolute/path/to/report/dashboard.html"
 | `--report PATH` | Required directory containing `samples.csv` and `summary.json` |
 | `--output PATH` | Output directory; defaults to the report directory |
 | `--html` | Also create `dashboard.html`; requires Plotly |
+| `--symbol-max-chars N` | Limit displayed function labels (default 120, minimum 40) |
 | `--help` | Show command-line usage |
 
 Existing exports with these names are overwritten; decoded CSV/JSON inputs are
@@ -218,6 +219,12 @@ or double-click a legend entry to isolate a function. Function rank 0 is the hot
 name in the table. Hotspot percentages and the table always describe the whole
 capture, even when the timeline is zoomed. Identical function names are aggregated.
 
+Long demangled names retain their beginning and end plus a stable eight-digit
+SHA256 prefix ID, within the label limit. Full names remain in plot hover text
+(wrapped for readability) and table tooltips. Click a table name to expand its
+full, copyable signature. For example, use `--html --symbol-max-chars 100` for
+shorter labels. Aggregation still uses the full name; CSV inputs are unchanged.
+
 ### Perfetto trace
 
 Open `samples.perfetto.json` with **Open trace file** in an approved Perfetto UI.
@@ -226,6 +233,9 @@ upload or sharing features. The exporter itself performs no network requests.
 
 The Chrome JSON trace contains 1 instant event per PC sample, named after its
 function, with PC/LR/index/tick arguments. PMU rates appear as counter tracks.
+Long event names use the same compact labels; select an event to see its full
+name in the `function` argument. The short ID is a display aid, not a unique
+symbol key; use the full argument and PC for programmatic analysis.
 A capture-information event contains warnings, limitations, hashes and PMU totals.
 Timestamps use microseconds in JSON; Perfetto SQL uses nanoseconds.
 No call stacks, function-duration spans or inference boundaries are inferred.

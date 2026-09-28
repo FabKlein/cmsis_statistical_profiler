@@ -19,11 +19,13 @@
 import argparse
 from collections import Counter, defaultdict
 import csv
+import hashlib
 import html
 import json
 import math
 from pathlib import Path
 import sys
+import textwrap
 
 
 LIMITATIONS = (
@@ -35,6 +37,22 @@ LIMITATIONS = (
     "The first PMU interval is omitted because its start epoch differs from the "
     "timestamp epoch. Final unsampled time is not plotted."
 )
+
+
+def compact_symbol(name, limit=120):
+    if limit < 40:
+        raise ValueError("Symbol label limit must be at least 40 characters")
+    if len(name) <= limit:
+        return name
+    identity = hashlib.sha256(name.encode("utf-8")).hexdigest()[:8]
+    suffix = f" [{identity}]"
+    available = limit - len(suffix) - 3
+    tail = available // 3
+    return name[:available - tail] + " … " + name[-tail:] + suffix
+
+
+def symbol_hover(name):
+    return "<br>".join(html.escape(line) for line in textwrap.wrap(name, width=110))
 
 
 def read_report(directory):
@@ -105,7 +123,7 @@ def event_rates(summary, samples):
     return rates, warnings
 
 
-def write_perfetto(destination, summary, samples, rates, warnings):
+def write_perfetto(destination, summary, samples, rates, warnings, symbol_max_chars=120):
     events = [
         {"ph": "M", "pid": 1, "name": "process_name",
          "args": {"name": "MCU statistical capture"}},
@@ -122,8 +140,9 @@ def write_perfetto(destination, summary, samples, rates, warnings):
     for index, sample in enumerate(samples):
         events.append({"ph": "I", "s": "t", "pid": 1, "tid": 1,
                        "ts": sample["time_us"], "cat": "pc.sample",
-                       "name": sample["function"],
+                       "name": compact_symbol(sample["function"], symbol_max_chars),
                        "args": {"sample": index, "pc": sample["pc"],
+                                "function": sample["function"],
                                 "lr": sample["lr"], "tick": sample.get("tick", "")}})
         if index == 0:
             continue
@@ -136,7 +155,7 @@ def write_perfetto(destination, summary, samples, rates, warnings):
                                      allow_nan=False) + "\n")
 
 
-def write_html(destination, summary, samples, rates, warnings):
+def write_html(destination, summary, samples, rates, warnings, symbol_max_chars=120):
     import plotly.graph_objects as graph
     from plotly.subplots import make_subplots
 
@@ -146,8 +165,11 @@ def write_html(destination, summary, samples, rates, warnings):
     bars = graph.Figure(graph.Bar(
         x=[100 * count / len(samples) for name, count in top],
         y=[html.escape(name) for name, count in top], orientation="h",
-        customdata=[count for name, count in top],
-        hovertemplate="%{y}<br>%{customdata} hits (%{x:.2f}%)<extra></extra>"))
+        customdata=[[symbol_hover(name), count] for name, count in top],
+        hovertemplate="%{customdata[0]}<br>%{customdata[1]} hits (%{x:.2f}%)<extra></extra>"))
+    bars.update_yaxes(tickmode="array", tickvals=[html.escape(name) for name, count in top],
+                      ticktext=[html.escape(compact_symbol(name, symbol_max_chars))
+                                for name, count in top])
     bars.update_layout(title="Top 20 exclusive PC hotspots (whole capture)",
                        xaxis_title="Share of all samples (%)", height=620,
                        margin=dict(l=360), template="plotly_white")
@@ -163,10 +185,12 @@ def write_html(destination, summary, samples, rates, warnings):
         group = grouped[name]
         timeline.add_trace(graph.Scattergl(
             x=[sample["time_us"] / 1e6 for sample in group],
-            y=[rank] * len(group), mode="markers", name=html.escape(name),
+            y=[rank] * len(group), mode="markers",
+            name=html.escape(compact_symbol(name, symbol_max_chars)),
             marker=dict(size=4),
-            customdata=[[sample["sample"], sample["pc"], sample["lr"]] for sample in group],
-            hovertemplate=(html.escape(name) + "<br>%{x:.6f} s<br>sample %{customdata[0]}"
+            customdata=[[sample["sample"], sample["pc"], sample["lr"], symbol_hover(name)]
+                        for sample in group],
+            hovertemplate=("%{customdata[3]}<br>%{x:.6f} s<br>sample %{customdata[0]}"
                            "<br>PC %{customdata[1]}<br>LR %{customdata[2]}<extra></extra>")),
             row=1, col=1)
     timeline.update_yaxes(title_text="Function rank (table below)", autorange="reversed",
@@ -188,7 +212,9 @@ def write_html(destination, summary, samples, rates, warnings):
     config = {"responsive": True, "displaylogo": False, "scrollZoom": True}
     plots = bars.to_html(full_html=False, include_plotlyjs=True, config=config)
     plots += timeline.to_html(full_html=False, include_plotlyjs=False, config=config)
-    table = "".join(f"<tr><td>{rank}</td><td>{html.escape(name)}</td><td>{count:,}</td>"
+    table = "".join(f'<tr><td>{rank}</td><td><details><summary title="{html.escape(name, quote=True)}">'
+                    f'{html.escape(compact_symbol(name, symbol_max_chars))}</summary>'
+                    f'<code>{html.escape(name)}</code></details></td><td>{count:,}</td>'
                     f"<td>{100 * count / len(samples):.3f}%</td></tr>"
                     for rank, (name, count) in enumerate(ranked))
     notices = "".join(f"<li>{html.escape(message)}</li>" for message in warnings)
@@ -204,6 +230,7 @@ def write_html(destination, summary, samples, rates, warnings):
         'body{font:16px system-ui;margin:2em;background:#fafafa;color:#172332}'
         'table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:6px;'
         'border-bottom:1px solid #ddd}li{margin:8px 0}.warning{color:#9b3900}'
+        'summary{cursor:pointer}td{overflow-wrap:anywhere}details code{white-space:pre-wrap}'
         '</style></head><body><h1>MCU statistical profile</h1>'
         f'<p>{len(samples):,} samples; {len(ranked)} functions; last sample '
         f'{samples[-1]["time_us"] / 1e6:.6f} s after start. '
@@ -212,6 +239,9 @@ def write_html(destination, summary, samples, rates, warnings):
         '<p>Drag to zoom; double-click a plot to reset. Time axes are linked. '
         'Click a function legend to hide it, double-click to isolate it. '
         'Hotspot percentages and the table remain whole-capture statistics.</p>'
+        f'<p>Function labels are limited to {symbol_max_chars} characters; shortened names '
+        'include a stable ID. Hover plot points/bars or table names for full symbols; '
+        'click a table name to expand and copy it. CSV data retains full names.</p>'
         f'{plots}<h2>All functions - exclusive PC hits</h2>'
         '<table><thead><tr><th>Rank</th><th>Function</th><th>Hits</th><th>Share</th>'
         f'</tr></thead><tbody>{table}</tbody></table>'
@@ -230,8 +260,12 @@ def main():
                         help="Directory containing decoded summary.json and samples.csv")
     parser.add_argument("--output", type=Path, help="Output directory (default: report directory)")
     parser.add_argument("--html", action="store_true", help="Also write offline Plotly dashboard")
+    parser.add_argument("--symbol-max-chars", type=int, default=120,
+                        help="Maximum displayed function label length (default: 120, minimum: 40)")
     args = parser.parse_args()
     try:
+        if args.symbol_max_chars < 40:
+            raise ValueError("--symbol-max-chars must be at least 40")
         summary, samples = read_report(args.report)
         rates, warnings = event_rates(summary, samples)
         if args.html:
@@ -242,9 +276,11 @@ def main():
                 raise ValueError(f"Install {requirements} for --html") from error
         output = args.output or args.report
         output.mkdir(parents=True, exist_ok=True)
-        write_perfetto(output / "samples.perfetto.json", summary, samples, rates, warnings)
+        write_perfetto(output / "samples.perfetto.json", summary, samples, rates, warnings,
+                       args.symbol_max_chars)
         if args.html:
-            write_html(output / "dashboard.html", summary, samples, rates, warnings)
+            write_html(output / "dashboard.html", summary, samples, rates, warnings,
+                       args.symbol_max_chars)
     except (OSError, ValueError, KeyError, TypeError) as error:
         parser.exit(1, f"error: {error}\n")
     for warning in warnings:
