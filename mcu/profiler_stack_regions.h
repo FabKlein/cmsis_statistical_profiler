@@ -6,8 +6,8 @@
 
 /* ----------------------------------------------------------------------
  * Project:      CMSIS Statistical Profiler
- * Title:        profiler_board_config.h
- * Description:  Shared device and readable stack memory configuration
+ * Title:        profiler_stack_regions.h
+ * Description:  Readable stack memory region selection and validation
  *
  * $Date:        22 September 2026
  * $Revision:    V.1.0.0
@@ -17,11 +17,8 @@
  * -------------------------------------------------------------------- */
 
 /**
- * @file profiler_board_config.h
- * @brief Shared device and readable stack memory configuration.
- *
- * @par PROFILER_DEVICE_HEADER
- * Required quoted CMSIS device header selected by the board layer or application.
+ * @file profiler_stack_regions.h
+ * @brief Select and validate CPU-readable RAM regions that may contain stacks.
  *
  * @par PROFILER_STACK_REGIONS
  * Readable stack RAM whitelist as {{base, bytes}, ...}; excludes BASE/BYTES overrides.
@@ -45,18 +42,12 @@
  * Internal flag selecting runtime DTCM size detection; not a generic RAM size probe.
  */
 
-#ifndef PROFILER_BOARD_CONFIG_H
-#define PROFILER_BOARD_CONFIG_H
-
-/* Shared contract for every board. PROFILER_USER_CONFIG is included first.
- * Board layers select the device header and SDK-derived RAM defaults.
- * Application stack bounds override those defaults. */
-#ifndef PROFILER_DEVICE_HEADER
-    #error "Select a board layer or define PROFILER_DEVICE_HEADER to your CMSIS device header"
-#endif
+#ifndef PROFILER_STACK_REGIONS_H
+#define PROFILER_STACK_REGIONS_H
 
 /* Use BASE/BYTES for 1 region, or the full {{base, bytes}, ...} initializer
- * for several. SDK constants expand after the backend includes the device.
+ * for several. Application bounds override board-provided defaults. SDK
+ * constants expand after the backend includes the CMSIS device header.
  * Only whitelist initialized, CPU-readable memory containing MSP/PSP stacks. */
 #if defined(PROFILER_STACK_REGIONS)
     #if defined(PROFILER_STACK_BASE) || defined(PROFILER_STACK_BYTES)

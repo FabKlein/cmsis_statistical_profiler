@@ -11,7 +11,7 @@ mv adapters/my_board/template_timer.clayer.yml adapters/my_board/my_board_timer.
 ## Board settings
 
 Set `PROFILER_DEVICE_HEADER` to the quoted CMSIS device header. Supply SDK include
-paths and device defines. Keep the shared `mcu/profiler_board_config.h`.
+paths and device defines. Keep the shared `mcu/profiler_stack_regions.h`.
 
 Set SDK-derived `PROFILER_DEFAULT_STACK_BASE` and `PROFILER_DEFAULT_STACK_BYTES`,
 or supply application bounds through `profiler_app_config.h.example`.

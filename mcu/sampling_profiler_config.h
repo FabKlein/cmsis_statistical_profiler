@@ -22,6 +22,9 @@
  *
  * @par PROFILER_USER_CONFIG
  * Optional quoted application configuration header, included before board defaults.
+ *
+ * @par PROFILER_DEVICE_HEADER
+ * Required quoted CMSIS device header selected by the board layer or application.
  */
 
 /**
@@ -64,11 +67,14 @@
 #ifndef PROFILER_CONFIG_H
 #define PROFILER_CONFIG_H
 
-/* Application settings, followed by the shared board configuration contract. */
+/* Application settings, followed by required target and stack-memory checks. */
 #ifdef PROFILER_USER_CONFIG
     #include PROFILER_USER_CONFIG
 #endif
-#include "profiler_board_config.h"
+#ifndef PROFILER_DEVICE_HEADER
+    #error "Select a board layer or define PROFILER_DEVICE_HEADER to your CMSIS device header"
+#endif
+#include "profiler_stack_regions.h"
 
 #ifndef PROFILER_SAMPLING_ENABLED
     #define PROFILER_SAMPLING_ENABLED 1
