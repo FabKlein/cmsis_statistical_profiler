@@ -51,6 +51,7 @@ Follow the [3-stage integration guide](docs/INTEGRATION.md): PC sampling, PMU, t
 | STM32N6 | [TIM2 adapter](adapters/stm32n6/README.md) |
 | Alif E8 | [UTIMER adapter](adapters/alif_e8/README.md) |
 | NXP MIMXRT685 | [CTIMER4 adapter](adapters/nxp_rt685/README.md) |
+| Himax WE2 / HX6538 | [TIMER4 adapter and UART retrieval](adapters/himax_we2/README.md) |
 | Free SysTick | [Generic exclusive integration](integrations/systick/README.md) |
 | CMSIS-RTOS2 | [RTX dual-thread FVP test](examples/corstone300_rtos2/CALL_TREE.md), [integration illustration](examples/corstone300_rtos2/README.md) |
 | New board | [Adapter template](adapters/template/README.md) |
