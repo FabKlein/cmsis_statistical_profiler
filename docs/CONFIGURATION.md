@@ -34,7 +34,15 @@ Apply settings consistently to every translation unit. Start with the
 
 Non-CMSIS builds compile the 4 `mcu/*.c` files and exactly 1 adapter timer.
 Include `mcu/`, the adapter, CMSIS-Core and SDK headers; use C11, the correct CPU,
-and `-mcmse` only for secure builds. Supply device/RAM definitions from the board layer.
+and security-aware code generation matching the exception frames delivered to
+the profiler. Supply device/RAM definitions from the board layer.
+
+On Armv8-M, inspect an actual IRQ `EXC_RETURN` rather than inferring security state
+from debugger SCS access or project labels. If the profiler receives Secure frames,
+compile its backend/ISR source groups with `-mcmse`. This may be a selective source
+option when startup and the application remain non-CMSE; do not make it a global
+flag unless the complete firmware is intentionally a CMSE build. The option does
+not configure SAU/IDAU attribution or security routing.
 
 The common and timer layers restrict vectorization flags to their own source groups.
 For manual builds, apply them only to profiler/ISR sources.
@@ -79,6 +87,12 @@ See [FORMAT.md](../FORMAT.md) for record sizes and decoding rules.
 The host reports invalid EXC_RETURN, unsupported frame, stack bounds or invalid
 xPSR as the first rejection reason. Gated-off/full/spurious events are excluded.
 Always call stop to finalize a capture, including when full.
+
+If almost all samples report `unsupported_frame`, inspect the first runtime
+`EXC_RETURN` at `statistical_sampling_tick()`. A systematic failure usually means
+the backend was compiled for the wrong Armv8-M exception-frame security encoding,
+not that the stack range is too small. Correct the backend build mode and repeat
+PC-only validation before enabling unwinding.
 
 ## Multiple cores (AMP)
 

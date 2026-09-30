@@ -5,6 +5,28 @@ reserved timer/IRQ, actual clocks, readable stack allocations and executable
 regions first. Do not guess these values. Pin the profiler revision and retain
 the exact unstripped ELF for each capture.
 
+## Confirm the Armv8-M exception frame security state
+
+On Armv8-M targets, do not infer the runtime exception frame security state from
+the debugger's accessible SCS alias, the debug connection view, or a project
+security label alone. Halt in `statistical_sampling_tick()` and inspect the first
+real `EXC_RETURN` value passed by the naked IRQ entry. That value determines which
+stack frame encoding the backend must validate.
+
+If nearly every sample is rejected as `unsupported_frame`, first check
+`EXC_RETURN`; do not weaken frame validation or widen memory bounds. For example,
+the MIMXRT685-EVK validation observed `0xFFFFFFE9`, a Secure basic frame using MSP,
+although the debugger exposed only the Non-secure SCS view. Compiling only the
+profiler backend and ISR sources with AC6 `-mcmse` selected the correct frame
+handling and reduced rejected samples from all samples to zero. Startup,
+application sources and security attribution remained unchanged.
+
+`-mcmse` changes the compiler's Armv8-M security-aware code generation; it does
+not configure the SAU, IDAU, boot security attribution or debug permissions.
+Apply it globally only when the complete application is intentionally a CMSE
+build. After changing the backend build flags, repeat the PC-only stage and
+require zero unexpected rejections before enabling PMU or backtraces.
+
 ## 1. PC sampling
 
 1. Add the common, board and timer layers shown in the [README](../README.md#get-started).

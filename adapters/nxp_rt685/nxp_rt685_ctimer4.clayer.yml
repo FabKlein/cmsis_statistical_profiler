@@ -1,0 +1,35 @@
+# SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# ----------------------------------------------------------------------
+# Project:      CMSIS Statistical Profiler
+# Title:        nxp_rt685_ctimer4.clayer.yml
+# Description:  NXP MIMXRT685 CTIMER4 sampling adapter layer
+#
+# $Date:        30 September 2026
+# $Revision:    V.1.0.0
+#
+# Target :  Arm(R) M-Profile Architecture
+#
+# ----------------------------------------------------------------------
+
+layer:
+  description: Reserve MIMXRT685 CTIMER4 and its IRQ exclusively for profiling
+  type: ProfilerTimer
+  components:
+    - component: NXP::Device:SDK Drivers:common
+    - component: NXP::Device:SDK Drivers:clock
+    - component: NXP::Device:SDK Drivers:reset
+  groups:
+    - group: Profiler sampling timer
+      misc:
+        - for-compiler: AC6
+          C:
+            - -fno-vectorize
+            - -fno-slp-vectorize
+        - for-compiler: GCC
+          C:
+            - -fno-tree-vectorize
+      files:
+        - file: profiler_ctimer4.c

@@ -1,6 +1,6 @@
 # Validation
 
-Updated on 24 September 2026:
+Updated on 30 September 2026:
 
 | Check | Coverage / result |
 |---|---|
@@ -13,7 +13,8 @@ Updated on 24 September 2026:
 | ATfE Clang 22.1.0 | Cortex-M architecture matrix passed with unwinding enabled; LLD-linked PSP/FP FVP capture: 84 samples, 0 rejected/unresolved, 97.62% recover 2 callers; timing and acceptance checks passed |
 | GCC 13.2.1 / AC6 6.24 | M0/M0+/M1/M3/M4/M7/M23/M33/M35P/M52/M55/M85; applicable security and custom timestamp settings |
 | Alif AMP adapter | Native tests cover all 12 channel selections, shared-clock preservation, other-channel isolation, busy/security rejection and restart; GCC/AC6 check HP/HE defaults and overrides |
-| Real SDK adapters | STM32N6, Corstone-300, Alif HP/HE; dedicated vectors, no SysTick/HAL ownership; GCC relocatable links |
+| Real SDK adapters | STM32N6, Corstone-300, Alif HP/HE and NXP MIMXRT685; dedicated vectors, no SysTick/HAL ownership; GCC relocatable links |
+| NXP MIMXRT685-EVK | CTIMER4 at 1 kHz/48 MHz: 2,253 accepted samples, 0 rejected/unresolved, 2,252 trustworthy rooted A-F stacks, no faults; 128 KiB buffer and PMU disabled on Cortex-M33 |
 | Corstone FVP | 125/333/2500 Hz, MSP and PSP/FP, precise bounds, restart and application SysTick continuity |
 | 4-event FVP | AC6: 84 samples, 100% workload hits, valid timing, all 4 event reports decoded; functional model totals are 0 |
 | PMU on/off FVP | 2 333 Hz captures each; final capture: 84 samples, validation passed, no rejected/unresolved PCs |
@@ -37,6 +38,7 @@ this says nothing about hardware stalls. Inspect ISR disassembly after compiler/
 | ST cmsis-device-n6 | `81fe2fe8d576ec4c55be308ac4504bd580e498e6` |
 | ST stm32n6xx-hal-driver | `d88071ed0adc1991a5daed6f20ab311f80bb33b7` |
 | Alif alif_ensemble-cmsis-dfp | `652dd6bf6856891695dfef1f0e7f74829ec9f451` |
+| NXP MIMXRT685S DFP | 26.06.00 |
 
 ## Reproduce
 
@@ -49,6 +51,7 @@ python3 tests/compile_adapters.py \
   --stm32-cmsis /path/to/cmsis-device-n6 \
   --stm32-hal /path/to/stm32n6xx-hal-driver \
   --alif-dfp /path/to/alif_ensemble-cmsis-dfp \
+  --nxp-rt685-dfp /path/to/NXP/MIMXRT685S_DFP/26.06.00 \
   --sample-hz 125 333 2500 --pmu
 ```
 
@@ -64,9 +67,10 @@ omit adapter SDK options you do not have. Temporary objects are built outside
 the source tree. FVP build/run instructions are in the
 [Corstone example](../examples/corstone300/README.md).
 
-Physical STM32N6, Alif and MPS3 FPGA execution, M0/non-secure runtime execution,
-and other RTOS kernels/dynamic stack integration remain unverified. FVP validates capture
-flow and counter integration, not cycle-accurate silicon performance.
+Physical configurations beyond the hardware results listed above,
+M0/non-secure runtime execution and other RTOS kernels/dynamic stack integration
+remain unverified. FVP validates capture flow and counter integration, not
+cycle-accurate silicon performance.
 
 ## CI reference
 

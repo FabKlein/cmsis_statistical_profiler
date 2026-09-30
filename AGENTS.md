@@ -25,6 +25,10 @@ and provenance. Do not guess bounds or ownership. Report validation limits.
   unstripped executable. Plot reports with [visualize_profiler_report.py](host/visualize_profiler_report.py).
 - Keep ISR code bounded and integer-only: no allocation, blocking, logging, FP or
   vector instructions. Preserve the original exception frame.
+- On Armv8-M, determine the interrupted frame security state from the captured
+  `EXC_RETURN`, not from debugger SCS visibility or project labels. If secure
+  frames are observed, compile the profiler backend/ISR sources with `-mcmse`;
+  do not apply it globally unless the application itself is a CMSE build.
 - Maintain 1 [format](FORMAT.md): 6 base words plus `pmu_count` words, 24–40
   bytes for 0–4 events, plus optional EHABI depth/status and only the recovered caller words.
   `PROFILER_UNWIND_MAX_DEPTH` defaults to 16; use header `bytes_used` and each

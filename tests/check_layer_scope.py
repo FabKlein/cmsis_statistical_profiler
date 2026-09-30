@@ -7,8 +7,8 @@
 # Title:        check_layer_scope.py
 # Description:  Check generated CMSIS compiler flags stay within profiler groups
 #
-# $Date:        22 September 2026
-# $Revision:    V.1.0.1
+# $Date:        30 September 2026
+# $Revision:    V.1.0.2
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -33,6 +33,7 @@ ALL_FLAGS = set().union(*FLAGS.values())
 TIMERS = ["adapters/stm32n6/stm32n6_tim2.clayer.yml",
           "adapters/corstone300/corstone300_timer0.clayer.yml",
           "adapters/alif_e8/alif_e8_utimer.clayer.yml",
+          "adapters/nxp_rt685/nxp_rt685_ctimer4.clayer.yml",
           "adapters/template/template_timer.clayer.yml",
           "integrations/systick/systick.clayer.yml"]
 

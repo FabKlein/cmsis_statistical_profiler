@@ -50,6 +50,7 @@ Follow the [3-stage integration guide](docs/INTEGRATION.md): PC sampling, PMU, t
 | Corstone-300 FVP / MPS3 FPGA | [Runnable example](examples/corstone300/README.md) |
 | STM32N6 | [TIM2 adapter](adapters/stm32n6/README.md) |
 | Alif E8 | [UTIMER adapter](adapters/alif_e8/README.md) |
+| NXP MIMXRT685 | [CTIMER4 adapter](adapters/nxp_rt685/README.md) |
 | Free SysTick | [Generic exclusive integration](integrations/systick/README.md) |
 | CMSIS-RTOS2 | [RTX dual-thread FVP test](examples/corstone300_rtos2/CALL_TREE.md), [integration illustration](examples/corstone300_rtos2/README.md) |
 | New board | [Adapter template](adapters/template/README.md) |
@@ -89,6 +90,15 @@ unresolved PCs. The M55 captured four PMU events; the M33 correctly ran PC and
 backtrace sampling without a PMU. This validation inherited board clocks and
 power/security setup from already-running boot firmware; it does not replace the
 Infineon BSP startup flow or validate coexistence with software that owns SysTick.
+
+It was also validated on an NXP MIMXRT685-EVK Cortex-M33 RAM image at 1 kHz with
+a 128 KiB buffer and 16-level EHABI backtraces. The completed capture contained
+2,248 samples with zero rejected frames and zero unresolved PCs; 2,247 samples
+reconstructed the expected A-F workload beneath the selected root. The Cortex-M33
+correctly ran with `PROFILER_PMU_COUNT=0`. This test exposed an important Armv8-M
+integration rule: infer the exception frame security state from `EXC_RETURN`, not
+from the debugger's visible SCS alias. See the
+[SysTick validation notes](integrations/systick/README.md#nxp-mimxrt685-evk-hardware-validation).
 
 Set `PROFILER_SAMPLE_HZ` and `PROFILER_SAMPLE_BUFFER_BYTES` in your application
 project or configuration header ([staged integration](docs/INTEGRATION.md)). A
