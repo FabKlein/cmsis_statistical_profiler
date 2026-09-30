@@ -9,8 +9,8 @@
  * Title:        test_pmu.c
  * Description:  PMU lifecycle, chaining, ownership and snapshot tests
  *
- * $Date:        25 September 2026
- * $Revision:    V.1.0.2
+ * $Date:        30 September 2026
+ * $Revision:    V.1.0.3
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -64,31 +64,31 @@ static void record(void)
 #if PROFILER_PMU_COUNT
     profiler_pmu_snapshot(sample.pmu);
 #endif
-    sampling_profiler_record(&sample);
+    profiler_record(&sample);
 }
 int main(int argc, char **argv)
 {
     assert(argc == 2);
 #if defined(TEST_PMU) && PROFILER_PMU_COUNT
     PMU->TYPE = (31U << 8) | (2U * PROFILER_PMU_COUNT - 1U);
-    assert(sampling_profiler_init() && statistical_samples.header.pmu_status == 4U);
+    assert(profiler_init() && statistical_samples.header.pmu_status == 4U);
     PMU->TYPE = (31U << 8) | 8U;
-    assert(sampling_profiler_init() && statistical_samples.header.pmu_status == 5U);
+    assert(profiler_init() && statistical_samples.header.pmu_status == 5U);
     PMU->AUTHSTATUS = (3U << 6) | (3U << 2);
     PMU->CNTENSET = 0x10U;
-    assert(sampling_profiler_init() && statistical_samples.header.pmu_status == 3U);
+    assert(profiler_init() && statistical_samples.header.pmu_status == 3U);
     assert(PMU->CNTENSET == 0x10U && PMU->CTRL == 0U);
     PMU->CNTENSET = 1U << 31; /* Shared timestamp's cycle counter must survive. */
     PMU->INTENSET = 0x10U;
-    assert(sampling_profiler_init() && statistical_samples.header.pmu_status == 3U);
+    assert(profiler_init() && statistical_samples.header.pmu_status == 3U);
     assert(PMU->INTENSET == 0x10U);
     PMU->INTENSET = 0U;
     PMU->CTRL = 1U;
-    assert(sampling_profiler_init() && statistical_samples.header.pmu_status == 3U);
+    assert(profiler_init() && statistical_samples.header.pmu_status == 3U);
     PMU->CTRL = 0U;
     fake_dwt.CYCCNT = 0x12345678U;
 #endif
-    assert(sampling_profiler_init());
+    assert(profiler_init());
     assert(statistical_samples.header.version == 2U &&
            statistical_samples.header.record_base_bytes == 24U + 4U * statistical_samples.header.pmu_count);
 #if defined(TEST_PMU) && PROFILER_PMU_COUNT
@@ -109,7 +109,7 @@ int main(int argc, char **argv)
     assert(statistical_samples.header.pmu_status == (PROFILER_PMU_COUNT ? 1U : 0U) &&
            !statistical_samples.header.pmu_count);
 #endif
-    sampling_profiler_enable();
+    profiler_enable();
     uint32_t capacity =
         (PROFILER_SAMPLE_BUFFER_BYTES - PROFILER_HEADER_BYTES) / statistical_samples.header.record_base_bytes;
     for (uint32_t i = 1U; i <= capacity; ++i)
@@ -123,9 +123,9 @@ int main(int argc, char **argv)
 #endif
         record();
     }
-    assert(sampling_profiler_full());
+    assert(profiler_full());
     assert(statistical_samples.header.bytes_used == capacity * statistical_samples.header.record_base_bytes);
-    sampling_profiler_stop(1U, 1U);
+    profiler_stop(1U, 1U);
 #if defined(TEST_PMU) && PROFILER_PMU_COUNT
     assert(PMU->CNTENSET == (1U << 31));
     assert(!statistical_samples.header.pmu_flags);
@@ -136,7 +136,7 @@ int main(int argc, char **argv)
     assert(out && fwrite((const void *)&statistical_samples, sizeof(statistical_samples), 1, out) == 1);
     assert(!fclose(out));
 #if defined(TEST_PMU) && PROFILER_PMU_COUNT
-    assert(sampling_profiler_init());
+    assert(profiler_init());
     assert(PMU->EVCNTR[0] == 0U && PMU->OVSSET == 0U);
     for (uint32_t event = 0; event < PROFILER_PMU_COUNT; ++event)
     {
@@ -153,7 +153,7 @@ int main(int argc, char **argv)
     assert(statistical_samples.header.pmu_flags == 16U);
     assert(pmu_read_count == 9U + 3U * (PROFILER_PMU_COUNT - 1U)); /* 3 retries on pair 0; other pairs succeed. */
     pmu_read_mode = 0U;
-    sampling_profiler_stop(1U, 1U);
+    profiler_stop(1U, 1U);
     assert(fake_dwt.CYCCNT == 0x12345678U);
 #endif
     return 0;

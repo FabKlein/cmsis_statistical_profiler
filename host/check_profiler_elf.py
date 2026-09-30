@@ -7,8 +7,8 @@
 # Title:        check_profiler_elf.py
 # Description:  Preflight ELF metadata before capture
 #
-# $Date:        25 September 2026
-# $Revision:    V.1.0.0
+# $Date:        30 September 2026
+# $Revision:    V.1.0.1
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -21,7 +21,7 @@ import json
 from pathlib import Path
 import struct
 
-from analyze_profiler_buffer import checked_slice, elf_functions, executable_ranges
+from analyze_profiler_buffer import SHT_ARM_EXIDX, checked_slice, elf_functions, executable_ranges
 
 
 def prel31(word, place):
@@ -47,7 +47,7 @@ def check(data, names=(), require_unwind=False):
                      if base <= address < base + length or boundary and address == base + length), None)
 
     errors, warnings, entries = [], [], []
-    indexes = [s for s in sections if s[1] == 0x70000001 and s[5]]
+    indexes = [s for s in sections if s[1] == SHT_ARM_EXIDX and s[5]]
     extabs = [s for s in sections if 'extab' in section_name(s).lower() and s[5]]
     if len(indexes) > 1:
         errors.append('Multiple EXIDX sections: combine them into 1 sorted index for the table hook.')

@@ -19,6 +19,9 @@ and provenance. Do not guess bounds or ownership. Report validation limits.
   bounds; TCM is optional.
 - For AMP, keep buffers/state physically separate per image and reserve distinct
   timer channels. Serialize shared peripheral clock setup; decode with each core's ELF.
+- Use the public `profiler_*` API from `sampling_profiler.h`; application timing
+  queries are `profiler_sample_ticks()` and `profiler_elapsed_ms()`. Keep
+  `profiler_port_*` internal and `profiler_timer_*` in timer adapters.
 - Run lifecycle calls serially in privileged thread mode on 1 core. Always stop
   before dumping the whole buffer with [export_profiler_buffer.gdb](tools/export_profiler_buffer.gdb);
   decode with [analyze_profiler_buffer.py](host/analyze_profiler_buffer.py) and the exact

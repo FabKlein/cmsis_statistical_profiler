@@ -9,8 +9,8 @@
  * Title:        test_unwind_store.c
  * Description:  Backtrace record storage with variable PMU stride
  *
- * $Date:        24 September 2026
- * $Revision:    V.1.0.0
+ * $Date:        30 September 2026
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -28,6 +28,7 @@ int profiler_port_init(struct ProfilerClock *clock)
 void profiler_port_stop(void) {}
 uint32_t profiler_port_timestamp(void) { return ticks * 1000; }
 uint32_t profiler_port_ticks(void) { return ticks; }
+uint32_t profiler_port_millis(void) { return ticks; }
 void profiler_port_barrier(void) {}
 void profiler_port_flush(const void *address, uint32_t bytes)
 {
@@ -50,8 +51,8 @@ void profiler_pmu_init(void)
 void profiler_pmu_stop(void) {}
 int main(int argc, char **argv)
 {
-    assert(argc == 2 && sampling_profiler_init());
-    sampling_profiler_enable();
+    assert(argc == 2 && profiler_init());
+    profiler_enable();
     struct ProfilerSample sample = {.timestamp = 1000,
                                     .tick = 1,
                                     .pc = 0x1004,
@@ -64,11 +65,11 @@ int main(int argc, char **argv)
     for (unsigned i = 0; i < PROFILER_PMU_COUNT; ++i)
         sample.pmu[i] = 100 + i;
 #endif
-    sampling_profiler_record(&sample);
+    profiler_record(&sample);
 #ifdef TEST_MIXED
     const uint32_t depths[] = {0U, PROFILER_UNWIND_MAX_DEPTH, 2U};
     unsigned attempt = 0;
-    while (!sampling_profiler_full())
+    while (!profiler_full())
     {
         uint32_t depth = depths[attempt++ % 3U];
         if (depth > PROFILER_UNWIND_MAX_DEPTH)
@@ -79,7 +80,7 @@ int main(int argc, char **argv)
         uint32_t before = statistical_samples.header.bytes_used;
         uint32_t count = statistical_samples.header.count;
         uint32_t remaining = sizeof(statistical_samples.records) - before;
-        sampling_profiler_record(&sample);
+        profiler_record(&sample);
         if (statistical_samples.header.record_base_bytes + 4U * depth > remaining)
         {
             assert(statistical_samples.header.count == count);
@@ -90,12 +91,12 @@ int main(int argc, char **argv)
         }
     }
     uint32_t committed = statistical_samples.header.bytes_used;
-    sampling_profiler_enable();
-    sampling_profiler_record(&sample);
+    profiler_enable();
+    profiler_record(&sample);
     assert(statistical_samples.header.bytes_used == committed);
 #endif
     ticks = 1;
-    sampling_profiler_stop(1, 1);
+    profiler_stop(1, 1);
     FILE *out = fopen(argv[1], "wb");
     assert(out && fwrite((const void *)&statistical_samples, sizeof(statistical_samples), 1, out) == 1);
     assert(!fclose(out));

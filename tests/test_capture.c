@@ -9,8 +9,8 @@
  * Title:        test_capture.c
  * Description:  Capture lifecycle, sampling timer and frame validation tests
  *
- * $Date:        25 September 2026
- * $Revision:    V.1.0.1
+ * $Date:        30 September 2026
+ * $Revision:    V.1.0.2
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -79,73 +79,73 @@ int main(int argc, char **argv)
 {
     assert(argc == 2);
 #ifdef TEST_INVALID_RATE
-    assert(!sampling_profiler_init());
+    assert(!profiler_init());
     assert(SysTick->LOAD == 99999U && SysTick->CTRL == 7U);
-    sampling_profiler_enable();
+    profiler_enable();
     assert(!statistical_sampling_gate);
     return 0;
 #endif
-    sampling_profiler_enable();
+    profiler_enable();
     tick(NULL, 0U); /* Ungated ISR still maintains time; must never read NULL. */
-    assert(profiler_port_ticks() == 0U && !statistical_samples.header.count);
+    assert(profiler_sample_ticks() == 0U && !statistical_samples.header.count);
     SystemCoreClock = 0U;
-    assert(!sampling_profiler_init());
-    assert(sampling_profiler_diagnostics()->stage == PROFILER_INIT_TIMESTAMP);
-    assert(sampling_profiler_diagnostics()->reason == PROFILER_INIT_UNAVAILABLE);
-    sampling_profiler_enable();
+    assert(!profiler_init());
+    assert(profiler_diagnostics()->stage == PROFILER_INIT_TIMESTAMP);
+    assert(profiler_diagnostics()->reason == PROFILER_INIT_UNAVAILABLE);
+    profiler_enable();
     assert(!statistical_sampling_gate);
     timer_busy = 1U;
     SystemCoreClock = 100000000U;
-    assert(!sampling_profiler_init());
+    assert(!profiler_init());
     timer_busy = 0U;
     SystemCoreClock = 100000000U;
     fake_counter_runs = 0;
-    assert(!sampling_profiler_init());
+    assert(!profiler_init());
     fake_counter_runs = 1;
     DWT->CTRL = DWT_CTRL_NOCYCCNT_Msk;
-    assert(!sampling_profiler_init());
+    assert(!profiler_init());
     DWT->CTRL = 0;
     fake_primask = 1U;
-    assert(sampling_profiler_init());
-    assert(sampling_profiler_diagnostics()->reason == PROFILER_INIT_OK);
+    assert(profiler_init());
+    assert(profiler_diagnostics()->reason == PROFILER_INIT_OK);
     assert(fake_primask == 1U && fake_priority == 3U); /* Preserve IRQ policy. */
     fake_primask = 0U;
     uint32_t period = (uint32_t)(((uint64_t)timer_hz + PROFILER_SAMPLE_HZ / 2U) / PROFILER_SAMPLE_HZ);
     assert(SysTick->LOAD == 99999U && SysTick->CTRL == 7U && SysTick->VAL == 50U);
     assert(timer_running && statistical_samples.header.timer_hz == timer_hz);
-    uint32_t ticks_at_init = profiler_port_ticks(), millis_at_init = profiler_port_millis();
+    uint32_t ticks_at_init = profiler_sample_ticks(), millis_at_init = profiler_elapsed_ms();
     frame(fake_stack);
     frame(fake_stack + 8); /* A frame ending exactly at the range boundary. */
-    sampling_profiler_enable();
+    profiler_enable();
     /* A spurious IRQ must neither consume a record nor advance time. */
-    uint32_t before_spurious = profiler_port_ticks();
+    uint32_t before_spurious = profiler_sample_ticks();
     statistical_sampling_tick(fake_stack, 0xFFFFFFF9U);
-    assert(profiler_port_ticks() == before_spurious && !statistical_samples.header.count);
+    assert(profiler_sample_ticks() == before_spurious && !statistical_samples.header.count);
     tick(fake_stack, 0xFFFFFFF9U);
     assert(statistical_samples.header.count == 1U);
-    sampling_profiler_disable();
+    profiler_disable();
     sample(NULL, 0U); /* Inactive ticks maintain time without reading the frame. */
-    sampling_profiler_enable();
+    profiler_enable();
     assert(statistical_samples.header.count == 1U);
     assert(statistical_samples.records[2] == fake_stack[6]);
     sample(fake_stack + 8, 0xFFFFFFEDU); /* FP/MVE, PSP */
     assert(statistical_samples.header.count == 2U);
     sample(fake_stack, 0xFFFFFFFDU);
-    assert(sampling_profiler_full() && statistical_samples.header.count == 3U);
-    uint32_t ticks = profiler_port_ticks();
+    assert(profiler_full() && statistical_samples.header.count == 3U);
+    uint32_t ticks = profiler_sample_ticks();
     sample(NULL, 0U);
-    assert(profiler_port_ticks() == ticks + 1U && !statistical_samples.header.rejected);
+    assert(profiler_sample_ticks() == ticks + 1U && !statistical_samples.header.rejected);
     for (unsigned i = 0; i < 10007U; ++i)
         tick(NULL, 0U);
-    uint32_t expected_ms = (uint32_t)((uint64_t)(profiler_port_ticks() - ticks_at_init) * period * 1000U / timer_hz);
-    assert(profiler_port_millis() - millis_at_init == expected_ms);
-    sampling_profiler_enable();
+    uint32_t expected_ms = (uint32_t)((uint64_t)(profiler_sample_ticks() - ticks_at_init) * period * 1000U / timer_hz);
+    assert(profiler_elapsed_ms() - millis_at_init == expected_ms);
+    profiler_enable();
     assert(!statistical_sampling_gate);
-    sampling_profiler_stop(7U, 1U);
+    profiler_stop(7U, 1U);
     assert(!timer_running);
-    uint32_t stopped_ticks = profiler_port_ticks();
+    uint32_t stopped_ticks = profiler_sample_ticks();
     sample(NULL, 0U);
-    assert(profiler_port_ticks() == stopped_ticks);
+    assert(profiler_sample_ticks() == stopped_ticks);
     assert(statistical_samples.header.iterations == 7U);
     assert(statistical_samples.header.validation_passed == 1U);
 #if __DCACHE_PRESENT
@@ -160,12 +160,12 @@ int main(int argc, char **argv)
     assert(fclose(output) == 0);
 
     SysTick->VAL = 77U;
-    uint32_t previous_ms = profiler_port_millis();
-    assert(sampling_profiler_init());
+    uint32_t previous_ms = profiler_elapsed_ms();
+    assert(profiler_init());
     assert(SysTick->VAL == 77U &&
-           profiler_port_millis() == previous_ms); /* Application timer is untouched on recapture. */
+           profiler_elapsed_ms() == previous_ms); /* Application timer is untouched on recapture. */
     assert(!statistical_samples.header.count && !statistical_samples.header.complete);
-    sampling_profiler_enable();
+    profiler_enable();
     sample(NULL, 0xFFFFFFF9U);
     sample((const uint32_t *)((uintptr_t)fake_stack + 1U), 0xFFFFFFF9U);
     sample(fake_stack + 9, 0xFFFFFFF9U); /* Insufficient readable bytes. */
@@ -188,8 +188,8 @@ int main(int argc, char **argv)
     sample(fake_stack, 0xFFFFFFF9U);
     assert(statistical_samples.header.count == 1U);
     fake_scb.CCR = 0U;
-    sampling_profiler_stop(1U, 0U);
-    sampling_profiler_enable();
+    profiler_stop(1U, 0U);
+    profiler_enable();
     assert(!statistical_sampling_gate);
 #if __DCACHE_PRESENT
     assert(clean_count == 1U); /* Disabled cache needs no clean. */

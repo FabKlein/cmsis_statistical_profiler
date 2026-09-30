@@ -11,3 +11,6 @@ examples/corstone300_rtos2/RTE/_*/
 examples/corstone300_rtos2/RTE/CMSIS/
 examples/corstone300_rtos2/RTE/RTOS/*.base*
 examples/corstone300_rtos2/RTE/RTOS/*.update*
+
+# Generated Doxygen documentation.
+Documentation/html/

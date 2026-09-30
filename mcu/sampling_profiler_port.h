@@ -9,8 +9,8 @@
  * Title:        sampling_profiler_port.h
  * Description:  Internal capture core and platform backend interface
  *
- * $Date:        25 September 2026
- * $Revision:    V.1.0.1
+ * $Date:        30 September 2026
+ * $Revision:    V.1.0.2
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -119,13 +119,13 @@ extern volatile uint32_t statistical_sampling_gate;
  * @param reason First failing check; out-of-range reasons are ignored.
  * @note Called only by the sampling ISR.
  */
-void sampling_profiler_reject(enum ProfilerRejection reason);
+void profiler_reject(enum ProfilerRejection reason);
 /**
  * @brief Append a validated sample and close the gate when the buffer fills.
  * @param[in] sample Non-NULL sample; PMU words are stored only if pmu_count is nonzero.
  * @note Single sampling-ISR producer only. Existing records are never overwritten.
  */
-void sampling_profiler_record(const struct ProfilerSample *sample);
+void profiler_record(const struct ProfilerSample *sample);
 
 #ifdef __cplusplus
 }

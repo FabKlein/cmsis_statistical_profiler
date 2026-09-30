@@ -9,8 +9,8 @@
  * Title:        test_dtcm.c
  * Description:  DTCM size detection and stack boundary tests
  *
- * $Date:        22 September 2026
- * $Revision:    V.1.0.0
+ * $Date:        30 September 2026
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -54,15 +54,15 @@ int main(void)
     for (uint32_t size = 3U; size <= 15U; ++size)
     {
         MEMSYSCTL->DTCMCR = MEMSYSCTL_DTCMCR_EN_Msk | (size << MEMSYSCTL_DTCMCR_SZ_Pos);
-        assert(sampling_profiler_init());
-        sampling_profiler_enable();
+        assert(profiler_init());
+        profiler_enable();
         statistical_sampling_tick(fake_stack, 0xFFFFFFF9U);
         assert(statistical_samples.header.count == 1U);
         uintptr_t bytes = (uintptr_t)512U << size;
         const uint32_t *outside = (const uint32_t *)((uintptr_t)fake_stack + bytes - 28U);
         statistical_sampling_tick(outside, 0xFFFFFFF9U);
         assert(statistical_samples.header.rejected == 1U);
-        sampling_profiler_stop(1U, 1U);
+        profiler_stop(1U, 1U);
         assert(!running);
     }
     /* Disabled, absent, and reserved sizes must fail before enabling the timer. */
@@ -70,8 +70,8 @@ int main(void)
     for (size_t i = 0U; i < sizeof(invalid) / sizeof(invalid[0]); ++i)
     {
         MEMSYSCTL->DTCMCR = invalid[i];
-        assert(!sampling_profiler_init());
-        sampling_profiler_enable();
+        assert(!profiler_init());
+        profiler_enable();
         assert(!running && !statistical_sampling_gate);
     }
     return 0;

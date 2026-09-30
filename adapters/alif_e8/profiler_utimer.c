@@ -9,8 +9,8 @@
  * Title:        profiler_utimer.c
  * Description:  Alif Ensemble E8 per-core UTIMER sampling adapter
  *
- * $Date:        25 September 2026
- * $Revision:    V.1.0.1
+ * $Date:        30 September 2026
+ * $Revision:    V.1.0.2
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -27,6 +27,8 @@ _Static_assert(PROFILER_TIMER_CLOCK_HZ > 0U && PROFILER_TIMER_CLOCK_HZ <= UINT32
                "Timer clock must fit a positive uint32");
 #define CHANNEL (UTIMER->UTIMER_CHANNEL_CFG[PROFILER_ALIF_UTIMER_CHANNEL])
 #define CHANNEL_MASK (1UL << PROFILER_ALIF_UTIMER_CHANNEL)
+/* CNTR_CTRL_EN in the SDK driver; keep this adapter device-header-only. */
+#define COUNTER_ENABLE (1UL << 0)
 #define OVERFLOW 0x80U
 #define PROGRAM_ENABLE 0x80000000U
 _Static_assert(PROFILER_IRQ_PRIORITY < (1U << __NVIC_PRIO_BITS), "Invalid sampling IRQ priority");
@@ -43,7 +45,7 @@ int profiler_timer_init(struct ProfilerClock *clock)
     if (NVIC_GetTargetState(PROFILER_ALIF_TIMER_IRQ))
         return profiler_init_fail(PROFILER_INIT_TIMER, PROFILER_INIT_DENIED, PROFILER_ALIF_TIMER_IRQ, 0);
     if (!owned &&
-        ((UTIMER->UTIMER_GLB_CNTR_RUNNING & CHANNEL_MASK) || (CHANNEL.UTIMER_CNTR_CTRL & 1U) ||
+        ((UTIMER->UTIMER_GLB_CNTR_RUNNING & CHANNEL_MASK) || (CHANNEL.UTIMER_CNTR_CTRL & COUNTER_ENABLE) ||
          NVIC_GetEnableIRQ(PROFILER_ALIF_TIMER_IRQ)))
         return profiler_init_fail(PROFILER_INIT_TIMER, PROFILER_INIT_BUSY, PROFILER_ALIF_TIMER_IRQ, 0);
     owned = 1U;
@@ -54,7 +56,7 @@ int profiler_timer_init(struct ProfilerClock *clock)
     CHANNEL.UTIMER_STOP_1_SRC = PROGRAM_ENABLE;
     CHANNEL.UTIMER_CLEAR_1_SRC = PROGRAM_ENABLE;
     profiler_timer_stop();
-    CHANNEL.UTIMER_CNTR_CTRL = 1U; /* Enabled, continuous up-count. */
+    CHANNEL.UTIMER_CNTR_CTRL = COUNTER_ENABLE; /* Enabled, continuous up-count. */
     CHANNEL.UTIMER_BUF_OP_CTRL = 0U;
     CHANNEL.UTIMER_COMPARE_CTRL_A = 0U;
     CHANNEL.UTIMER_COMPARE_CTRL_B = 0U;

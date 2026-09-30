@@ -115,16 +115,24 @@ See [configuration](docs/CONFIGURATION.md) for clocks, bounds and build options.
 Call from privileged thread mode on the sampled core:
 
 ```c
-if (!sampling_profiler_init())
+if (!profiler_init())
     return;
-sampling_profiler_enable();
+profiler_enable();
 run_your_workload();
-sampling_profiler_stop(1, workload_output_is_correct());
+profiler_stop(1, workload_output_is_correct());
 ```
+
+The public API is declared in `mcu/sampling_profiler.h`. `profiler_enable()` and
+`profiler_disable()` gate recording; `profiler_stop()` stops sampling and finalizes
+the buffer. `profiler_sample_ticks()` and `profiler_elapsed_ms()` return cumulative
+sampling interrupts and timer milliseconds. Subtract 2 readings for an interval;
+these counters are independent of RTOS ticks and are not reset by initialization.
+`profiler_port_*` functions are internal backend interfaces; `profiler_timer_*`
+functions are board adapter hooks.
 
 The workload functions are placeholders. Always stop, even when full. Keep clocks
 stable; avoid sleep, debugger halts and long interrupt masking during capture.
-After `sampling_profiler_stop()` returns, halt the target. With the matching ELF
+After `profiler_stop()` returns, halt the target. With the matching ELF
 loaded in GDB, use [tools/export_profiler_buffer.gdb](tools/export_profiler_buffer.gdb) from the
 repository root:
 
@@ -299,6 +307,8 @@ The exporter preserves supplied hashes but cannot independently verify that the
 CSV, summary and original ELF belong together.
 
 ## Development
+
+A minimal [Doxygen scaffold](Documentation/README.md) generates draft API documentation.
 
 Run `python3 -B -m unittest discover -s tests -v`.
 [GitHub Actions](.github/workflows/fvp.yml) builds with AC6 and checks an FVP PMU

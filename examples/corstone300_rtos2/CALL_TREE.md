@@ -1,5 +1,7 @@
 # CMSIS-RTX dual-thread backtraces
 
+[Example acronym definitions](../corstone300/README.md#acronyms-used-in-these-examples).
+
 Runnable secure Corstone-300 FVP test using ATfE Clang 22.1, CMSIS 6.3.0,
 CMSIS-RTX 5.9.1 and SSE-300 BSP 1.5.0. No pack files are modified.
 The same application also runs with [CMSIS-FreeRTOS](../corstone300_freertos/README.md).

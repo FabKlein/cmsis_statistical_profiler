@@ -7,8 +7,8 @@
 # Title:        analyze_profiler_buffer.py
 # Description:  Decode SRAM captures and report sampled functions using ELF symbols
 #
-# $Date:        25 September 2026
-# $Revision:    V.1.0.2
+# $Date:        30 September 2026
+# $Revision:    V.1.0.4
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -28,6 +28,8 @@ import shutil
 import subprocess
 import sys
 
+
+SHT_ARM_EXIDX = 0x70000001
 
 MAGIC = 0x46504353
 FORMAT_VERSION = 2
@@ -150,7 +152,7 @@ def read_capture(data):
                          counter_bits=bits, start=start[:requested], stop=stop[:requested], flags=flags,
                          scope="init_to_stop_all_execution")
     if header["active"] or header["complete"] != 1:
-        raise ValueError("Capture not stopped/completed; dump after sampling_profiler_stop")
+        raise ValueError("Capture not stopped/completed; dump after profiler_stop")
     used = header["bytes_used"]
     if (header["buffer_bytes"] % 4 or header["buffer_bytes"] < HEADER.size + base or used % 4 or
             used > header["buffer_bytes"] - HEADER.size or header["count"] > used // base):
@@ -320,7 +322,7 @@ def lr_only_entries(data, functions):
         return next((i for i, (base, size) in enumerate(code) if base <= address < base + size), None)
     for index in range(count):
         section = struct.unpack("<10I", checked_slice(data, offset + index * size, 40))
-        if section[1] != 0x70000001 or not section[2] & 2:  # SHT_ARM_EXIDX, allocated
+        if section[1] != SHT_ARM_EXIDX or not section[2] & 2:  # SHT_ARM_EXIDX, allocated
             continue
         if section[5] % 8:
             return set()

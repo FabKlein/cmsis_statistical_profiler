@@ -1,5 +1,7 @@
 # Corstone-300 CMSIS-RTOS2 illustration
 
+[Example acronym definitions](../corstone300/README.md#acronyms-used-in-these-examples).
+
 For a runnable 2-thread A–F/A1–F1 test with backtraces and a flamegraph, see
 [Toolbox RTX/FreeRTOS call-tree test](CALL_TREE.md). The illustration below remains standalone.
 

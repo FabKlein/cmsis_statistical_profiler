@@ -9,19 +9,48 @@
  * Title:        main.c
  * Description:  Corstone-300 capture and workload validation example
  *
- * $Date:        22 September 2026
- * $Revision:    V.1.0.1
+ * $Date:        30 September 2026
+ * $Revision:    V.1.0.4
  *
  * Target :  Arm(R) M-Profile Architecture
  *
  * -------------------------------------------------------------------- */
 
+/* Application overview
+ * Demonstrate profiling without an operating system. Run a repeatable workload,
+ * check its result, and verify that TIMER0 sampling leaves the application's
+ * independent SysTick millisecond clock untouched. Repeated captures also test
+ * that the profiler can stop and restart without stray sampling interrupts.
+ *
+ * main: initialize clocks and SysTick
+ *   |
+ *   +--> capture (repeat PROFILER_EXAMPLE_CAPTURES times)
+ *   |      start profiler -> run workload -> validate -> stop profiler
+ *   |                             |
+ *   |                   TIMER0 samples PC/callers
+ *   |                             v
+ *   |                     statistical_samples
+ *   +--> check SysTick still runs and sampling has stopped
+ *   +--> optionally export final buffer as samples.bin -> exit
+ *
+ * PC = Program Counter (instruction address). The default workload performs
+ * integer arithmetic; build options add floating-point work or the A-F call tree.
+ * Capture normally uses the Main Stack Pointer (MSP). The optional Process Stack
+ * Pointer (PSP) path checks sampling on a separate stack, including floating-point
+ * exception frames when enabled. Backtraces and performance counters are optional.
+ * Semihosting lets the simulator write samples.bin to the host; on hardware,
+ * stop execution after capture and retrieve statistical_samples with a debugger.
+ */
+
 #include "SSE300MPS3.h"
 #include "profile_workload.h"
 #include "sampling_profiler.h"
 #include "sampling_profiler_cortex_m.h"
-#include "sampling_profiler_port.h"
 #include "syscounter_armv8-m_cntrl_reg_map.h"
+
+/* System Counter Control Register (CNTCR), enable bit (EN).
+ * The Board Support Package (BSP) defines this bit only in its driver source. */
+#define CNTCR_ENABLE (1UL << 0)
 
 #if PROFILER_PRECISE_STACK_BOUNDS
     #ifdef __ARMCC_VERSION
@@ -76,7 +105,10 @@ static int validate(void)
 __attribute__((used, noinline)) static int capture(void) { return profile_workload(run_once, validate); }
 
 #ifdef PROFILER_EXAMPLE_PSP
-__attribute__((used, aligned(8))) static uint32_t psp_stack[1024];
+/* 1024 uint32_t words = 4 KiB; the assembly below loads this stack's upper end. */
+    #define PSP_STACK_WORDS 1024U
+__attribute__((used, aligned(8))) static uint32_t psp_stack[PSP_STACK_WORDS];
+_Static_assert(sizeof(psp_stack) == 4096U, "Update the assembly stack-top offset when changing PSP_STACK_WORDS");
 __attribute__((naked)) static int capture_on_psp(void)
 {
     /* Switch stacks only at this assembly boundary. R4 preserves CONTROL;
@@ -97,6 +129,16 @@ __attribute__((naked)) static int capture_on_psp(void)
 
 #ifdef PROFILER_FVP_SEMIHOSTING
 /* Export only AFTER capture. On FPGA use the ordinary debugger dump instead. */
+/* Arm semihosting operations and normal application termination reason. */
+enum
+{
+    SEMIHOST_SYS_OPEN = 0x01U,
+    SEMIHOST_SYS_CLOSE = 0x02U,
+    SEMIHOST_SYS_WRITE = 0x05U,
+    SEMIHOST_SYS_EXIT_EXTENDED = 0x20U,
+    SEMIHOST_ADP_STOPPED_APPLICATION_EXIT = 0x20026U
+};
+
 static int semihost(uint32_t operation, const void *arguments)
 {
     register uint32_t r0 __asm("r0") = operation;
@@ -109,20 +151,20 @@ static int export_capture(void)
 {
     const char filename[] = "samples.bin";
     const uint32_t open_args[] = {(uint32_t)filename, 5U, sizeof(filename) - 1U};
-    int handle = semihost(0x01U, open_args);
+    int handle = semihost(SEMIHOST_SYS_OPEN, open_args);
     if (handle < 0)
         return 0;
     const uint32_t write_args[] = {(uint32_t)handle, (uint32_t)&statistical_samples, sizeof(statistical_samples)};
-    int remaining = semihost(0x05U, write_args);
+    int remaining = semihost(SEMIHOST_SYS_WRITE, write_args);
     const uint32_t close_args[] = {(uint32_t)handle};
-    int closed = semihost(0x02U, close_args);
+    int closed = semihost(SEMIHOST_SYS_CLOSE, close_args);
     return remaining == 0 && closed == 0;
 }
 
 void example_exit(uint32_t status)
 {
-    const uint32_t args[] = {0x20026U, status};
-    semihost(0x20U, args);
+    const uint32_t args[] = {SEMIHOST_ADP_STOPPED_APPLICATION_EXIT, status};
+    semihost(SEMIHOST_SYS_EXIT_EXTENDED, args);
     for (;;)
         __WFI();
 }
@@ -160,15 +202,15 @@ int main(void)
     SystemCoreClockUpdate();
     /* Minimal board setup: start the shared reference counter unscaled.
      * Real applications supply this as part of their existing clock setup. */
-    struct cnt_control_base_reg_map_t *counter = (void *)0x58100000UL;
-    counter->cntcr = 1U;
+    struct cnt_control_base_reg_map_t *counter = (void *)SYSCNTR_CNTRL_BASE_S;
+    counter->cntcr = CNTCR_ENABLE;
     __DSB();
     if (SysTick_Config(SystemCoreClock / 1000U))
         example_exit(6U);
     for (uint32_t attempt = 0; attempt < PROFILER_EXAMPLE_CAPTURES; ++attempt)
     {
         uint32_t started = application_millis;
-        uint32_t sampling_started = profiler_port_millis();
+        uint32_t sampling_started = profiler_elapsed_ms();
         uint32_t load = SysTick->LOAD;
         uint32_t priority = NVIC_GetPriority(SysTick_IRQn);
 #ifdef PROFILER_EXAMPLE_PSP
@@ -177,7 +219,7 @@ int main(void)
         profiler_example_result = (uint32_t)capture();
 #endif
         uint32_t application_elapsed = application_millis - started;
-        uint32_t sampling_elapsed = profiler_port_millis() - sampling_started;
+        uint32_t sampling_elapsed = profiler_elapsed_ms() - sampling_started;
         uint32_t period_ms =
             (uint32_t)(((uint64_t)statistical_samples.header.timer_period * 1000U + PROFILER_TIMER_CLOCK_HZ - 1U) /
                        PROFILER_TIMER_CLOCK_HZ);
@@ -187,11 +229,11 @@ int main(void)
             example_exit(7U);
         if (!profiler_example_result)
             example_exit(3U);
-        uint32_t stopped_ticks = profiler_port_ticks();
+        uint32_t stopped_ticks = profiler_sample_ticks();
         uint32_t stopped_ms = application_millis;
         while (application_millis - stopped_ms < 3U)
             __WFI();
-        if (profiler_port_ticks() != stopped_ticks)
+        if (profiler_sample_ticks() != stopped_ticks)
             example_exit(8U);
     }
 #ifdef PROFILER_FVP_SEMIHOSTING

@@ -104,8 +104,8 @@ See [Alif setup and debugger retrieval](../adapters/alif_e8/README.md).
 
 ## Initialization failures
 
-`sampling_profiler_init()` still returns 0 on failure. Inspect
-`*sampling_profiler_diagnostics()` in application code or GDB; it is reset by each
+`profiler_init()` still returns 0 on failure. Inspect
+`*profiler_diagnostics()` in application code or GDB; it is reset by each
 init. `stage` distinguishes backend, stack, timestamp, unwind and timer failures.
 `reason` distinguishes unavailable, invalid configuration, busy, bad clock,
 denied, missing tables and malformed tables. PMU fallback remains in the header.

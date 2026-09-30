@@ -56,7 +56,7 @@ profiling buffer was exported through the application UART at 921600 baud.
 This is a board/debug-interface limitation, not a profiler requirement; use the
 normal GDB export helper when SWD is available.
 
-After `sampling_profiler_stop()` returns, send one textual marker, the complete
+After `profiler_stop()` returns, send one textual marker, the complete
 binary object, then an optional trailing marker. Do not print text inside the
 binary payload:
 

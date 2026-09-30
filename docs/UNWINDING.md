@@ -80,7 +80,7 @@ to the hook; do not enclose ITCM and SRAM in 1 broad range.
 
 Check the map file for the regions and resolved boundary symbols. The index must
 be nonempty; `.ARM.extab` may be empty when all recipes fit inline. Finally,
-confirm `sampling_profiler_init()` succeeds. The precise stack-bounds hook from
+confirm `profiler_init()` succeeds. The precise stack-bounds hook from
 step 4 is still required; scatter-file changes alone do not enable backtraces.
 
 ### AC6 table retention

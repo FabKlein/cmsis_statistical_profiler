@@ -9,8 +9,8 @@
  * Title:        reference_timestamp.c
  * Description:  Corstone-300 reference-counter timestamp for the example
  *
- * $Date:        22 September 2026
- * $Revision:    V.1.0.0
+ * $Date:        30 September 2026
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -21,9 +21,14 @@
  * @brief Read the shared reference counter without changing its state.
  */
 
+#include "SSE300MPS3.h"
 #include "sampling_profiler_cortex_m.h"
 #include "syscounter_armv8-m_cntrl_reg_map.h"
 #include "systimer_armv8-m_reg_map.h"
+
+/* System Counter Control Register (CNTCR), enable bit (EN).
+ * The Board Support Package (BSP) defines this bit only in its driver source. */
+#define CNTCR_ENABLE (1UL << 0)
 
 _Static_assert(PROFILER_TIMER_CLOCK_HZ > 0U && PROFILER_TIMER_CLOCK_HZ <= UINT32_MAX,
                "Reference clock must fit a positive uint32");
@@ -31,8 +36,8 @@ _Static_assert(PROFILER_TIMER_CLOCK_HZ > 0U && PROFILER_TIMER_CLOCK_HZ <= UINT32
 /** @brief Use the unscaled reference counter started by the example application. */
 int profiler_timestamp_init(uint32_t *frequency_hz)
 {
-    const struct cnt_control_base_reg_map_t *counter = (const void *)0x58100000UL;
-    if (!(counter->cntcr & 1U))
+    const struct cnt_control_base_reg_map_t *counter = (const void *)SYSCNTR_CNTRL_BASE_S;
+    if (!(counter->cntcr & CNTCR_ENABLE))
         return 0;
     *frequency_hz = PROFILER_TIMER_CLOCK_HZ;
     return 1;
@@ -41,6 +46,6 @@ int profiler_timestamp_init(uint32_t *frequency_hz)
 /** @brief Read the low word atomically; wrapping is modulo 2^32. */
 uint32_t profiler_timestamp_read(void)
 {
-    const struct cnt_base_reg_map_t *timer = (const void *)0x58000000UL;
+    const struct cnt_base_reg_map_t *timer = (const void *)SYSTIMER0_ARMV8_M_BASE_S;
     return timer->cntpct_low;
 }

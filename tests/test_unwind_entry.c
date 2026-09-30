@@ -9,8 +9,8 @@
  * Title:        test_unwind_entry.c
  * Description:  Interrupted register and task-stack reconstruction tests
  *
- * $Date:        24 September 2026
- * $Revision:    V.1.0.0
+ * $Date:        30 September 2026
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -75,8 +75,8 @@ int main(void)
                 frame[5] = 0x2005U;
                 frame[6] = 0x1004U;
                 frame[7] = (1U << 24) | (padding << 9);
-                assert(sampling_profiler_init());
-                sampling_profiler_enable();
+                assert(profiler_init());
+                profiler_enable();
                 statistical_sampling_tick(frame, expected_exc, saved);
                 assert(calls == 1 && statistical_samples.header.count == 1 && !statistical_samples.header.rejected);
                 assert(statistical_samples.records[6] == (1U | (PROFILER_UNWIND_NO_TABLE << 8)));
@@ -85,8 +85,8 @@ int main(void)
                 if (fp || padding)
                 {
                     calls = 0;
-                    assert(sampling_profiler_init());
-                    sampling_profiler_enable();
+                    assert(profiler_init());
+                    profiler_enable();
                     statistical_sampling_tick(frame, expected_exc, saved);
                     assert(calls == 0 && statistical_samples.header.count == 1);
                     assert(statistical_samples.records[6] == (PROFILER_UNWIND_BOUNDS << 8));
@@ -95,8 +95,8 @@ int main(void)
                 }
                 mode = 2; /* Wrong current task / context-switch mismatch. */
                 calls = 0;
-                assert(sampling_profiler_init());
-                sampling_profiler_enable();
+                assert(profiler_init());
+                profiler_enable();
                 statistical_sampling_tick(frame, expected_exc, saved);
                 assert(calls == 0 && statistical_samples.header.count == 0 && statistical_samples.header.rejected == 1);
             }

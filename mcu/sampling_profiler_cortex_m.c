@@ -9,8 +9,8 @@
  * Title:        sampling_profiler_cortex_m.c
  * Description:  Cortex-M timestamping, frame validation and sampling backend
  *
- * $Date:        25 September 2026
- * $Revision:    V.1.0.2
+ * $Date:        30 September 2026
+ * $Revision:    V.1.0.3
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -212,7 +212,7 @@ int profiler_port_init(struct ProfilerClock *clock)
     if (!profiler_timer_init(clock))
     {
         __set_PRIMASK(primask);
-        if (sampling_profiler_diagnostics()->reason == PROFILER_INIT_OK)
+        if (profiler_diagnostics()->reason == PROFILER_INIT_OK)
             profiler_init_fail(PROFILER_INIT_TIMER, PROFILER_INIT_UNAVAILABLE, 0, 0);
         return 0;
     }
@@ -271,25 +271,25 @@ __attribute__((used, noinline)) void statistical_sampling_tick(const uint32_t *f
 #endif
     if ((exception_return & 0xFFFFFF80U) != 0xFFFFFF80U || (exception_return & 2U) != 0U)
     {
-        sampling_profiler_reject(PROFILER_REJECT_EXC_RETURN);
+        profiler_reject(PROFILER_REJECT_EXC_RETURN);
         return;
     }
     if ((exception_return & 0x69U) != (PROFILER_FRAME_STATE | 8U) ||
         (!(exception_return & 0x10U) && !extended_supported))
     {
-        sampling_profiler_reject(PROFILER_REJECT_UNSUPPORTED_FRAME);
+        profiler_reject(PROFILER_REJECT_UNSUPPORTED_FRAME);
         return;
     }
     struct ProfilerStackBounds bounds;
     if (!readable_frame(frame, exception_return, &bounds))
     {
-        sampling_profiler_reject(PROFILER_REJECT_STACK_BOUNDS);
+        profiler_reject(PROFILER_REJECT_STACK_BOUNDS);
         return;
     }
     uint32_t xpsr = frame[7];
     if ((xpsr & xPSR_T_Msk) == 0U || (xpsr & xPSR_ISR_Msk) != 0U)
     {
-        sampling_profiler_reject(PROFILER_REJECT_XPSR);
+        profiler_reject(PROFILER_REJECT_XPSR);
         return;
     }
     /* R0..xPSR are first in both basic and FP/MVE extended frames on this
@@ -335,5 +335,5 @@ __attribute__((used, noinline)) void statistical_sampling_tick(const uint32_t *f
         profiler_unwind_capture(&sample, regs, &bounds);
     }
 #endif
-    sampling_profiler_record(&sample);
+    profiler_record(&sample);
 }

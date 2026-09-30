@@ -9,8 +9,8 @@
  * Title:        sampling_profiler.c
  * Description:  Board-independent sample storage and capture lifecycle
  *
- * $Date:        25 September 2026
- * $Revision:    V.1.0.2
+ * $Date:        30 September 2026
+ * $Revision:    V.1.0.3
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -40,16 +40,16 @@ volatile uint32_t statistical_sampling_gate;
 static uint32_t initialized;
 static struct ProfilerDiagnostics diagnostics;
 
-const struct ProfilerDiagnostics *sampling_profiler_diagnostics(void) { return &diagnostics; }
+const struct ProfilerDiagnostics *profiler_diagnostics(void) { return &diagnostics; }
 int profiler_init_fail(enum ProfilerInitStage stage, enum ProfilerInitReason reason, uint32_t value0, uint32_t value1)
 {
     diagnostics = (struct ProfilerDiagnostics){stage, reason, value0, value1};
     return 0;
 }
 
-int sampling_profiler_init(void)
+int profiler_init(void)
 {
-    sampling_profiler_disable();
+    profiler_disable();
     profiler_port_stop();
 #if PROFILER_PMU_COUNT
     profiler_pmu_stop();
@@ -87,7 +87,7 @@ int sampling_profiler_init(void)
     return 1;
 }
 
-void sampling_profiler_enable(void)
+void profiler_enable(void)
 {
     if (initialized && !statistical_samples.header.full && !statistical_samples.header.complete)
     {
@@ -97,18 +97,21 @@ void sampling_profiler_enable(void)
     }
 }
 
-void sampling_profiler_disable(void)
+void profiler_disable(void)
 {
     statistical_sampling_gate = 0;
     profiler_port_barrier();
     statistical_samples.header.active = 0;
 }
 
-int sampling_profiler_full(void) { return statistical_samples.header.full != 0; }
+uint32_t profiler_sample_ticks(void) { return profiler_port_ticks(); }
+uint32_t profiler_elapsed_ms(void) { return profiler_port_millis(); }
 
-void sampling_profiler_stop(uint32_t iterations, uint32_t validation_passed)
+int profiler_full(void) { return statistical_samples.header.full != 0; }
+
+void profiler_stop(uint32_t iterations, uint32_t validation_passed)
 {
-    sampling_profiler_disable();
+    profiler_disable();
     if (!initialized)
         return;
     profiler_port_stop();
@@ -124,7 +127,7 @@ void sampling_profiler_stop(uint32_t iterations, uint32_t validation_passed)
     profiler_port_flush((const void *)&statistical_samples, sizeof(statistical_samples));
 }
 
-void sampling_profiler_reject(enum ProfilerRejection reason)
+void profiler_reject(enum ProfilerRejection reason)
 {
     if (!statistical_sampling_gate || (unsigned)reason >= PROFILER_REJECT_REASON_COUNT)
         return;
@@ -132,7 +135,7 @@ void sampling_profiler_reject(enum ProfilerRejection reason)
     ++statistical_samples.header.rejected_reason[reason];
 }
 
-void sampling_profiler_record(const struct ProfilerSample *sample)
+void profiler_record(const struct ProfilerSample *sample)
 {
     if (!statistical_sampling_gate)
         return;

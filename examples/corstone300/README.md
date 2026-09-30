@@ -143,3 +143,19 @@ For disjoint executable regions, add `--call-tree --split-code`. F executes in
 secure code SRAM; A–E remain in ITCM. See [split linker scripts and hook](../../docs/UNWINDING.md#split-executable-regions).
 Run `python3 host/check_profiler_elf.py --elf build/corstone300/profiler.elf --require-unwind --function functionF`
 from the repository root before capture.
+
+## Acronyms used in these examples
+
+| Term | Meaning |
+|---|---|
+| FVP / BSP | Fixed Virtual Platform (simulator) / Board Support Package (device support files) |
+| RTOS / TCB | Real-Time Operating System / Task Control Block (kernel bookkeeping for a task) |
+| MSP / PSP | Main Stack Pointer / Process Stack Pointer; these tests use PSP for threads and MSP for interrupts |
+| IRQ / ISR / NVIC | Interrupt Request / Interrupt Service Routine / Nested Vectored Interrupt Controller |
+| ITCM / DTCM | Instruction / Data Tightly Coupled Memory |
+| DWT / PMU | Data Watchpoint and Trace (provides a cycle counter) / Performance Monitoring Unit |
+| EHABI / ELF | Exception Handling Application Binary Interface (unwind metadata) / Executable and Linkable Format (firmware file) |
+| CNTCR | System Counter Control Register; its EN bit enables the shared reference counter |
+
+Enabling the shared counter does not enable sampling interrupts. TIMER0 controls
+when the profiler interrupts the application; the counter supplies its timebase.

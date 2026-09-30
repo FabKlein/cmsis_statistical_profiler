@@ -9,8 +9,8 @@
  * Title:        test_architecture.c
  * Description:  Architecture, security state and custom timestamp tests
  *
- * $Date:        25 September 2026
- * $Revision:    V.1.0.1
+ * $Date:        30 September 2026
+ * $Revision:    V.1.0.2
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -71,11 +71,11 @@ int profiler_stack_bounds(uint32_t exc, struct ProfilerStackBounds *bounds)
 
 static void check_precise_bounds(uint32_t basic)
 {
-    assert(sampling_profiler_init());
+    assert(profiler_init());
     assert(!statistical_samples.header.rejected);
     for (unsigned i = 0; i < PROFILER_REJECT_REASON_COUNT; ++i)
         assert(!statistical_samples.header.rejected_reason[i]);
-    sampling_profiler_enable();
+    profiler_enable();
     bounds_calls = 0;
     sample(basic | 2U);
     sample(basic & ~8U);
@@ -95,10 +95,10 @@ static void check_precise_bounds(uint32_t basic)
     statistical_sampling_tick(fake_stack + 8, basic | 4U); /* Exact PSP allocation. */
     assert(statistical_samples.header.count == 2U);
     uint32_t calls = bounds_calls;
-    sampling_profiler_disable();
+    profiler_disable();
     sample(basic);
     assert(bounds_calls == calls && statistical_samples.header.rejected == 9U);
-    sampling_profiler_stop(1U, 1U);
+    profiler_stop(1U, 1U);
 }
 #endif
 
@@ -106,13 +106,13 @@ int main(int argc, char **argv)
 {
     assert(argc == 2);
     /* A custom timestamp does not depend on SystemCoreClock, DWT or TCM. */
-    assert(sampling_profiler_init());
+    assert(profiler_init());
     assert(statistical_samples.header.timestamp_hz == 1000000U);
     assert(statistical_samples.header.version == 2U);
     fake_stack[5] = 0x10002001U;
     fake_stack[6] = 0x10001004U;
     fake_stack[7] = xPSR_T_Msk;
-    sampling_profiler_enable();
+    profiler_enable();
 #if defined(TEST_V8) && defined(TEST_NONSECURE)
     const uint32_t basic = 0xFFFFFFB8U, other_state = 0xFFFFFFF9U;
 #else
@@ -141,7 +141,7 @@ int main(int argc, char **argv)
     assert(statistical_samples.header.rejected == 5U);
     sample(basic);
 #endif
-    sampling_profiler_stop(1U, 1U);
+    profiler_stop(1U, 1U);
     FILE *out = fopen(argv[1], "wb");
     assert(out && fwrite((const void *)&statistical_samples, sizeof(statistical_samples), 1, out) == 1);
     assert(fclose(out) == 0);

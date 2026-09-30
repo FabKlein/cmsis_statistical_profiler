@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+# SPDX-License-Identifier: Apache-2.0
+# CMSIS Statistical Profiler: minimal draft API documentation.
+# Paths are relative to this directory; use gen_doc.sh.
+
+PROJECT_NAME           = "CMSIS Statistical Profiler"
+PROJECT_NUMBER         = "Prototype"
+PROJECT_BRIEF          = "Statistical sampling for Arm Cortex-M"
+OUTPUT_DIRECTORY       = ..
+INPUT                  = src/mainpage.md ../../mcu
+FILE_PATTERNS          = *.h *.md
+RECURSIVE              = NO
+EXTRACT_ALL            = YES
+EXTRACT_STATIC         = NO
+OPTIMIZE_OUTPUT_FOR_C  = YES
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+HAVE_DOT               = NO
+QUIET                  = YES
+WARNINGS               = YES

@@ -1,5 +1,7 @@
 # CMSIS-FreeRTOS dual-thread backtraces
 
+[Example acronym definitions](../corstone300/README.md#acronyms-used-in-these-examples).
+
 Corstone-300 FVP test using ATfE Clang 22.1, CMSIS 6.3.0,
 [CMSIS-FreeRTOS](https://github.com/ARM-software/CMSIS-FreeRTOS) 11.2.0
 and SSE-300 BSP 1.5.0. Pack files remain unchanged.

@@ -9,8 +9,8 @@
  * Title:        sampling_profiler.h
  * Description:  SRAM statistical sampling interface and capture format
  *
- * $Date:        25 September 2026
- * $Revision:    V.1.0.2
+ * $Date:        30 September 2026
+ * $Revision:    V.1.0.3
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -108,7 +108,7 @@ enum ProfilerRejection
 
 /**
  * @brief Capture metadata stored as 44 little-endian 32-bit words.
- * @details All counters wrap modulo 2^32. Read after sampling_profiler_stop().
+ * @details All counters wrap modulo 2^32. Read after profiler_stop().
  */
 struct ProfilerSamplingHeader
 {
@@ -186,24 +186,38 @@ extern volatile struct ProfilerSamplingBuffer statistical_samples;
  * @note Call lifecycle APIs serially on 1 core in privileged thread mode.
  * PMU unavailability is recorded in metadata and does not fail initialization.
  */
-int sampling_profiler_init(void);
+int profiler_init(void);
 /** @brief Last init result; reset on the next init, valid until then. Thread-mode use only. */
-const struct ProfilerDiagnostics *sampling_profiler_diagnostics(void);
+const struct ProfilerDiagnostics *profiler_diagnostics(void);
 /**
  * @brief Enable recording for an initialized, incomplete, non-full capture.
  * @note Does nothing before successful initialization or after completion.
  */
-void sampling_profiler_enable(void);
+void profiler_enable(void);
 /**
  * @brief Gate off recording without stopping the timer or PMU.
- * @note Recording can resume with sampling_profiler_enable().
+ * @note Recording can resume with profiler_enable().
  */
-void sampling_profiler_disable(void);
+void profiler_disable(void);
 /**
  * @brief Query whether the capture has run out of space for a complete record.
  * @return Nonzero when full; 0 otherwise. Stop is still required to finalize it.
  */
-int sampling_profiler_full(void);
+int profiler_full(void);
+/**
+ * @brief Read the cumulative sampling interrupt count, modulo 2^32.
+ * @note Advances while recording is disabled or the buffer is full; freezes at stop.
+ * Initialization does not reset it. Subtract 2 readings to measure an interval.
+ * This is not the stored sample count or the operating system tick count.
+ */
+uint32_t profiler_sample_ticks(void);
+/**
+ * @brief Read cumulative sampling-timer milliseconds, modulo 2^32.
+ * @note Same lifetime as profiler_sample_ticks(); independent of HAL/RTOS time.
+ * Subtract 2 readings to measure elapsed sampling time across an interval.
+ */
+uint32_t profiler_elapsed_ms(void);
+
 /**
  * @brief Stop sampling and PMU collection, finalize metadata and clean the cache.
  * @param iterations Application-reported workload iteration count.
@@ -211,7 +225,7 @@ int sampling_profiler_full(void);
  * @note Does nothing if initialization has not succeeded. Stops the dedicated
  * sampling timer; does not reset the shared timestamp counter.
  */
-void sampling_profiler_stop(uint32_t iterations, uint32_t validation_passed);
+void profiler_stop(uint32_t iterations, uint32_t validation_passed);
 
 #ifdef __cplusplus
 }

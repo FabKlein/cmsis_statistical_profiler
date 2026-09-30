@@ -9,25 +9,65 @@
  * Title:        call_tree_main.c
  * Description:  CMSIS-RTOS2 dual-thread backtrace test
  *
- * $Date:        27 September 2026
- * $Revision:    V.1.0.1
+ * $Date:        30 September 2026
+ * $Revision:    V.1.0.4
  *
  * Target :  Arm(R) M-Profile Architecture
  *
  * -------------------------------------------------------------------- */
 
+/* Application overview
+ * Test backtraces across thread switches with RTX or FreeRTOS. A higher-priority
+ * controller captures 2 seconds of 2 equal-priority workers, each repeatedly
+ * calling a known, non-inlined function tree with its own validation state.
+ * Distinct names let the host detect callers incorrectly mixed between threads.
+ * Static stacks give the sampling interrupt precise, stable bounds for unwinding.
+ *
+ * main: start kernel -> controller: create workers, enable capture, sleep 2 s
+ *                          |
+ *               kernel time-slices these workers
+ *                          |
+ *       worker  -> run_once  -> A  -> B  -> C  -> D  -> E  -> F
+ *       worker1 -> run_once1 -> A1 -> B1 -> C1 -> D1 -> E1 -> F1
+ *                          |
+ *              TIMER0 samples PC and caller addresses
+ *                          v
+ *                  statistical_samples
+ *                          |
+ *       controller wakes -> stop, validate, suspend workers
+ *                        -> check sampling stopped while kernel tick continues
+ *                        -> export samples.bin, exit simulator
+ *
+ * PC = Program Counter (instruction address). Semihosting exports the buffer
+ * through the simulator to the host filesystem. Host scripts decode it using
+ * the matching executable and check the call trees before drawing a flamegraph.
+ * The kernel retains ownership of SysTick, PendSV and SVC (tick, context switches
+ * and service calls). Sampling uses its own TIMER0 interrupt.
+ */
+
 #include "SSE300MPS3.h"
 #include "cmsis_os2.h"
 #include "sampling_profiler.h"
 #include "sampling_profiler_cortex_m.h"
-#include "sampling_profiler_port.h"
 #include "syscounter_armv8-m_cntrl_reg_map.h"
+
+/* System Counter Control Register (CNTCR), enable bit (EN).
+ * The Board Support Package (BSP) defines this bit only in its driver source. */
+#define CNTCR_ENABLE (1UL << 0)
+
+/* Fixed pair of distinct workloads plus 1 controller; 8 KiB per thread stack.
+ * Changing the worker count also requires updating the workload functions. */
+#define WORKER_COUNT 2U
+#define THREAD_COUNT (WORKER_COUNT + 1U)
+#define CONTROLLER_INDEX WORKER_COUNT
+#define STACK_WORDS 2048U
+#define CAPTURE_SECONDS 2U
 
 #if PROFILER_EXAMPLE_FREERTOS
     #include "FreeRTOS.h"
     #include "task.h"
-/* FreeRTOS requires both static TCB and stack storage for each static task. */
-static StaticTask_t control_blocks[3];
+/* FreeRTOS needs a Task Control Block (TCB), its bookkeeping, plus a stack for each static task. */
+static StaticTask_t control_blocks[THREAD_COUNT];
     #define THREAD_CONTROL_BLOCK(index) .cb_mem = &control_blocks[index], .cb_size = sizeof(control_blocks[index]),
 #else
     #define THREAD_CONTROL_BLOCK(index)
@@ -36,11 +76,13 @@ static StaticTask_t control_blocks[3];
 extern int run_once(void), validate(void), run_once1(void), validate1(void);
 extern void example_exit(uint32_t status);
 extern unsigned char __StackLimit[], __StackTop[];
-__attribute__((aligned(8))) static uint32_t stacks[3][2048];
-static volatile uint32_t runs[2], failures[2];
+__attribute__((aligned(8))) static uint32_t stacks[THREAD_COUNT][STACK_WORDS];
+static volatile uint32_t runs[WORKER_COUNT], failures[WORKER_COUNT];
 volatile uint32_t profiler_rtos_example_result;
 
-/** Permanent stack registry: no task creation/deletion while capturing.
+/** Process Stack Pointer (PSP) selects the interrupted thread's stack.
+ * Main Stack Pointer (MSP) serves exception handlers and startup.
+ * Permanent stack registry: no task creation/deletion while capturing.
  * TIMER0 has lowest priority, so a kernel context switch completes first.
  * Unknown/kernel PSP allocations are rejected rather than using broad RAM bounds.
  */
@@ -53,7 +95,7 @@ int profiler_stack_bounds(uint32_t exc, struct ProfilerStackBounds *bounds)
         return 1;
     }
     uintptr_t sp = __get_PSP();
-    for (unsigned i = 0; i < 3; ++i)
+    for (unsigned i = 0; i < THREAD_COUNT; ++i)
         if (sp >= (uintptr_t)stacks[i] && sp - (uintptr_t)stacks[i] < sizeof(stacks[i]))
         {
             bounds->base = (uintptr_t)stacks[i];
@@ -103,6 +145,16 @@ void vApplicationStackOverflowHook(TaskHandle_t task, char *name)
 }
 #endif
 
+/* Arm semihosting operations and normal application termination reason. */
+enum
+{
+    SEMIHOST_SYS_OPEN = 0x01U,
+    SEMIHOST_SYS_CLOSE = 0x02U,
+    SEMIHOST_SYS_WRITE = 0x05U,
+    SEMIHOST_SYS_EXIT_EXTENDED = 0x20U,
+    SEMIHOST_ADP_STOPPED_APPLICATION_EXIT = 0x20026U
+};
+
 static int semihost(uint32_t operation, const void *arguments)
 {
     register uint32_t r0 __asm("r0") = operation;
@@ -115,20 +167,20 @@ static int export_capture(void)
 {
     const char filename[] = "samples.bin";
     const uint32_t open_args[] = {(uint32_t)filename, 5U, sizeof(filename) - 1U};
-    int handle = semihost(0x01U, open_args);
+    int handle = semihost(SEMIHOST_SYS_OPEN, open_args);
     if (handle < 0)
         return 0;
     const uint32_t write_args[] = {(uint32_t)handle, (uint32_t)&statistical_samples, sizeof(statistical_samples)};
-    int remaining = semihost(0x05U, write_args);
+    int remaining = semihost(SEMIHOST_SYS_WRITE, write_args);
     const uint32_t close_args[] = {(uint32_t)handle};
-    int closed = semihost(0x02U, close_args);
+    int closed = semihost(SEMIHOST_SYS_CLOSE, close_args);
     return remaining == 0 && closed == 0;
 }
 
 void example_exit(uint32_t status)
 {
-    const uint32_t args[] = {0x20026U, status};
-    semihost(0x20U, args);
+    const uint32_t args[] = {SEMIHOST_ADP_STOPPED_APPLICATION_EXIT, status};
+    semihost(SEMIHOST_SYS_EXIT_EXTENDED, args);
     for (;;)
         __WFI();
 }
@@ -136,35 +188,35 @@ void example_exit(uint32_t status)
 static void controller(void *arg)
 {
     (void)arg;
-    const osThreadAttr_t attr[2] = {{.name = "A-F",
-                                     THREAD_CONTROL_BLOCK(0).attr_bits = osThreadPrivileged,
-                                     .stack_mem = stacks[0],
-                                     .stack_size = sizeof(stacks[0]),
-                                     .priority = osPriorityNormal},
-                                    {.name = "A1-F1",
-                                     THREAD_CONTROL_BLOCK(1).attr_bits = osThreadPrivileged,
-                                     .stack_mem = stacks[1],
-                                     .stack_size = sizeof(stacks[1]),
-                                     .priority = osPriorityNormal}};
+    const osThreadAttr_t attr[WORKER_COUNT] = {{.name = "A-F",
+                                                THREAD_CONTROL_BLOCK(0).attr_bits = osThreadPrivileged,
+                                                .stack_mem = stacks[0],
+                                                .stack_size = sizeof(stacks[0]),
+                                                .priority = osPriorityNormal},
+                                               {.name = "A1-F1",
+                                                THREAD_CONTROL_BLOCK(1).attr_bits = osThreadPrivileged,
+                                                .stack_mem = stacks[1],
+                                                .stack_size = sizeof(stacks[1]),
+                                                .priority = osPriorityNormal}};
 #if PROFILER_EXAMPLE_FREERTOS
-    osThreadId_t threads[2] = {osThreadNew(worker_entry, (void *)0U, &attr[0]),
-                               osThreadNew(worker_entry, (void *)1U, &attr[1])};
+    osThreadId_t threads[WORKER_COUNT] = {osThreadNew(worker_entry, (void *)0U, &attr[0]),
+                                          osThreadNew(worker_entry, (void *)1U, &attr[1])};
 #else
-    osThreadId_t threads[2] = {osThreadNew(worker, 0, &attr[0]), osThreadNew(worker1, 0, &attr[1])};
+    osThreadId_t threads[WORKER_COUNT] = {osThreadNew(worker, 0, &attr[0]), osThreadNew(worker1, 0, &attr[1])};
 #endif
-    if (!threads[0] || !threads[1] || !sampling_profiler_init())
+    if (!threads[0] || !threads[1] || !profiler_init())
         example_exit(10);
     uint32_t start = osKernelGetTickCount();
-    sampling_profiler_enable();
-    osStatus_t delayed = osDelay(osKernelGetTickFreq() * 2U);
-    sampling_profiler_disable();
+    profiler_enable();
+    osStatus_t delayed = osDelay(osKernelGetTickFreq() * CAPTURE_SECONDS);
+    profiler_disable();
     uint32_t valid = delayed == osOK && runs[0] && runs[1] && !failures[0] && !failures[1] &&
-        osKernelGetTickCount() - start >= osKernelGetTickFreq() * 2U;
-    sampling_profiler_stop(runs[0] + runs[1], valid);
+        osKernelGetTickCount() - start >= osKernelGetTickFreq() * CAPTURE_SECONDS;
+    profiler_stop(runs[0] + runs[1], valid);
     if (osThreadSuspend(threads[0]) != osOK || osThreadSuspend(threads[1]) != osOK)
         valid = 0;
-    uint32_t stopped = profiler_port_ticks();
-    if (osDelay(2) != osOK || profiler_port_ticks() != stopped)
+    uint32_t stopped = profiler_sample_ticks();
+    if (osDelay(2) != osOK || profiler_sample_ticks() != stopped)
         valid = 0;
     profiler_rtos_example_result = valid ? 1U : 2U;
     if (!export_capture())
@@ -175,14 +227,14 @@ static void controller(void *arg)
 int main(void)
 {
     SystemCoreClockUpdate();
-    ((struct cnt_control_base_reg_map_t *)0x58100000UL)->cntcr = 1U;
+    ((struct cnt_control_base_reg_map_t *)SYSCNTR_CNTRL_BASE_S)->cntcr = CNTCR_ENABLE;
     __DSB();
     if (osKernelInitialize() != osOK)
         example_exit(13);
     const osThreadAttr_t attr = {.name = "controller",
-                                 THREAD_CONTROL_BLOCK(2).attr_bits = osThreadPrivileged,
-                                 .stack_mem = stacks[2],
-                                 .stack_size = sizeof(stacks[2]),
+                                 THREAD_CONTROL_BLOCK(CONTROLLER_INDEX).attr_bits = osThreadPrivileged,
+                                 .stack_mem = stacks[CONTROLLER_INDEX],
+                                 .stack_size = sizeof(stacks[CONTROLLER_INDEX]),
                                  .priority = osPriorityAboveNormal};
     if (!osThreadNew(controller, 0, &attr) || osKernelStart() != osOK)
         example_exit(14);

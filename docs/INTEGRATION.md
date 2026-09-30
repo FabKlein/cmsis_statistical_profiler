@@ -47,9 +47,9 @@ require zero unexpected rejections before enabling PMU or backtraces.
    inside it so command-line settings can override them without `#undef`.
 3. Preserve application startup/linker placement and HAL/RTOS exceptions. The
    buffer defaults to BSS. Check that data plus MSP/task stacks fit physical RAM.
-4. Call `sampling_profiler_init()`, `sampling_profiler_enable()`, run a known
-   workload, then `sampling_profiler_stop(iterations, validation_passed)`.
-   On init failure inspect `*sampling_profiler_diagnostics()`; see
+4. Call `profiler_init()`, `profiler_enable()`, run a known
+   workload, then `profiler_stop(iterations, validation_passed)`.
+   On init failure inspect `*profiler_diagnostics()`; see
    [failure meanings](CONFIGURATION.md#initialization-failures).
 5. After stop returns, halt and export from GDB with the exact ELF loaded:
 
