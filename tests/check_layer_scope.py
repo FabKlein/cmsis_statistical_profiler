@@ -8,7 +8,7 @@
 # Description:  Check generated CMSIS compiler flags stay within profiler groups
 #
 # $Date:        30 September 2026
-# $Revision:    V.1.0.2
+# $Revision:    V.1.0.3
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -30,10 +30,11 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 FLAGS = {"AC6": {"-fno-vectorize", "-fno-slp-vectorize"}, "GCC": {"-fno-tree-vectorize"}}
 ALL_FLAGS = set().union(*FLAGS.values())
+# NXP RT685 requires its device pack and SDK components; exclude it from this
+# Corstone-only scope check. SDK compilation remains in compile_adapters.py.
 TIMERS = ["adapters/stm32n6/stm32n6_tim2.clayer.yml",
           "adapters/corstone300/corstone300_timer0.clayer.yml",
           "adapters/alif_e8/alif_e8_utimer.clayer.yml",
-          "adapters/nxp_rt685/nxp_rt685_ctimer4.clayer.yml",
           "adapters/template/template_timer.clayer.yml",
           "integrations/systick/systick.clayer.yml"]
 

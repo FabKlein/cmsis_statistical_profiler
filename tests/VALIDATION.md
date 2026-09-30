@@ -23,7 +23,7 @@ Updated on 30 September 2026:
 | CMSIS-RTX call-tree FVP | Toolbox 2.13.0 / ATfE 22.1 / RTX 5.9.1: 2 preemptively scheduled workers with separate static PSP stacks; 665 samples, valid timing, 0 rejected/unresolved, separate A–F/A1–F1 chains and successful workload validation. [Reproduce](../examples/corstone300_rtos2/CALL_TREE.md) |
 | CMSIS-RTOS2 illustration | GCC/AC6 compilation and exception-symbol checks only; no kernel linked/run |
 | Toolbox RTOS builds | Both contexts build from a clean copy without generated RTE files; failed-build regression rejects stale ELF/capture artifacts |
-| CMSIS layers | Schema validation and generated AC6/GCC builds: application flags unchanged; core and all timer groups protected |
+| CMSIS layers | Schema validation and generated AC6/GCC builds: application flags unchanged; core and tested timer groups protected. NXP RT685 is excluded from this Corstone-only check because it requires NXP SDK components |
 | Timing checks | Frozen counters, rate mismatch, mid-capture drift and stop epochs; valid wraps, coarse counters and degraded reports |
 | CI regression | Workflow passes actionlint; AC6/FVP uses reference-counter timestamps and requires valid cumulative timing |
 
