@@ -4,7 +4,7 @@ Initial prototype. APIs and capture format may change.
 
 Sample Cortex-M thread PCs into RAM, then decode them with the matching ELF/AXF.
 Optional PMU counters report hardware events. The core supports M0 through M85;
-board adapters supply the timer and device settings.
+board adapters or the generic SysTick integration supply the sampling timer.
 
 Zephyr users should use its native [Perf profiling tool](https://docs.zephyrproject.org/latest/samples/subsys/profiling/perf/README.html#profiling-perf).
 This pack is intended for applications outside Zephyr; see the linked sample for
@@ -16,8 +16,10 @@ Zephyr's supported targets and requirements.
 Cortex-M application
    │  periodic interrupt at PROFILER_SAMPLE_HZ
    ▼
-1. Board adapter                         adapters/<board>/
-   └─ Own timer + IRQ; preserve interrupted stack and EXC_RETURN
+1. Timer integration
+   ├─ Board timer adapter                adapters/<board>/
+   └─ Exclusive generic SysTick          integrations/systick/
+      └─ Own timer + IRQ; preserve interrupted stack and EXC_RETURN
            │
            ▼
 2. Cortex-M backend                      mcu/sampling_profiler_cortex_m.c
@@ -36,7 +38,7 @@ Host decoder + matching ELF              host/analyze_profiler_buffer.py
 ```
 
 For asymmetric multiprocessing (AMP), where each core runs its own firmware,
-each core has its own instance of the 3 layers shown above: **Board adapter**,
+each core has its own instance of the 3 layers shown above: **Timer integration**,
 **Cortex-M backend** and **Capture core**, with a separate buffer and host report.
 
 ## Get started
@@ -48,10 +50,11 @@ Follow the [3-stage integration guide](docs/INTEGRATION.md): PC sampling, PMU, t
 | Corstone-300 FVP / MPS3 FPGA | [Runnable example](examples/corstone300/README.md) |
 | STM32N6 | [TIM2 adapter](adapters/stm32n6/README.md) |
 | Alif E8 | [UTIMER adapter](adapters/alif_e8/README.md) |
+| Free SysTick | [Generic exclusive integration](integrations/systick/README.md) |
 | CMSIS-RTOS2 | [RTX dual-thread FVP test](examples/corstone300_rtos2/CALL_TREE.md), [integration illustration](examples/corstone300_rtos2/README.md) |
 | New board | [Adapter template](adapters/template/README.md) |
 
-Select the common layer, 1 board and 1 timer:
+Select the common layer, 1 board and 1 board timer:
 
 ```yaml
 layers:
@@ -60,14 +63,36 @@ layers:
   - layer: ../cmsis_statistical_profiler/adapters/corstone300/corstone300_timer0.clayer.yml
 ```
 
+Alternatively, select the common layer and the generic SysTick integration. A
+board adapter is not required when the application directly supplies
+`PROFILER_DEVICE_HEADER`, `SystemCoreClock`, readable stack bounds, startup/vector
+ownership and linker placement:
+
+```yaml
+layers:
+  - layer: ../cmsis_statistical_profiler/cmsis_statistical_profiler.clayer.yml
+  - layer: ../cmsis_statistical_profiler/integrations/systick/systick.clayer.yml
+```
+
 The application supplies startup, clocks, linker placement and readable stack RAM.
-Reserve the timer; leave HAL/RTOS SysTick, PendSV and SVC ownership unchanged.
-Supplied adapters use secure M55 mappings; other CPUs need an appropriate adapter.
+Reserve the selected timer. The generic path requires free SysTick and owns its
+handler; a board timer path leaves HAL/RTOS SysTick, PendSV and SVC ownership
+unchanged. Supplied board adapters use secure M55 mappings; other targets using a
+peripheral timer need an appropriate adapter.
 M0/M0+/M1/M23 need a [custom timestamp](adapters/template/profiler_timestamp.c.example).
 TCM is optional.
 
+The generic SysTick path was hardware-validated on an Infineon PSOC Edge E84
+platform with independent Cortex-M55 and Cortex-M33 RAM images. Both used 64 KiB
+capture buffers and EHABI backtraces at 1 kHz with zero rejected frames or
+unresolved PCs. The M55 captured four PMU events; the M33 correctly ran PC and
+backtrace sampling without a PMU. This validation inherited board clocks and
+power/security setup from already-running boot firmware; it does not replace the
+Infineon BSP startup flow or validate coexistence with software that owns SysTick.
+
 Set `PROFILER_SAMPLE_HZ` and `PROFILER_SAMPLE_BUFFER_BYTES` in your application
-project or configuration header ([staged integration](docs/INTEGRATION.md)). A 64 KiB buffer holds 2,723
+project or configuration header ([staged integration](docs/INTEGRATION.md)). A
+64 KiB buffer holds 2,723
 samples without PMU, 2,042 with 2 events or 1,634 with 4 events, without backtraces. Currently, recording
 stops when the buffer is full; existing records are not overwritten. Circular
 buffering and a repeated capture/export/resume workflow are planned: capture until

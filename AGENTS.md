@@ -10,10 +10,13 @@ Keep settings in the application. Run [ELF preflight](host/check_profiler_elf.py
 before capture; [package reports](host/create_profiler_report.py) with exact inputs
 and provenance. Do not guess bounds or ownership. Report validation limits.
 
-- Keep a 3 layers SW structure: capture/storage, Cortex-M backend, board timer adapter.
-  Vendor dependencies belong in adapters, not the capture core.
-- Use 1 dedicated timer. Preserve HAL/RTOS interrupt ownership. The application
-  supplies clocks, startup, linker placement and readable stack bounds; TCM is optional.
+- Keep a 3 layers SW structure: capture/storage, Cortex-M backend, timer integration.
+  Vendor dependencies belong in adapters, not the capture core. The generic
+  SysTick integration needs no board adapter when the application supplies the
+  device header, clock and stack configuration.
+- Use 1 timer source. Prefer a dedicated timer when HAL/RTOS code owns SysTick.
+  The application supplies clocks, startup, linker placement and readable stack
+  bounds; TCM is optional.
 - For AMP, keep buffers/state physically separate per image and reserve distinct
   timer channels. Serialize shared peripheral clock setup; decode with each core's ELF.
 - Run lifecycle calls serially in privileged thread mode on 1 core. Always stop
