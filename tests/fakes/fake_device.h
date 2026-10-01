@@ -10,7 +10,7 @@
  * Description:  Mock CMSIS device registers and intrinsics for native tests
  *
  * $Date:        1 October 2026
- * $Revision:    V.1.0.1
+ * $Revision:    V.1.0.2
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -23,7 +23,7 @@
 #ifndef __CORTEX_M
     #define __CORTEX_M 55U
 #endif
-/* Native builds do not supply Arm compiler macros; default to the mock M55. */
+/* Default to the mock M55 when the host compiler has no Arm architecture macro. */
 #ifndef __ARM_ARCH
     #define __ARM_ARCH 8
 #endif

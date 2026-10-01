@@ -8,7 +8,7 @@
 # Description:  Native capture and Python decoder regression tests
 #
 # $Date:        1 October 2026
-# $Revision:    V.1.0.4
+# $Revision:    V.1.0.5
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -60,8 +60,9 @@ class ProfilerTests(unittest.TestCase):
             for secure in ([False, True] if v8 else [False]):
                 with self.subTest(core=core, secure=secure), tempfile.TemporaryDirectory() as tmp:
                     binary, capture = Path(tmp) / "test", Path(tmp) / "capture.bin"
+                    # Arm hosts predefine __ARM_ARCH; replace it for the simulated core.
                     flags = [f"-D__CORTEX_M={core}", f"-D__FPU_PRESENT={fpu}",
-                             f"-D__ARM_ARCH={8 if v8 else (6 if core in (0, 1) else 7)}",
+                             "-U__ARM_ARCH", f"-D__ARM_ARCH={8 if v8 else (6 if core in (0, 1) else 7)}",
                              "-D__DCACHE_PRESENT=0", "-DPROFILER_TIMESTAMP_CUSTOM=1",
                              "-DPROFILER_SAMPLE_HZ=333", "-DPROFILER_PRECISE_STACK_BOUNDS=1"]
                     if v8:
