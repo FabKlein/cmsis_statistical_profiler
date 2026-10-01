@@ -103,32 +103,7 @@ struct StackRegion
 
 /* Readable RAM is the outer safety boundary. Optional precise bounds further
  * restrict reads to the interrupted task's allocation, not all of that RAM. */
-#ifdef PROFILER_STACK_SIZE_FROM_DTCM
-static struct StackRegion stack_regions[] = PROFILER_STACK_REGIONS;
-#else
 static const struct StackRegion stack_regions[] = PROFILER_STACK_REGIONS;
-#endif
-
-/**
- * @brief Resolve the optional DTCM-derived region once at initialization.
- * @return 0 if opted-in DTCM is disabled or has an unsupported size; otherwise 1.
- */
-static int configure_stack_regions(void)
-{
-#ifdef PROFILER_STACK_SIZE_FROM_DTCM
-    #if !defined(MEMSYSCTL_DTCMCR_SZ_Msk)
-        #error "Automatic DTCM sizing requires MEMSYSCTL; supply explicit stack regions on this core"
-    #endif
-    uint32_t dtcm = MEMSYSCTL->DTCMCR;
-    uint32_t size = (dtcm & MEMSYSCTL_DTCMCR_SZ_Msk) >> MEMSYSCTL_DTCMCR_SZ_Pos;
-    /* Cortex-M55 SZ: 0 = absent, 1/2 = reserved, 3..15 = 4 KiB..16 MiB.
-     * Query only at init; frame validation has no per-sample register reads. */
-    if (!(dtcm & MEMSYSCTL_DTCMCR_EN_Msk) || size < 3U)
-        return 0;
-    stack_regions[0].bytes = (size_t)512U << size;
-#endif
-    return 1;
-}
 
 /* Written by the sampling IRQ and read by thread-mode timing queries. Counts
  * survive capture reinitialization and advance even while recording is gated off.
@@ -235,8 +210,6 @@ void profiler_port_stop(void)
 int profiler_port_init(struct ProfilerClock *clock)
 {
     uint32_t timestamp_hz = 0U;
-    if (!configure_stack_regions())
-        return profiler_init_fail(PROFILER_INIT_STACK, PROFILER_INIT_INVALID_CONFIG, 0, 0);
     if (!profiler_timestamp_init(&timestamp_hz) || !timestamp_hz)
         return profiler_init_fail(PROFILER_INIT_TIMESTAMP, PROFILER_INIT_UNAVAILABLE, timestamp_hz, 0);
 

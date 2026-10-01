@@ -21,7 +21,7 @@
  * @brief Board-independent capture configuration.
  *
  * @par PROFILER_USER_CONFIG
- * Optional quoted application configuration header, included before board defaults.
+ * Optional quoted application configuration header, included before optional defaults.
  *
  * @par PROFILER_DEVICE_HEADER
  * Required quoted CMSIS device header selected by the board layer or application.

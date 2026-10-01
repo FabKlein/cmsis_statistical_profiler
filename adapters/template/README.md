@@ -13,15 +13,13 @@ mv adapters/my_board/template_timer.clayer.yml adapters/my_board/my_board_timer.
 Set `PROFILER_DEVICE_HEADER` to the quoted CMSIS device header. Supply SDK include
 paths and device defines. Keep the shared `mcu/profiler_stack_regions.h`.
 
-Set SDK-derived `PROFILER_DEFAULT_STACK_BASE` and `PROFILER_DEFAULT_STACK_BYTES`,
-or supply application bounds through `profiler_app_config.h.example`.
-For several ranges, use `PROFILER_STACK_REGIONS`. Bounds must describe initialized,
-CPU-readable stack RAM, including all task stacks. Never guess sizes.
-
-`PROFILER_DEFAULT_DTCM_BASE` explicitly opts into MEMSYSCTL size detection on
-supported cores; TCM is otherwise optional. Application bounds override defaults.
-Define `PROFILER_USER_CONFIG` to the quoted application header and add its include
-path. Set rate and buffer size consistently across all profiler sources.
+The application must supply `PROFILER_STACK_BASE` and `PROFILER_STACK_BYTES`,
+or `PROFILER_STACK_REGIONS` for several ranges. Use its actual memory layout,
+including all CPU-readable MSP/PSP stack RAM; do not infer stack placement from
+device capacity. TCM is optional. Put the bounds in an application header based on
+`profiler_app_config.h.example`, define `PROFILER_USER_CONFIG` to the quoted
+header, and add its include path. Set rate and buffer size consistently across
+all profiler sources.
 
 ## Timer hooks
 

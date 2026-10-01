@@ -44,6 +44,8 @@ each core has its own instance of the 3 layers shown above: **Timer integration*
 ## Get started
 
 Follow the [3-stage integration guide](docs/INTEGRATION.md): PC sampling, PMU, then backtraces.
+Every application must explicitly supply readable bounds for its actual stack RAM;
+board adapters do not select or probe those bounds.
 
 | Target | Guide |
 |---|---|

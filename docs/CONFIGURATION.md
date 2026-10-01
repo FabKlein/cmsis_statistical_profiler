@@ -3,8 +3,9 @@
 Keep settings in the application cproject/compiler definitions, not the dependency
 layer. Alternatively define `PROFILER_USER_CONFIG="profiler_app_config.h"` and add
 its include directory. Use `#ifndef` around settings in that header: compiler
-settings then take precedence, followed by the application header, board defaults
-and finally `mcu/sampling_profiler_config.h`. No `#undef` overrides are needed.
+settings then take precedence, followed by the application header and finally
+`mcu/sampling_profiler_config.h` for optional settings. Stack bounds have no default.
+No `#undef` overrides are needed.
 Apply settings consistently to every translation unit. Start with the
 [3 integration stages](INTEGRATION.md).
 
@@ -20,11 +21,11 @@ Apply settings consistently to every translation unit. Start with the
 | `PROFILER_SAMPLE_HZ` | 1000 | Requested sampling interrupt frequency in Hz |
 | `PROFILER_SAMPLE_BUFFER_BYTES` | 64 KiB | Allocation budget including the 176-byte header |
 | `PROFILER_SAMPLING_ENABLED` | 1 | Supplied handler/example switch; 0 still maintains ticks |
-| `PROFILER_STACK_BASE`, `PROFILER_STACK_BYTES` | Board RAM defaults | Application override for 1 readable stack RAM range |
+| `PROFILER_STACK_BASE`, `PROFILER_STACK_BYTES` | Required unless REGIONS is supplied | Application-supplied bounds for 1 readable stack RAM range |
 | `PROFILER_UNWIND_MAX_DEPTH` | 16 | Maximum recovered callers (1-255); bounds ISR work and temporary storage, not each stored record |
 | `PROFILER_STACK_UNWIND` | 0 | 1 enables EHABI backtraces (4 bytes + 4 bytes/recovered caller); requires precise bounds and linker-table hook. See [unwinding](UNWINDING.md) |
 | `PROFILER_PRECISE_STACK_BOUNDS` | 0 | Enable an ISR-safe adapter hook that narrows RAM bounds to the interrupted stack |
-| `PROFILER_STACK_REGIONS` | Alternative to BASE/BYTES | Array initializer of `{CPU address, bytes}` readable stack regions |
+| `PROFILER_STACK_REGIONS` | Required unless BASE/BYTES are supplied | Array initializer of `{CPU address, bytes}` readable stack regions |
 | `PROFILER_BUFFER_ATTRIBUTES` | 32-byte alignment | Optional application-defined section placement |
 | `PROFILER_SRAM_REGION_BYTES` | Unset | Optional extra allocation limit for a dedicated region |
 | `PROFILER_DEVICE_HEADER` | Selected by board layer | CMSIS device include for backend/timer code |
@@ -35,7 +36,8 @@ Apply settings consistently to every translation unit. Start with the
 Non-CMSIS builds compile the 4 `mcu/*.c` files and exactly 1 adapter timer.
 Include `mcu/`, the adapter, CMSIS-Core and SDK headers; use C11, the correct CPU,
 and security-aware code generation matching the exception frames delivered to
-the profiler. Supply device/RAM definitions from the board layer.
+the profiler. Supply the device header through the board layer or application,
+and stack RAM bounds through the application.
 
 On Armv8-M, inspect an actual IRQ `EXC_RETURN` rather than inferring security state
 from debugger SCS access or project labels. If the profiler receives Secure frames,
@@ -58,9 +60,10 @@ Startup, clocks, security routing and linker placement belong to the application
 
 ## Memory and timestamps
 
-TCM is optional. Configure initialized, CPU-readable stack RAM with BASE/BYTES or
-REGIONS, never both. Cover all task stacks. Explicit bounds override SDK defaults
-and STM32N6 DTCM detection. The capture buffer defaults to aligned BSS.
+TCM is optional. The application must configure initialized, CPU-readable stack
+RAM with BASE/BYTES or REGIONS, never both. Cover MSP and all task stacks using
+the actual application memory layout. No board layer supplies default bounds or
+probes DTCM size. The capture buffer defaults to aligned BSS.
 
 `PROFILER_PRECISE_STACK_BOUNDS=1` requires an ISR-safe [bounds hook](../adapters/template/profiler_stack_bounds.c.example).
 It only narrows the whitelist; a failed lookup rejects the sample.

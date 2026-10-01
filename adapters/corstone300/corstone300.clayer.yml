@@ -5,7 +5,7 @@
 # ----------------------------------------------------------------------
 # Project:      CMSIS Statistical Profiler
 # Title:        corstone300.clayer.yml
-# Description:  Corstone-300 device and stack memory configuration layer
+# Description:  Corstone-300 device configuration layer
 #
 # $Date:        27 September 2026
 # $Revision:    V.1.0.1
@@ -19,8 +19,5 @@ layer:
   type: ProfilerAdapter
   define:
     - PROFILER_DEVICE_HEADER: '"SSE300MPS3.h"'
-    - PROFILER_DEFAULT_STACK_BASE: DTCM0_BASE_S
-    # Parentheses here are split by Toolbox's CMake generator.
-    - PROFILER_DEFAULT_STACK_BYTES: DTCM_BLK_SIZE*DTCM_BLK_NUM
   add-path:
     - .

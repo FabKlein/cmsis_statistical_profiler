@@ -42,7 +42,8 @@ require zero unexpected rejections before enabling PMU or backtraces.
      - PROFILER_STACK_UNWIND: 0
    ```
 
-   Supply timer clock and stack RAM definitions from the board guide. Header users
+   Supply the timer clock from the board documentation and stack RAM bounds from
+   the application's actual linker/startup layout. Header users
    define `PROFILER_USER_CONFIG="profiler_app_config.h"`; use `#ifndef` defaults
    inside it so command-line settings can override them without `#undef`.
 3. Preserve application startup/linker placement and HAL/RTOS exceptions. The

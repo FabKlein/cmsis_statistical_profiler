@@ -9,8 +9,8 @@
  * Title:        profiler_stack_regions.h
  * Description:  Readable stack memory region selection and validation
  *
- * $Date:        22 September 2026
- * $Revision:    V.1.0.0
+ * $Date:        1 October 2026
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -24,31 +24,19 @@
  * Readable stack RAM whitelist as {{base, bytes}, ...}; excludes BASE/BYTES overrides.
  *
  * @par PROFILER_STACK_BASE
- * Application override for 1 CPU-readable stack RAM region; requires STACK_BYTES.
+ * Application-supplied base for 1 CPU-readable stack RAM region; requires STACK_BYTES.
  *
  * @par PROFILER_STACK_BYTES
- * Size of the application stack RAM region; requires STACK_BASE.
- *
- * @par PROFILER_DEFAULT_STACK_BASE
- * SDK-derived board stack RAM base, used if no application bounds are supplied.
- *
- * @par PROFILER_DEFAULT_STACK_BYTES
- * SDK-derived board stack RAM size; paired with DEFAULT_STACK_BASE.
- *
- * @par PROFILER_DEFAULT_DTCM_BASE
- * Explicit opt-in CPU-visible DTCM base; size is detected from MEMSYSCTL at init.
- *
- * @par PROFILER_STACK_SIZE_FROM_DTCM
- * Internal flag selecting runtime DTCM size detection; not a generic RAM size probe.
+ * Application-supplied size of the stack RAM region; requires STACK_BASE.
  */
 
 #ifndef PROFILER_STACK_REGIONS_H
 #define PROFILER_STACK_REGIONS_H
 
-/* Use BASE/BYTES for 1 region, or the full {{base, bytes}, ...} initializer
- * for several. Application bounds override board-provided defaults. SDK
- * constants expand after the backend includes the CMSIS device header.
- * Only whitelist initialized, CPU-readable memory containing MSP/PSP stacks. */
+/* The application supplies BASE/BYTES for 1 region, or the full
+ * {{base, bytes}, ...} initializer for several. SDK constants expand after
+ * the backend includes the CMSIS device header. Only whitelist initialized,
+ * CPU-readable memory containing MSP/PSP stacks. */
 #if defined(PROFILER_STACK_REGIONS)
     #if defined(PROFILER_STACK_BASE) || defined(PROFILER_STACK_BYTES)
         #error "Use either PROFILER_STACK_REGIONS or PROFILER_STACK_BASE/BYTES, not both"
@@ -63,27 +51,7 @@
                 PROFILER_STACK_BASE, PROFILER_STACK_BYTES                                                              \
             }                                                                                                          \
         }
-#elif defined(PROFILER_DEFAULT_STACK_BASE) || defined(PROFILER_DEFAULT_STACK_BYTES)
-    #if !defined(PROFILER_DEFAULT_STACK_BASE) || !defined(PROFILER_DEFAULT_STACK_BYTES)
-        #error "Supply both board-default stack bounds; use PROFILER_DEFAULT_DTCM_BASE for DTCM detection"
-    #endif
-    #define PROFILER_STACK_REGIONS                                                                                     \
-        {                                                                                                              \
-            {                                                                                                          \
-                PROFILER_DEFAULT_STACK_BASE, PROFILER_DEFAULT_STACK_BYTES                                              \
-            }                                                                                                          \
-        }
-#elif defined(PROFILER_DEFAULT_DTCM_BASE)
-    /* No SDK size constant: snapshot enabled DTCM size from CMSIS at init.
-     * This base must describe CPU-visible DTCM, never another RAM. */
-    #define PROFILER_STACK_SIZE_FROM_DTCM 1
-    #define PROFILER_STACK_REGIONS                                                                                     \
-        {                                                                                                              \
-            {                                                                                                          \
-                PROFILER_DEFAULT_DTCM_BASE, 0U                                                                         \
-            }                                                                                                          \
-        }
 #else
-    #error "Supply stack bounds or select a board layer with RAM defaults"
+    #error "Application must supply PROFILER_STACK_REGIONS or PROFILER_STACK_BASE/BYTES"
 #endif
 #endif

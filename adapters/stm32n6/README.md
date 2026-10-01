@@ -11,10 +11,11 @@ headers and HAL RCC/RCCEx modules.
 - TIM2 and its IRQ must be Secure and accessible. First init rejects an enabled
   clock or NVIC IRQ. Stop disables sampling but retains the timer reservation.
 
-Stack bounds default to `DTCM_BASE_S` with size read once from `MEMSYSCTL->DTCMCR`.
-Disabled, absent or invalid DTCM fails initialization. Startup must initialize the
-actual FlexRAM allocation; the DFP memory map alone does not establish it.
-Explicit stack bounds bypass detection. The capture buffer uses ordinary aligned BSS.
+The application must supply explicit bounds for its initialized, CPU-readable
+stack RAM via `PROFILER_STACK_BASE`/`PROFILER_STACK_BYTES` or
+`PROFILER_STACK_REGIONS`. If stacks use DTCM, derive bounds from the actual
+FlexRAM allocation and linker map; the DFP memory map alone does not establish
+them. The capture buffer uses ordinary aligned BSS.
 
 See [configuration](../../docs/CONFIGURATION.md) for memory overrides.
 GCC/AC6 compile-checked against ST headers; STM32N6 hardware execution is unverified.

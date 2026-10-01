@@ -42,8 +42,8 @@ local addresses may match; the allocations must not share physical storage.
 PMU and DWT are local to each core. Keep each `SystemCoreClock` accurate and clocks
 stable during capture; different fixed CPU speeds and sampling rates are supported.
 
-Stack bounds default to SDK `DTCM_BASE`/`DTCM_SIZE`. Use CPU-local addresses for
-application overrides. The application supplies boot, RAM/MPU/security and DWT access.
+Each application image must supply explicit bounds for its CPU-local stack RAM.
+The application supplies boot, RAM/MPU/security and DWT access.
 For the Ensemble 2.x DFP's AE822FA0E5597, include:
 
 ```text

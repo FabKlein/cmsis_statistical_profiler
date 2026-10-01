@@ -143,24 +143,26 @@ class ProfilerTests(unittest.TestCase):
                         cwd=ROOT, capture_output=True, text=True)
                     self.assertEqual(result.returncode == 0, valid, result.stderr)
 
-    def test_dtcm_size_detection(self):
+    def test_explicit_stack_regions(self):
         with tempfile.TemporaryDirectory() as tmp:
-            binary = Path(tmp) / "test_dtcm"
+            binary = Path(tmp) / "test_stack_regions"
             subprocess.run(["cc", "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror",
-                            "-Itests/fakes", "-Imcu", '-DPROFILER_USER_CONFIG="profiler_dtcm_config.h"',
-                            "tests/test_dtcm.c", "mcu/sampling_profiler.c", "mcu/profiler_backend.c",
+                            "-Itests/fakes", "-Imcu", '-DPROFILER_USER_CONFIG="profiler_stack_regions_config.h"',
+                            "tests/test_stack_regions.c", "mcu/sampling_profiler.c", "mcu/profiler_backend.c",
                             "-o", str(binary)], cwd=ROOT, check=True)
             subprocess.run([str(binary)], check=True)
 
     def test_shared_configuration(self):
         device = ['-DPROFILER_DEVICE_HEADER="fake_device.h"']
-        defaults = ["-DPROFILER_DEFAULT_STACK_BASE=0x30000000U", "-DPROFILER_DEFAULT_STACK_BYTES=4096U"]
         explicit = ["-DPROFILER_STACK_BASE=0x20000000U", "-DPROFILER_STACK_BYTES=8192U"]
-        cases = [(device + defaults, True), (device + defaults + explicit, True),
-                 (device + defaults + ['-DPROFILER_STACK_REGIONS={{0x20000000U,8192U}}'], True),
-                 (device, False), (defaults, False),
-                 (device + defaults[:1], False),
-                 (device + defaults + explicit[:1], False),
+        regions = ['-DPROFILER_STACK_REGIONS={{0x20000000U,8192U}}']
+        old_defaults = ["-DPROFILER_DEFAULT_STACK_BASE=0x30000000U",
+                        "-DPROFILER_DEFAULT_STACK_BYTES=4096U"]
+        cases = [(device + explicit, True), (device + regions, True),
+                 (device, False), (explicit, False),
+                 (device + old_defaults, False),
+                 (device + explicit[:1], False),
+                 (device + explicit[1:], False),
                  (device + explicit + ['-DPROFILER_STACK_REGIONS={{0U,4096U}}'], False)]
         for flags, valid in cases:
             with self.subTest(flags=flags):

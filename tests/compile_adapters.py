@@ -82,14 +82,14 @@ def main():
                       "nxp_rt685": "MIMXRT685S_cm33.h"}[board]
             base = {"corstone300": "DTCM0_BASE_S", "stm32n6": "DTCM_BASE_S",
                     "alif_e8": "DTCM_BASE", "nxp_rt685": "0x20000000U"}[board]
-            base_setting = "PROFILER_DEFAULT_DTCM_BASE" if board == "stm32n6" else "PROFILER_DEFAULT_STACK_BASE"
-            config = [f'-DPROFILER_DEVICE_HEADER="{header}"', f"-D{base_setting}={base}"]
+            # These explicit ranges emulate application settings for compilation only.
+            config = [f'-DPROFILER_DEVICE_HEADER="{header}"', f"-DPROFILER_STACK_BASE={base}"]
             if board == "corstone300":
-                config += ["-DPROFILER_DEFAULT_STACK_BYTES=(DTCM_BLK_SIZE*DTCM_BLK_NUM)"]
+                config += ["-DPROFILER_STACK_BYTES=(DTCM_BLK_SIZE*DTCM_BLK_NUM)"]
             elif board == "alif_e8":
-                config += ["-DPROFILER_DEFAULT_STACK_BYTES=DTCM_SIZE"]
-            elif board == "nxp_rt685":
-                config += ["-DPROFILER_DEFAULT_STACK_BYTES=0x10000U"]
+                config += ["-DPROFILER_STACK_BYTES=DTCM_SIZE"]
+            else:
+                config += ["-DPROFILER_STACK_BYTES=0x10000U"]
             board_flags = flags + config + ["-I" + tmp, "-Iadapters/" + board] + includes
             for rate in args.sample_hz:
                 for enabled in [0, 1]:

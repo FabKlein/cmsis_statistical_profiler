@@ -54,16 +54,6 @@
 #define xPSR_T_Msk (1U << 24)
 #define xPSR_ISR_Msk 0x1FFU
 
-struct FakeMEMSYSCTL
-{
-    uint32_t DTCMCR;
-};
-extern struct FakeMEMSYSCTL fake_memsysctl;
-#define MEMSYSCTL (&fake_memsysctl)
-#define MEMSYSCTL_DTCMCR_EN_Msk 1U
-#define MEMSYSCTL_DTCMCR_SZ_Pos 3U
-#define MEMSYSCTL_DTCMCR_SZ_Msk (15U << MEMSYSCTL_DTCMCR_SZ_Pos)
-
 struct FakeSysTick
 {
     uint32_t CTRL, LOAD, VAL;
