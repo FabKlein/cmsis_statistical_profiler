@@ -7,8 +7,8 @@
 # Title:        run_fvp.py
 # Description:  Build, run and validate the AC6 Corstone-300 PMU regression
 #
-# $Date:        22 September 2026
-# $Revision:    V.1.0.1
+# $Date:        1 October 2026
+# $Revision:    V.1.0.2
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -18,6 +18,7 @@
 import argparse
 import json
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 
@@ -28,22 +29,20 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--cmsis", type=Path, required=True)
-    parser.add_argument("--bsp", type=Path, required=True)
-    parser.add_argument("--cc", default="armclang", help="AC6 armclang executable")
+    parser.add_argument("--cbuild", default="cbuild", help="CMSIS-Toolbox cbuild executable")
     parser.add_argument("--fvp", default="FVP_Corstone_SSE-300")
     parser.add_argument("--output", type=Path, default=ROOT / "build/fvp")
     parser.add_argument("--stack-unwind", action="store_true", help="Also require usable EHABI caller chains")
     parser.add_argument("--timeout", type=int, default=120, help="Wall-clock limit for each command, seconds")
     args = parser.parse_args()
-    if "armclang" not in Path(args.cc).name or args.timeout <= 0:
-        parser.error("use AC6 armclang and a positive timeout")
+    if args.timeout <= 0:
+        parser.error("use a positive timeout")
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     report = output / "report"
     report.mkdir(exist_ok=True)
     # An early FVP exit must not pass using a previous run's capture or reports.
-    for path in [output / "samples.bin", output / "result.json"] + [report / name for name in
+    for path in [output / "samples.bin", output / "result.json", output / "profiler.elf", output / "profiler.map"] + [report / name for name in
                  ("summary.json", "functions.csv", "samples.csv", "events.csv", "stacks.folded")]:
         path.unlink(missing_ok=True)
 
@@ -55,11 +54,14 @@ def main():
 
     failures = []
     try:
-        run([sys.executable, ROOT / "examples/corstone300/build.py", "--cc", args.cc,
-             "--cmsis", args.cmsis.resolve(), "--bsp", args.bsp.resolve(), "--output", output,
-             "--semihosting", "--sample-hz", "333", "--timer-clock-hz", "100000000",
-             "--buffer-bytes", "65536", "--captures", "2", "--psp", "--float-workload",
-             "--precise-stack-bounds", "--pmu", "--reference-timestamp"] + (["--stack-unwind"] if args.stack_unwind else []), "build.log")
+        build_type = "Unwind" if args.stack_unwind else "FVP"
+        toolbox_output = output / "toolbox"
+        run([args.cbuild, ROOT / "examples/corstone300/profiler.csolution.yml",
+             "--context", f"profiler.{build_type}+Corstone300", "--output", toolbox_output,
+             "--update-rte"], "build.log")
+        artifacts = toolbox_output / "out/profiler/Corstone300" / build_type
+        shutil.copy2(artifacts / "profiler.axf", output / "profiler.elf")
+        shutil.copy2(artifacts / "profiler.axf.map", output / "profiler.map")
         command = [args.fvp, "-a", "profiler.elf", "--simlimit", "3"]
         parameters = ["core_clk.mul=32000000", "mps3_board.sse300.refcounter.base_frequency=100000000",
                       "cpu0.semihosting-enable=1", "mps3_board.visualisation.disable-visualisation=1"]

@@ -25,6 +25,7 @@ extern void __main(void);
 extern uint32_t __StackTop, __data_start__, __data_end__, __data_load__, __bss_start__, __bss_end__;
 #endif
 extern void SysTick_Handler(void);
+/* adapters/corstone300/profiler_timer0.c */
 extern void TFM_TIMER0_IRQ_Handler(void);
 extern int main(void);
 extern void example_exit(uint32_t status);

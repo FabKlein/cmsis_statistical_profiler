@@ -7,8 +7,8 @@
 # Title:        cmsis_statistical_profiler.clayer.yml
 # Description:  Common capture core, Cortex-M backend and application settings
 #
-# $Date:        27 September 2026
-# $Revision:    V.1.0.3
+# $Date:        1 October 2026
+# $Revision:    V.1.0.4
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -76,6 +76,6 @@ layer:
             - -fno-tree-vectorize
       files:
         - file: ./mcu/sampling_profiler.c
-        - file: ./mcu/sampling_profiler_cortex_m.c
+        - file: ./mcu/profiler_backend.c
         - file: ./mcu/sampling_profiler_pmu.c
         - file: ./mcu/sampling_profiler_unwind.c

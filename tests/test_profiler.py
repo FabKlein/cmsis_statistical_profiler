@@ -7,8 +7,8 @@
 # Title:        test_profiler.py
 # Description:  Native capture and Python decoder regression tests
 #
-# $Date:        25 September 2026
-# $Revision:    V.1.0.2
+# $Date:        1 October 2026
+# $Revision:    V.1.0.4
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -35,7 +35,7 @@ class ProfilerTests(unittest.TestCase):
                 binary = Path(tmp) / "test_capture"
                 capture = Path(tmp) / "samples.bin"
                 sources = ["tests/test_capture.c", "mcu/sampling_profiler.c",
-                           "mcu/sampling_profiler_cortex_m.c"]
+                           "mcu/profiler_backend.c"]
                 defines = [f"-DPROFILER_SAMPLE_HZ={rate}"]
                 subprocess.run(["cc", "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror",
                                 f"-D__DCACHE_PRESENT={cache}", "-Itests/fakes", "-Imcu", '-DPROFILER_USER_CONFIG="profiler_test_config.h"' ] + defines +
@@ -61,6 +61,7 @@ class ProfilerTests(unittest.TestCase):
                 with self.subTest(core=core, secure=secure), tempfile.TemporaryDirectory() as tmp:
                     binary, capture = Path(tmp) / "test", Path(tmp) / "capture.bin"
                     flags = [f"-D__CORTEX_M={core}", f"-D__FPU_PRESENT={fpu}",
+                             f"-D__ARM_ARCH={8 if v8 else (6 if core in (0, 1) else 7)}",
                              "-D__DCACHE_PRESENT=0", "-DPROFILER_TIMESTAMP_CUSTOM=1",
                              "-DPROFILER_SAMPLE_HZ=333", "-DPROFILER_PRECISE_STACK_BOUNDS=1"]
                     if v8:
@@ -70,7 +71,7 @@ class ProfilerTests(unittest.TestCase):
                     subprocess.run(["cc", "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror",
                                     "-Imcu", "-Itests/fakes", '-DPROFILER_USER_CONFIG="profiler_test_config.h"'] +
                                    flags + ["tests/test_architecture.c", "mcu/sampling_profiler.c",
-                                            "mcu/sampling_profiler_cortex_m.c", "-o", str(binary)],
+                                            "mcu/profiler_backend.c", "-o", str(binary)],
                                    cwd=ROOT, check=True)
                     subprocess.run([str(binary), str(capture)], check=True)
                     header, samples = analyzer.read_capture(capture.read_bytes())
@@ -147,7 +148,7 @@ class ProfilerTests(unittest.TestCase):
             binary = Path(tmp) / "test_dtcm"
             subprocess.run(["cc", "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror",
                             "-Itests/fakes", "-Imcu", '-DPROFILER_USER_CONFIG="profiler_dtcm_config.h"',
-                            "tests/test_dtcm.c", "mcu/sampling_profiler.c", "mcu/sampling_profiler_cortex_m.c",
+                            "tests/test_dtcm.c", "mcu/sampling_profiler.c", "mcu/profiler_backend.c",
                             "-o", str(binary)], cwd=ROOT, check=True)
             subprocess.run([str(binary)], check=True)
 
@@ -184,7 +185,7 @@ class ProfilerTests(unittest.TestCase):
             common = ["cc", "-std=c11", "-O2", "-Itests/fakes", "-Imcu", '-DPROFILER_USER_CONFIG="profiler_test_config.h"' ]
             for rate in [37000000, 100000000, 100000001]:
                 subprocess.run(common + [f"-DPROFILER_SAMPLE_HZ={rate}", "-DTEST_INVALID_RATE",
-                               "tests/test_capture.c", "mcu/sampling_profiler.c", "mcu/sampling_profiler_cortex_m.c",
+                               "tests/test_capture.c", "mcu/sampling_profiler.c", "mcu/profiler_backend.c",
                                "-o", str(binary)], cwd=ROOT, check=True)
                 subprocess.run([str(binary), "unused"], check=True)
             for define in ["-DPROFILER_SAMPLE_HZ=0", "-DPROFILER_PMU_COUNT=-1", "-DPROFILER_PMU_COUNT=5"]:

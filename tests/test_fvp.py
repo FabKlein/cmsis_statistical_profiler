@@ -7,8 +7,8 @@
 # Title:        test_fvp.py
 # Description:  Test FVP acceptance checks and stale-artifact failure handling
 #
-# $Date:        22 September 2026
-# $Revision:    V.1.0.0
+# $Date:        1 October 2026
+# $Revision:    V.1.0.1
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -109,11 +109,14 @@ class FvpChecks(unittest.TestCase):
         output = self.report.parent
         capture = output / "samples.bin"
         capture.write_bytes(b"stale capture")
-        argv = ["run_fvp.py", "--cmsis", "/unused", "--bsp", "/unused", "--output", str(output)]
+        executable = output / "profiler.elf"
+        executable.write_bytes(b"stale executable")
+        argv = ["run_fvp.py", "--output", str(output)]
         with patch("sys.argv", argv), redirect_stdout(io.StringIO()), patch(
-                "run_fvp.subprocess.run", side_effect=subprocess.TimeoutExpired("armclang", 1)):
+                "run_fvp.subprocess.run", side_effect=subprocess.TimeoutExpired("cbuild", 1)):
             self.assertEqual(run_fvp.main(), 1)
         self.assertFalse(capture.exists())
+        self.assertFalse(executable.exists())
         self.assertFalse((self.report / "summary.json").exists())
         self.assertEqual(json.loads((output / "result.json").read_text())["status"], "fail")
 

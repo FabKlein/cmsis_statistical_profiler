@@ -22,7 +22,7 @@ Cortex-M application
       └─ Own timer + IRQ; preserve interrupted stack and EXC_RETURN
            │
            ▼
-2. Cortex-M backend                      mcu/sampling_profiler_cortex_m.c
+2. Cortex-M backend                      mcu/profiler_backend.c
    ├─ Acknowledge timer, read timestamp, check capture gate
    ├─ Validate exception frame and stack bounds
    └─ Extract PC/LR + optional PMU snapshots and bounded backtrace
@@ -311,7 +311,8 @@ CSV, summary and original ELF belong together.
 A minimal [Doxygen scaffold](Documentation/README.md) generates draft API documentation.
 
 Run `python3 -B -m unittest discover -s tests -v`.
-[GitHub Actions](.github/workflows/fvp.yml) builds with AC6 and checks an FVP PMU
+[GitHub Actions](.github/workflows/fvp.yml) builds the
+[Corstone-300 csolution](examples/corstone300/profiler.csolution.yml) with AC6 via CMSIS-Toolbox and checks an FVP PMU
 capture against the [acceptance reference](tests/fvp_reference.json).
 See [validation](tests/VALIDATION.md), [capture format](FORMAT.md),
 [agent guide](AGENTS.md) and [TODO](TODO.md).

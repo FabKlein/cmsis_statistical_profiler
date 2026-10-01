@@ -57,6 +57,11 @@ and provenance. Do not guess bounds or ownership. Report validation limits.
   `tests/run_rtos_fvp.py --kernel rtx|freertos` builds, checks and runs the capture.
 - Preserve SPDX/project headers and Doxygen contracts. Use `.clang-format` for C/H;
   preserve protected device include order.
+- Build the bare-metal AC6 FVP example with
+  [its csolution](examples/corstone300/profiler.csolution.yml), contexts
+  `profiler.FVP+Corstone300` or `profiler.Unwind+Corstone300`.
+  `tests/run_fvp.py` uses `cbuild`, exports the buffer and checks the decoded report.
+  Configure `AC6_TOOLCHAIN_6_24_0` and installed packs; see the example README.
 - For behavior changes, run `python3 -B -m unittest discover -s tests -v`.
   For backend/adapter changes, also use the relevant [compile/FVP checks](tests/VALIDATION.md).
   State hardware validation limits accurately.

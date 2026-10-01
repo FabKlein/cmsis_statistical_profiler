@@ -7,8 +7,8 @@
 # Title:        compile_cortex_m.py
 # Description:  Compile Cortex-M architecture, security and timestamp variants
 #
-# $Date:        22 September 2026
-# $Revision:    V.1.0.1
+# $Date:        1 October 2026
+# $Revision:    V.1.0.2
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -61,7 +61,7 @@ def main():
                     flags += ['--target=arm-none-eabi', '-fno-vectorize', '-fno-slp-vectorize'] if clang else ['-fno-tree-vectorize']
                     if secure:
                         flags += ['-mcmse']
-                    for source in ['mcu/sampling_profiler.c', 'mcu/sampling_profiler_cortex_m.c', 'mcu/sampling_profiler_pmu.c', 'mcu/sampling_profiler_unwind.c', str(tmp / 'irq.c')]:
+                    for source in ['mcu/sampling_profiler.c', 'mcu/profiler_backend.c', 'mcu/sampling_profiler_pmu.c', 'mcu/sampling_profiler_unwind.c', str(tmp / 'irq.c')]:
                         subprocess.run([args.cc] + flags + ['-c', source, '-o', str(tmp / 'test.o')], cwd=ROOT, check=True)
             print(cpu + ': IRQ entry, core, timestamp modes and applicable security states passed')
 

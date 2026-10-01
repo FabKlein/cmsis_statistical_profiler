@@ -9,8 +9,8 @@
  * Title:        call_tree_main.c
  * Description:  CMSIS-RTOS2 dual-thread backtrace test
  *
- * $Date:        30 September 2026
- * $Revision:    V.1.0.4
+ * $Date:        1 October 2026
+ * $Revision:    V.1.0.5
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -76,8 +76,12 @@ static StaticTask_t control_blocks[THREAD_COUNT];
 extern int run_once(void), validate(void), run_once1(void), validate1(void);
 extern void example_exit(uint32_t status);
 extern unsigned char __StackLimit[], __StackTop[];
+
+/* Fixed stack storage remains valid for the entire capture. */
 __attribute__((aligned(8))) static uint32_t stacks[THREAD_COUNT][STACK_WORDS];
 static volatile uint32_t runs[WORKER_COUNT], failures[WORKER_COUNT];
+
+/* Debugger-visible result: 0 = not finished, 1 = success, 2 = failure. */
 volatile uint32_t profiler_rtos_example_result;
 
 /** Process Stack Pointer (PSP) selects the interrupted thread's stack.
@@ -88,12 +92,15 @@ volatile uint32_t profiler_rtos_example_result;
  */
 int profiler_stack_bounds(uint32_t exc, struct ProfilerStackBounds *bounds)
 {
+    /* Exception-return bit 2 selects the stack: 0 = main stack, 1 = process stack. */
     if (!(exc & 4U))
     {
         bounds->base = (uintptr_t)__StackLimit;
         bounds->bytes = (uintptr_t)__StackTop - (uintptr_t)__StackLimit;
         return 1;
     }
+
+    /* Find the interrupted task without calling the kernel from the sampling interrupt. */
     uintptr_t sp = __get_PSP();
     for (unsigned i = 0; i < THREAD_COUNT; ++i)
         if (sp >= (uintptr_t)stacks[i] && sp - (uintptr_t)stacks[i] < sizeof(stacks[i]))
@@ -102,12 +109,16 @@ int profiler_stack_bounds(uint32_t exc, struct ProfilerStackBounds *bounds)
             bounds->bytes = sizeof(stacks[i]);
             return 1;
         }
+
+    /* Unknown stacks must not be read by the unwinder. */
     return 0;
 }
 
+/* Run the A-F tree continuously; the kernel preempts this worker to run its peer. */
 __attribute__((noinline)) static void worker(void *arg)
 {
     (void)arg;
+
     for (;;)
     {
         if (!run_once() || !validate())
@@ -115,9 +126,12 @@ __attribute__((noinline)) static void worker(void *arg)
         ++runs[0];
     }
 }
+
+/* Same workload with independent state and A1-F1 symbols in the host report. */
 __attribute__((noinline)) static void worker1(void *arg)
 {
     (void)arg;
+
     for (;;)
     {
         if (!run_once1() || !validate1())
@@ -127,7 +141,9 @@ __attribute__((noinline)) static void worker1(void *arg)
 }
 
 #if PROFILER_EXAMPLE_FREERTOS
-/** Common application root; never interpret FreeRTOS's synthetic task-return LR as a caller. */
+/** Common application root for the flamegraph.
+ * FreeRTOS supplies a synthetic task-return address in LR (Link Register);
+ * it is not a real caller, so the host uses worker_entry as the graph base. */
 __attribute__((noinline)) static void worker_entry(void *arg)
 {
     if ((uintptr_t)arg == 0U)
@@ -159,35 +175,48 @@ static int semihost(uint32_t operation, const void *arguments)
 {
     register uint32_t r0 __asm("r0") = operation;
     register const void *r1 __asm("r1") = arguments;
+    /* The simulator handles this breakpoint as a host-service request. */
     __asm volatile("bkpt 0xab" : "+r"(r0) : "r"(r1) : "memory");
     return (int)r0;
 }
 
 static int export_capture(void)
 {
+    /* Open a binary output file on the host; mode 5 means "wb". */
     const char filename[] = "samples.bin";
     const uint32_t open_args[] = {(uint32_t)filename, 5U, sizeof(filename) - 1U};
     int handle = semihost(SEMIHOST_SYS_OPEN, open_args);
     if (handle < 0)
         return 0;
+
+    /* Export the whole stopped buffer, including unused space. */
     const uint32_t write_args[] = {(uint32_t)handle, (uint32_t)&statistical_samples, sizeof(statistical_samples)};
     int remaining = semihost(SEMIHOST_SYS_WRITE, write_args);
+
+    /* SYS_WRITE returns bytes NOT written; successful export leaves none. */
     const uint32_t close_args[] = {(uint32_t)handle};
     int closed = semihost(SEMIHOST_SYS_CLOSE, close_args);
+
     return remaining == 0 && closed == 0;
 }
 
 void example_exit(uint32_t status)
 {
+    /* Finish the simulator run: status 0 means success, nonzero means failure. */
     const uint32_t args[] = {SEMIHOST_ADP_STOPPED_APPLICATION_EXIT, status};
     semihost(SEMIHOST_SYS_EXIT_EXTENDED, args);
+
+    /* Fallback if the host returns from the exit request. */
     for (;;)
         __WFI();
 }
+
 /** Higher-priority controller starts capture before releasing the 2 workers. */
 static void controller(void *arg)
 {
     (void)arg;
+
+    /* Give each worker its own stack and the same scheduling priority. */
     const osThreadAttr_t attr[WORKER_COUNT] = {{.name = "A-F",
                                                 THREAD_CONTROL_BLOCK(0).attr_bits = osThreadPrivileged,
                                                 .stack_mem = stacks[0],
@@ -198,46 +227,78 @@ static void controller(void *arg)
                                                 .stack_mem = stacks[1],
                                                 .stack_size = sizeof(stacks[1]),
                                                 .priority = osPriorityNormal}};
+
+    /* Workers cannot run yet: this controller has higher priority. */
 #if PROFILER_EXAMPLE_FREERTOS
     osThreadId_t threads[WORKER_COUNT] = {osThreadNew(worker_entry, (void *)0U, &attr[0]),
                                           osThreadNew(worker_entry, (void *)1U, &attr[1])};
 #else
     osThreadId_t threads[WORKER_COUNT] = {osThreadNew(worker, 0, &attr[0]), osThreadNew(worker1, 0, &attr[1])};
 #endif
+    /* Initialize sampling with recording gated off; failure aborts the test. */
     if (!threads[0] || !threads[1] || !profiler_init())
         example_exit(10);
+
     uint32_t start = osKernelGetTickCount();
+
+    /* Enable statistical profiler recording. */
     profiler_enable();
+
+    /* Sleep only the controller. The kernel now time-slices the 2 workers. */
     osStatus_t delayed = osDelay(osKernelGetTickFreq() * CAPTURE_SECONDS);
+
+    /* Close the recording window as soon as the controller wakes. */
     profiler_disable();
+
+    /* Check that both workers made progress, produced correct results,
+     * and ran for the requested capture duration. */
     uint32_t valid = delayed == osOK && runs[0] && runs[1] && !failures[0] && !failures[1] &&
         osKernelGetTickCount() - start >= osKernelGetTickFreq() * CAPTURE_SECONDS;
+
+    /* Stop the sampling timer and finalize the capture metadata. */
     profiler_stop(runs[0] + runs[1], valid);
+
+    /* Park the workers after capture; leave the kernel tick running. */
     if (osThreadSuspend(threads[0]) != osOK || osThreadSuspend(threads[1]) != osOK)
         valid = 0;
+
+    /* Wait 2 kernel ticks and verify that sampling interrupts have stopped. */
     uint32_t stopped = profiler_sample_ticks();
     if (osDelay(2) != osOK || profiler_sample_ticks() != stopped)
         valid = 0;
+
+    /* Export even a failed capture for inspection. The exit status also covers
+     * the post-capture checks, which occur after the header was finalized. */
     profiler_rtos_example_result = valid ? 1U : 2U;
     if (!export_capture())
         example_exit(11);
+
     example_exit(valid ? 0U : 12U);
 }
 
 int main(void)
 {
+    /* Standalone board setup: start the reference counter used by TIMER0. */
     SystemCoreClockUpdate();
     ((struct cnt_control_base_reg_map_t *)SYSCNTR_CNTRL_BASE_S)->cntcr = CNTCR_ENABLE;
     __DSB();
+
+    /* Initialize kernel services before creating any tasks. */
     if (osKernelInitialize() != osOK)
         example_exit(13);
+
+    /* The controller runs above the worker priority to bound the capture window. */
     const osThreadAttr_t attr = {.name = "controller",
                                  THREAD_CONTROL_BLOCK(CONTROLLER_INDEX).attr_bits = osThreadPrivileged,
                                  .stack_mem = stacks[CONTROLLER_INDEX],
                                  .stack_size = sizeof(stacks[CONTROLLER_INDEX]),
                                  .priority = osPriorityAboveNormal};
+
+    /* Create the controller, then hand execution to the scheduler. */
     if (!osThreadNew(controller, 0, &attr) || osKernelStart() != osOK)
         example_exit(14);
+
+    /* A successfully started kernel should never return here. */
     example_exit(15);
     return 1;
 }

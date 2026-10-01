@@ -1,0 +1,39 @@
+# SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# ----------------------------------------------------------------------
+# Project:      CMSIS Statistical Profiler
+# Title:        profiler.csolution.yml
+# Description:  AC6 Corstone-300 FVP capture builds
+#
+# $Date:        1 October 2026
+# $Revision:    V.1.0.0
+#
+# Target :  Arm(R) M-Profile Architecture
+# ----------------------------------------------------------------------
+
+solution:
+  created-for: CMSIS-Toolbox@2.13.0
+  compiler: AC6@6.24.0
+  packs:
+    - pack: ARM::CMSIS@6.3.0
+    - pack: ARM::V2M_MPS3_SSE_300_BSP@1.5.0
+  target-types:
+    - type: Corstone300
+      device: ARM::SSE-300-MPS3
+      processor:
+        trustzone: secure-only
+        fpu: dp
+        mve: fp
+  build-types:
+    - type: FVP
+    - type: Unwind
+      define:
+        - PROFILER_STACK_UNWIND: 1
+      misc:
+        - for-compiler: AC6
+          C: [-funwind-tables]
+          Link: ["--keep=*(.ARM.exidx*)", --no_compressexidx]
+  projects:
+    - project: profiler.cproject.yml

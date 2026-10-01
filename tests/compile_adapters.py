@@ -7,8 +7,8 @@
 # Title:        compile_adapters.py
 # Description:  Compile board adapters against real SDK headers
 #
-# $Date:        30 September 2026
-# $Revision:    V.1.1.0
+# $Date:        1 October 2026
+# $Revision:    V.1.1.1
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -94,7 +94,7 @@ def main():
             for rate in args.sample_hz:
                 for enabled in [0, 1]:
                     objects = {}
-                    for source in ["mcu/sampling_profiler.c", "mcu/sampling_profiler_cortex_m.c", "mcu/sampling_profiler_pmu.c",
+                    for source in ["mcu/sampling_profiler.c", "mcu/profiler_backend.c", "mcu/sampling_profiler_pmu.c",
                                    "integrations/systick/profiler_systick.c",
                                    "adapters/" + board + "/profiler_" +
                                    {"corstone300": "timer0", "stm32n6": "tim2", "alif_e8": "utimer",

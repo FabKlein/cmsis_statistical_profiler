@@ -7,8 +7,8 @@
 # Title:        fvp.yml
 # Description:  AC6 build and Corstone-300 FVP PMU capture regression
 #
-# $Date:        22 September 2026
-# $Revision:    V.1.0.0
+# $Date:        1 October 2026
+# $Revision:    V.1.0.1
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -58,15 +58,12 @@ jobs:
           python3 tests/check_layer_scope.py --compiler AC6
       - name: Native and host tests
         run: python3 -B -m unittest discover -s tests -v
-      - name: Build, run and check PMU capture
+      - name: Build with CMSIS-Toolbox, run and check PMU capture
         shell: bash
         run: |
           set -o pipefail
           mkdir -p build/fvp
           python3 -u tests/run_fvp.py \
-            --cc "${AC6_TOOLCHAIN_6_24_0}/armclang" \
-            --cmsis "${CMSIS_PACK_ROOT}/ARM/CMSIS/6.3.0" \
-            --bsp "${CMSIS_PACK_ROOT}/ARM/V2M_MPS3_SSE_300_BSP/1.5.0" \
             --fvp FVP_Corstone_SSE-300 | tee build/fvp/run.log
       - name: Publish result summary
         if: always()

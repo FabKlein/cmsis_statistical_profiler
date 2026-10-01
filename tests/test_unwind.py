@@ -7,8 +7,8 @@
 # Title:        test_unwind.py
 # Description:  EHABI backtraces and folded-stack regression tests
 #
-# $Date:        25 September 2026
-# $Revision:    V.1.0.1
+# $Date:        1 October 2026
+# $Revision:    V.1.0.2
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -95,7 +95,7 @@ class UnwindTests(unittest.TestCase):
                 "-fsanitize=undefined", "-Imcu", "-Itests/fakes", "-I" + tmp, '-DPROFILER_USER_CONFIG="config.h"',
                 "-DPROFILER_STACK_UNWIND=1", "-DPROFILER_PRECISE_STACK_BOUNDS=1", "-DPROFILER_TIMESTAMP_CUSTOM=1",
                 "-D__DCACHE_PRESENT=0", "tests/test_unwind_entry.c", "mcu/sampling_profiler.c",
-                "mcu/sampling_profiler_cortex_m.c", "-o", str(root / "test")], cwd=ROOT, check=True)
+                "mcu/profiler_backend.c", "-o", str(root / "test")], cwd=ROOT, check=True)
             subprocess.run([str(root / "test")], check=True)
 
     @staticmethod

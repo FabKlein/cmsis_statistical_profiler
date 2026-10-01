@@ -14,3 +14,10 @@ examples/corstone300_rtos2/RTE/RTOS/*.update*
 
 # Generated Doxygen documentation.
 Documentation/html/
+
+# Bare-metal CMSIS-Toolbox generated files.
+examples/corstone300/.cmsis/
+examples/corstone300/*.cbuild*.yml
+examples/corstone300/out/
+examples/corstone300/tmp/
+examples/corstone300/RTE/

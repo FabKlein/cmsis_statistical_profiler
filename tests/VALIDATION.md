@@ -1,6 +1,6 @@
 # Validation
 
-Updated on 30 September 2026:
+Updated on 1 October 2026:
 
 | Check | Coverage / result |
 |---|---|
@@ -25,6 +25,7 @@ Updated on 30 September 2026:
 | Toolbox RTOS builds | Both contexts build from a clean copy without generated RTE files; failed-build regression rejects stale ELF/capture artifacts |
 | CMSIS layers | Schema validation and generated AC6/GCC builds: application flags unchanged; core and tested timer groups protected. NXP RT685 is excluded from this Corstone-only check because it requires NXP SDK components |
 | Timing checks | Frozen counters, rate mismatch, mid-capture drift and stop epochs; valid wraps, coarse counters and degraded reports |
+| AC6 csolution | Toolbox 2.13 / AC6 6.24: FVP and Unwind contexts build, capture, decode and pass the reference; configurable call-tree and default builds also checked |
 | CI regression | Workflow passes actionlint; AC6/FVP uses reference-counter timestamps and requires valid cumulative timing |
 
 GCC 13 uses `-march=armv8.1-m.main` for M52 because it lacks that CPU name.
@@ -64,7 +65,9 @@ Run `python3 tests/check_layer_scope.py --compiler AC6 GCC` to check compiler-op
 scope (requires csolution, PyYAML and the packs above). CI checks AC6.
 
 Supply `--cc /path/to/armclang` for AC6. The architecture check and example
-builder also accept `--cc /path/to/ATfE/bin/clang`; the CI runner remains AC6-only. SDKs are not downloaded by the scripts;
+builder also accept `--cc /path/to/ATfE/bin/clang`. The AC6 example builder
+delegates to `cbuild`; the architecture compile check remains a direct compiler test.
+The CI runner uses the AC6 csolution and accepts `--cbuild`, not `--cc`. SDKs are not downloaded by the scripts;
 omit adapter SDK options you do not have. Temporary objects are built outside
 the source tree. FVP build/run instructions are in the
 [Corstone example](../examples/corstone300/README.md).
@@ -79,12 +82,12 @@ cycle-accurate silicon performance.
 [The workflow](../.github/workflows/fvp.yml) follows the
 [CMSIS-NN FVP setup](https://github.com/ARM-software/CMSIS-NN/blob/main/.github/workflows/float-fvp.yml):
 Arm64 runner, vcpkg tools, Arm license activation, cached packs and uploaded artifacts.
-It builds with AC6 6.24, runs FVP 11.31.28 and decodes the semihosted buffer.
+It builds [the csolution](../examples/corstone300/profiler.csolution.yml) with
+CMSIS-Toolbox and AC6 6.24, runs FVP 11.31.28 and decodes the semihosted buffer.
+Put Toolbox on `PATH` and set `AC6_TOOLCHAIN_6_24_0` to the compiler's `bin` directory.
 
 ```sh
-python3 tests/run_fvp.py --cc /path/to/armclang \
-  --cmsis /path/to/ARM/CMSIS/6.3.0 \
-  --bsp /path/to/ARM/V2M_MPS3_SSE_300_BSP/1.5.0 \
+python3 tests/run_fvp.py \
   --fvp FVP_Corstone_SSE-300 --output build/fvp
 ```
 

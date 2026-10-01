@@ -4,14 +4,42 @@ Secure bare-metal example with startup, ITCM/DTCM linker script and a validated
 250 ms workload. TIMER0 samples while application SysTick runs independently.
 The example checks SysTick continuity and profiler stop/restart.
 
-Requires AC6, Arm GNU GCC or ATfE Clang, CMSIS 6.x and SSE-300 BSP 1.5.0.
-Add `--cc /path/to/armclang` for AC6 (scatter file and Microlib), or
-`--cc /path/to/ATfE/bin/clang` for ATfE (LLD and bundled libc). GCC is the default.
-From the repository root:
+## AC6 with CMSIS-Toolbox
+
+Requires CMSIS-Toolbox 2.13, AC6 6.24 and the packs pinned in
+[profiler.csolution.yml](profiler.csolution.yml). Set `AC6_TOOLCHAIN_6_24_0` to
+AC6's `bin` directory and put Toolbox on `PATH`. From the repository root:
+
+```sh
+cbuild examples/corstone300/profiler.csolution.yml \
+  --context profiler.FVP+Corstone300 --packs --update-rte --output build/corstone300
+```
+
+The executable is `build/corstone300/out/profiler/Corstone300/FVP/profiler.axf`.
+The `Unwind` context additionally enables backtraces and retains EHABI tables.
+Application settings live in [profiler.cproject.yml](profiler.cproject.yml):
+333 Hz, 64 KiB buffer, 2 PMU events, PSP/FP workload, 2 captures and a reference-counter timestamp.
+
+For the complete build/run/decode pass/fail check (the CI command):
+
+```sh
+python3 tests/run_fvp.py --output build/fvp
+# Add --stack-unwind for the Unwind context, or --fvp /path/to/FVP_Corstone_SSE-300.
+```
+
+The runner copies the AXF to `build/fvp/profiler.elf` alongside the capture and reports.
+For a manual run of the direct cbuild output, use its `profiler.axf` path with `-a`.
+
+## Configurable builds / GCC / ATfE
+
+The Python wrapper preserves the options below. AC6 (`--cc /path/to/armclang`)
+also uses `cbuild` and requires PyYAML; generated project overrides stay in
+`OUTPUT/toolbox-source`. GCC (default) and ATfE (`--cc /path/to/ATfE/bin/clang`)
+continue to compile directly. The wrapper exports `OUTPUT/profiler.elf`.
 
 ```sh
 python3 examples/corstone300/build.py \
-  --cmsis /path/to/ARM/CMSIS/6.0.0 \
+  --cmsis /path/to/ARM/CMSIS/6.3.0 \
   --bsp /path/to/ARM/V2M_MPS3_SSE_300_BSP/1.5.0 \
   --output build/corstone300 --semihosting --sample-hz 2500 --buffer-bytes 65536 \
   --timer-clock-hz 100000000 --captures 2 --reference-timestamp
@@ -96,12 +124,12 @@ board setup. FPGA execution remains unverified.
 
 ## CI regression
 
-[GitHub Actions](../../.github/workflows/fvp.yml) builds with AC6 6.24 and runs FVP
+[GitHub Actions](../../.github/workflows/fvp.yml) builds the csolution with AC6 6.24 and runs FVP
 11.31.28 with PMU enabled. Use [the runner and reference](../../tests/VALIDATION.md#ci-reference)
 for the same local pass/fail check.
 
-CI uses `--reference-timestamp`: the low 32 bits of the free-running TIMER0
-reference counter, at `--timer-clock-hz`. This avoids the functional FVP's DWT
+CI sets `PROFILER_TIMESTAMP_CUSTOM=1`: the low 32 bits of the free-running TIMER0
+reference counter, at `PROFILER_TIMER_CLOCK_HZ=100000000`. This avoids the functional FVP's DWT
 rate mismatch while retaining the strict timing check. It measures elapsed time,
 not CPU cycles, and does not reset or reconfigure the shared counter.
 

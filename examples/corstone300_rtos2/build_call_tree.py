@@ -7,8 +7,8 @@
 # Title:        build_call_tree.py
 # Description:  Build a dual-thread CMSIS-RTOS2 backtrace example
 #
-# $Date:        27 September 2026
-# $Revision:    V.1.0.1
+# $Date:        1 October 2026
+# $Revision:    V.1.0.2
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -56,7 +56,7 @@ def main():
                       args.cmsis / "CMSIS/Core/Include", args.cmsis / "CMSIS/RTOS2/Include",
                       args.bsp / "Device/Include"] + kernel_includes:
         flags += ["-I", str(directory.resolve())]
-    sources = [root / "mcu" / name for name in ("sampling_profiler.c", "sampling_profiler_cortex_m.c",
+    sources = [root / "mcu" / name for name in ("sampling_profiler.c", "profiler_backend.c",
                "sampling_profiler_pmu.c", "sampling_profiler_unwind.c")]
     sources += [root / "adapters/corstone300/profiler_timer0.c", common / "reference_timestamp.c",
                 common / "unwind_tables.c", example / "call_tree_main.c", example / "call_tree_startup.c",

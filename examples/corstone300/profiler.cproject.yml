@@ -1,0 +1,70 @@
+# SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# ----------------------------------------------------------------------
+# Project:      CMSIS Statistical Profiler
+# Title:        profiler.cproject.yml
+# Description:  Bare-metal PMU capture using the 3 profiler layers
+#
+# $Date:        1 October 2026
+# $Revision:    V.1.0.0
+#
+# Target :  Arm(R) M-Profile Architecture
+# ----------------------------------------------------------------------
+
+project:
+  output:
+    base-name: profiler
+    type: [elf]
+  debug: "on"
+  optimize: balanced
+  language-C: c11
+  define:
+    - __MICROLIB
+    - PROFILER_USER_CONFIG: '"profiler_config.h"'
+    - PROFILER_SAMPLE_DURATION_MS: 250
+    - PROFILER_SAMPLE_HZ: 333
+    - PROFILER_SAMPLE_BUFFER_BYTES: 65536
+    - PROFILER_TIMER_CLOCK_HZ: 100000000
+    - PROFILER_EXAMPLE_CAPTURES: 2
+    - PROFILER_FVP_SEMIHOSTING: 1
+    - PROFILER_TIMESTAMP_CUSTOM: 1
+    - PROFILER_EXAMPLE_FLOAT: 1
+    - PROFILER_EXAMPLE_PSP: 1
+    - PROFILER_PRECISE_STACK_BOUNDS: 1
+    - PROFILER_PMU_COUNT: 2
+    - PROFILER_PMU_EVENT0: 0x0003  # L1 data-cache refill
+    - PROFILER_PMU_EVENT1: 0x0024  # Backend stall
+  add-path:
+    - .
+    - ..
+    - $Pack(ARM::V2M_MPS3_SSE_300_BSP)$/Device/Include
+  misc:
+    - for-compiler: AC6
+      C: [-ffunction-sections, -fdata-sections, -Wall, -Wextra, -Werror]
+      Link: [--library_type=microlib, --entry=Reset_Handler]
+  linker:
+    - script: linker.sct
+  layers:
+    - layer: ../../cmsis_statistical_profiler.clayer.yml
+    - layer: ../../adapters/corstone300/corstone300.clayer.yml
+    - layer: ../../adapters/corstone300/corstone300_timer0.clayer.yml
+  components:
+    - component: ARM::CMSIS:CORE
+  groups:
+    - group: Application
+      files:
+        - file: ../profile_workload.c
+        - file: main.c
+        - file: startup.c
+        - file: $Pack(ARM::V2M_MPS3_SSE_300_BSP)$/Device/Source/system_SSE300MPS3.c
+        - file: unwind_tables.c
+          for-context: .Unwind
+    - group: Timestamp hook
+      # Runs in the sampling ISR: keep automatic FP/MVE vectorization disabled.
+      misc:
+        - for-compiler: AC6
+          C: [-fno-vectorize, -fno-slp-vectorize]
+      files:
+        - file: reference_timestamp.c

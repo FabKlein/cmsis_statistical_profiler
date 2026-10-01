@@ -9,8 +9,8 @@
  * Title:        fake_device.h
  * Description:  Mock CMSIS device registers and intrinsics for native tests
  *
- * $Date:        22 September 2026
- * $Revision:    V.1.0.0
+ * $Date:        1 October 2026
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -22,6 +22,10 @@
 
 #ifndef __CORTEX_M
     #define __CORTEX_M 55U
+#endif
+/* Native builds do not supply Arm compiler macros; default to the mock M55. */
+#ifndef __ARM_ARCH
+    #define __ARM_ARCH 8
 #endif
 #ifndef TEST_NONSECURE
     #define __ARM_FEATURE_CMSE 3
