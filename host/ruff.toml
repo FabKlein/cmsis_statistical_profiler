@@ -1,0 +1,2 @@
+# Formatting for the host tools: ruff format host/
+line-length = 100

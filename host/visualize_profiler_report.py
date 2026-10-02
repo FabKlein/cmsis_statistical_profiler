@@ -7,8 +7,8 @@
 # Title:        visualize_profiler_report.py
 # Description:  Export decoded samples to offline HTML dashboards and Perfetto traces
 #
-# $Date:        22 September 2026
-# $Revision:    V.1.0.0
+# $Date:        2 October 2026
+# $Revision:    V.1.0.1
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -40,22 +40,27 @@ LIMITATIONS = (
 
 
 def compact_symbol(name, limit=120):
+    """Shorten display labels with a stable suffix; retain full names in report data."""
     if limit < 40:
         raise ValueError("Symbol label limit must be at least 40 characters")
     if len(name) <= limit:
         return name
+    # Preserve both ends (often the function and template arguments). A hash
+    # suffix helps distinguish names whose visible portions would otherwise match.
     identity = hashlib.sha256(name.encode("utf-8")).hexdigest()[:8]
     suffix = f" [{identity}]"
     available = limit - len(suffix) - 3
     tail = available // 3
-    return name[:available - tail] + " … " + name[-tail:] + suffix
+    return name[: available - tail] + " … " + name[-tail:] + suffix
 
 
 def symbol_hover(name):
+    """Wrap and escape C++ names so template brackets display as text in HTML."""
     return "<br>".join(html.escape(line) for line in textwrap.wrap(name, width=110))
 
 
 def read_report(directory):
+    """Require valid, ordered timing before plotting any time-based quantities."""
     summary = json.loads((directory / "summary.json").read_text())
     if summary.get("timing_valid") is not True:
         raise ValueError(f"Invalid decoded timing: {summary.get('timing_diagnostic')}")
@@ -84,10 +89,16 @@ def read_report(directory):
 
 
 def event_rates(summary, samples):
+    """Return event rates for adjacent samples, plus capture-quality warnings."""
     warnings = []
     header = summary["header"]
-    for field, expected in (("complete", 1), ("active", 0), ("validation_passed", 1),
-                            ("full", 0), ("rejected", 0)):
+    for field, expected in (
+        ("complete", 1),
+        ("active", 0),
+        ("validation_passed", 1),
+        ("full", 0),
+        ("rejected", 0),
+    ):
         if header.get(field) != expected:
             warnings.append(f"Capture {field}={header.get(field)} (expected {expected}).")
     if summary.get("unknown_samples"):
@@ -95,8 +106,10 @@ def event_rates(summary, samples):
     pmu = header.get("pmu", {})
     events = summary.get("pmu_events", [])
     if pmu.get("status") != "active" or pmu.get("flags", 0):
-        warnings.append(f"PMU rates unavailable: status={pmu.get('status', 'missing')}, "
-                        f"flags={pmu.get('flags', 0)}.")
+        warnings.append(
+            f"PMU rates unavailable: status={pmu.get('status', 'missing')}, "
+            f"flags={pmu.get('flags', 0)}."
+        )
         return [], warnings
     if len(events) != pmu.get("count") or not events:
         raise ValueError("PMU event metadata does not match header count")
@@ -106,13 +119,17 @@ def event_rates(summary, samples):
             warnings.append(f"PMU {event['event']} omitted: {event.get('status')}.")
             continue
         values = []
+        # Skip initialization-to-first-sample: PMU and timestamp start epochs
+        # differ. Each remaining point represents the preceding sample interval.
         for previous, sample in zip(samples, samples[1:]):
             delta = int(sample[f"pmu{index}_interval_delta"])
             raw = int(sample[f"pmu{index}_raw"])
             previous_raw = int(previous[f"pmu{index}_raw"])
-            if not 0 <= delta <= 0xFFFFFFFF or any(
-                not 0 <= value <= 0xFFFFFFFF for value in (raw, previous_raw)
-            ) or delta != (raw - previous_raw) & 0xFFFFFFFF:
+            if (
+                not 0 <= delta <= 0xFFFFFFFF
+                or any(not 0 <= value <= 0xFFFFFFFF for value in (raw, previous_raw))
+                or delta != (raw - previous_raw) & 0xFFFFFFFF
+            ):
                 raise ValueError(f"Inconsistent PMU {index} at sample {sample['sample']}")
             elapsed_us = sample["time_us"] - previous["time_us"]
             rate = delta * 1e6 / elapsed_us
@@ -124,144 +141,232 @@ def event_rates(summary, samples):
 
 
 def write_perfetto(destination, summary, samples, rates, warnings, symbol_max_chars=120):
+    """Write Chrome trace-event JSON for Perfetto, using microsecond timestamps."""
+    # M supplies track metadata, I is an instant observation, C a counter point.
+    # Samples cannot supply begin/end events: function execution spans are unknown.
     events = [
-        {"ph": "M", "pid": 1, "name": "process_name",
-         "args": {"name": "MCU statistical capture"}},
-        {"ph": "M", "pid": 1, "tid": 1, "name": "thread_name",
-         "args": {"name": "Sampled PC (instant observations)"}},
-        {"ph": "I", "s": "t", "pid": 1, "tid": 1, "ts": 0,
-         "cat": "profiler.metadata", "name": "Capture information",
-         "args": {"limitations": LIMITATIONS, "warnings": " ".join(warnings),
-                  "elf_sha256": summary.get("elf_sha256", ""),
-                  "capture_sha256": summary.get("capture_sha256", ""),
-                  "sample_count": len(samples),
-                  "pmu_totals": json.dumps(summary.get("pmu_events", []))}},
+        {"ph": "M", "pid": 1, "name": "process_name", "args": {"name": "MCU statistical capture"}},
+        {
+            "ph": "M",
+            "pid": 1,
+            "tid": 1,
+            "name": "thread_name",
+            "args": {"name": "Sampled PC (instant observations)"},
+        },
+        {
+            "ph": "I",
+            "s": "t",
+            "pid": 1,
+            "tid": 1,
+            "ts": 0,
+            "cat": "profiler.metadata",
+            "name": "Capture information",
+            "args": {
+                "limitations": LIMITATIONS,
+                "warnings": " ".join(warnings),
+                "elf_sha256": summary.get("elf_sha256", ""),
+                "capture_sha256": summary.get("capture_sha256", ""),
+                "sample_count": len(samples),
+                "pmu_totals": json.dumps(summary.get("pmu_events", [])),
+            },
+        },
     ]
     for index, sample in enumerate(samples):
-        events.append({"ph": "I", "s": "t", "pid": 1, "tid": 1,
-                       "ts": sample["time_us"], "cat": "pc.sample",
-                       "name": compact_symbol(sample["function"], symbol_max_chars),
-                       "args": {"sample": index, "pc": sample["pc"],
-                                "function": sample["function"],
-                                "lr": sample["lr"], "tick": sample.get("tick", "")}})
+        events.append(
+            {
+                "ph": "I",
+                "s": "t",
+                "pid": 1,
+                "tid": 1,
+                "ts": sample["time_us"],
+                "cat": "pc.sample",
+                "name": compact_symbol(sample["function"], symbol_max_chars),
+                "args": {
+                    "sample": index,
+                    "pc": sample["pc"],
+                    "function": sample["function"],
+                    "lr": sample["lr"],
+                    "tick": sample.get("tick", ""),
+                },
+            }
+        )
         if index == 0:
             continue
         for series in rates:
-            events.append({"ph": "C", "pid": 1, "ts": sample["time_us"],
-                           "cat": "pmu.interval_rate",
-                           "name": series["event"]["event"] + " (events/s, preceding interval)",
-                           "args": {"events_per_second": series["values"][index - 1]}})
-    destination.write_text(json.dumps({"traceEvents": events}, separators=(",", ":"),
-                                     allow_nan=False) + "\n")
+            events.append(
+                {
+                    "ph": "C",
+                    "pid": 1,
+                    "ts": sample["time_us"],
+                    "cat": "pmu.interval_rate",
+                    "name": series["event"]["event"] + " (events/s, preceding interval)",
+                    "args": {"events_per_second": series["values"][index - 1]},
+                }
+            )
+    destination.write_text(
+        json.dumps({"traceEvents": events}, separators=(",", ":"), allow_nan=False) + "\n"
+    )
 
 
 def write_html(destination, summary, samples, rates, warnings, symbol_max_chars=120):
+    """Build a self-contained dashboard; Plotly is needed only for this export."""
     import plotly.graph_objects as graph
     from plotly.subplots import make_subplots
 
     counts = Counter(sample["function"] for sample in samples)
     ranked = counts.most_common()
     top = ranked[:20][::-1]
-    bars = graph.Figure(graph.Bar(
-        x=[100 * count / len(samples) for name, count in top],
-        y=[html.escape(name) for name, count in top], orientation="h",
-        customdata=[[symbol_hover(name), count] for name, count in top],
-        hovertemplate="%{customdata[0]}<br>%{customdata[1]} hits (%{x:.2f}%)<extra></extra>"))
-    bars.update_yaxes(tickmode="array", tickvals=[html.escape(name) for name, count in top],
-                      ticktext=[html.escape(compact_symbol(name, symbol_max_chars))
-                                for name, count in top])
-    bars.update_layout(title="Top 20 exclusive PC hotspots (whole capture)",
-                       xaxis_title="Share of all samples (%)", height=620,
-                       margin=dict(l=360), template="plotly_white")
-    timeline = make_subplots(rows=1 + len(rates), cols=1, shared_xaxes=True,
-                             vertical_spacing=0.08,
-                             subplot_titles=["Sampled function - points, not durations"] + [
-                                 series["event"]["event"] + " - preceding interval rate"
-                                 for series in rates])
+    bars = graph.Figure(
+        graph.Bar(
+            x=[100 * count / len(samples) for name, count in top],
+            y=[html.escape(name) for name, count in top],
+            orientation="h",
+            customdata=[[symbol_hover(name), count] for name, count in top],
+            hovertemplate="%{customdata[0]}<br>%{customdata[1]} hits (%{x:.2f}%)<extra></extra>",
+        )
+    )
+    # Full names remain category identities; only displayed tick labels shorten.
+    # Otherwise distinct functions could collapse into the same plotted category.
+    bars.update_yaxes(
+        tickmode="array",
+        tickvals=[html.escape(name) for name, count in top],
+        ticktext=[html.escape(compact_symbol(name, symbol_max_chars)) for name, count in top],
+    )
+    bars.update_layout(
+        title="Top 20 exclusive PC hotspots (whole capture)",
+        xaxis_title="Share of all samples (%)",
+        height=620,
+        margin=dict(l=360),
+        template="plotly_white",
+    )
+    timeline = make_subplots(
+        rows=1 + len(rates),
+        cols=1,
+        shared_xaxes=True,
+        vertical_spacing=0.08,
+        subplot_titles=["Sampled function - points, not durations"]
+        + [series["event"]["event"] + " - preceding interval rate" for series in rates],
+    )
+    # Group points by function for toggling, but never connect them into spans.
     grouped = defaultdict(list)
     for sample in samples:
         grouped[sample["function"]].append(sample)
     for rank, (name, count) in enumerate(ranked):
         group = grouped[name]
-        timeline.add_trace(graph.Scattergl(
-            x=[sample["time_us"] / 1e6 for sample in group],
-            y=[rank] * len(group), mode="markers",
-            name=html.escape(compact_symbol(name, symbol_max_chars)),
-            marker=dict(size=4),
-            customdata=[[sample["sample"], sample["pc"], sample["lr"], symbol_hover(name)]
-                        for sample in group],
-            hovertemplate=("%{customdata[3]}<br>%{x:.6f} s<br>sample %{customdata[0]}"
-                           "<br>PC %{customdata[1]}<br>LR %{customdata[2]}<extra></extra>")),
-            row=1, col=1)
-    timeline.update_yaxes(title_text="Function rank (table below)", autorange="reversed",
-                          row=1, col=1)
-    elapsed = [(sample["time_us"] - previous["time_us"]) for previous, sample
-               in zip(samples, samples[1:])]
+        timeline.add_trace(
+            graph.Scattergl(
+                x=[sample["time_us"] / 1e6 for sample in group],
+                y=[rank] * len(group),
+                mode="markers",
+                name=html.escape(compact_symbol(name, symbol_max_chars)),
+                marker=dict(size=4),
+                customdata=[
+                    [sample["sample"], sample["pc"], sample["lr"], symbol_hover(name)]
+                    for sample in group
+                ],
+                hovertemplate=(
+                    "%{customdata[3]}<br>%{x:.6f} s<br>sample %{customdata[0]}"
+                    "<br>PC %{customdata[1]}<br>LR %{customdata[2]}<extra></extra>"
+                ),
+            ),
+            row=1,
+            col=1,
+        )
+    timeline.update_yaxes(
+        title_text="Function rank (table below)", autorange="reversed", row=1, col=1
+    )
+    elapsed = [
+        (sample["time_us"] - previous["time_us"]) for previous, sample in zip(samples, samples[1:])
+    ]
     for row, series in enumerate(rates, 2):
-        timeline.add_trace(graph.Scattergl(
-            x=[sample["time_us"] / 1e6 for sample in samples[1:]],
-            y=series["values"], mode="lines", showlegend=False,
-            customdata=elapsed,
-            hovertemplate="%{x:.6f} s<br>%{y:,.1f} events/s<br>interval %{customdata:.3f} us<extra></extra>"),
-            row=row, col=1)
+        timeline.add_trace(
+            graph.Scattergl(
+                x=[sample["time_us"] / 1e6 for sample in samples[1:]],
+                y=series["values"],
+                mode="lines",
+                showlegend=False,
+                customdata=elapsed,
+                hovertemplate="%{x:.6f} s<br>%{y:,.1f} events/s<br>interval %{customdata:.3f} us<extra></extra>",
+            ),
+            row=row,
+            col=1,
+        )
         timeline.update_yaxes(title_text="Events/s", row=row, col=1)
     timeline.update_xaxes(title_text="Seconds since capture start", row=1 + len(rates), col=1)
-    timeline.update_layout(height=420 + 220 * len(rates), template="plotly_white",
-                           legend=dict(orientation="h", y=-0.2, maxheight=0.2),
-                           margin=dict(b=180), hovermode="closest")
+    timeline.update_layout(
+        height=420 + 220 * len(rates),
+        template="plotly_white",
+        legend=dict(orientation="h", y=-0.2, maxheight=0.2),
+        margin=dict(b=180),
+        hovermode="closest",
+    )
     config = {"responsive": True, "displaylogo": False, "scrollZoom": True}
+    # Embed JavaScript once so the dashboard works offline without a CDN.
     plots = bars.to_html(full_html=False, include_plotlyjs=True, config=config)
     plots += timeline.to_html(full_html=False, include_plotlyjs=False, config=config)
-    table = "".join(f'<tr><td>{rank}</td><td><details><summary title="{html.escape(name, quote=True)}">'
-                    f'{html.escape(compact_symbol(name, symbol_max_chars))}</summary>'
-                    f'<code>{html.escape(name)}</code></details></td><td>{count:,}</td>'
-                    f"<td>{100 * count / len(samples):.3f}%</td></tr>"
-                    for rank, (name, count) in enumerate(ranked))
+    table = "".join(
+        f'<tr><td>{rank}</td><td><details><summary title="{html.escape(name, quote=True)}">'
+        f"{html.escape(compact_symbol(name, symbol_max_chars))}</summary>"
+        f"<code>{html.escape(name)}</code></details></td><td>{count:,}</td>"
+        f"<td>{100 * count / len(samples):.3f}%</td></tr>"
+        for rank, (name, count) in enumerate(ranked)
+    )
     notices = "".join(f"<li>{html.escape(message)}</li>" for message in warnings)
-    totals = "".join(f"<li>{html.escape(event['event'])}: "
-                     f"{html.escape(str(event.get('count')))} ({html.escape(event['status'])})</li>"
-                     for event in summary.get("pmu_events", []))
+    totals = "".join(
+        f"<li>{html.escape(event['event'])}: "
+        f"{html.escape(str(event.get('count')))} ({html.escape(event['status'])})</li>"
+        for event in summary.get("pmu_events", [])
+    )
     destination.write_text(
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
         '<meta http-equiv="Content-Security-Policy" content="connect-src \'none\'; '
-        'object-src \'none\'; base-uri \'none\'">'
-        '<title>MCU statistical profile</title><style>'
-        'body{font:16px system-ui;margin:2em;background:#fafafa;color:#172332}'
-        'table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:6px;'
-        'border-bottom:1px solid #ddd}li{margin:8px 0}.warning{color:#9b3900}'
-        'summary{cursor:pointer}td{overflow-wrap:anywhere}details code{white-space:pre-wrap}'
-        '</style></head><body><h1>MCU statistical profile</h1>'
-        f'<p>{len(samples):,} samples; {len(ranked)} functions; last sample '
-        f'{samples[-1]["time_us"] / 1e6:.6f} s after start. '
-        f'Output validation: {summary["header"].get("validation_passed", "unknown")}.</p>'
+        "object-src 'none'; base-uri 'none'\">"
+        "<title>MCU statistical profile</title><style>"
+        "body{font:16px system-ui;margin:2em;background:#fafafa;color:#172332}"
+        "table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:6px;"
+        "border-bottom:1px solid #ddd}li{margin:8px 0}.warning{color:#9b3900}"
+        "summary{cursor:pointer}td{overflow-wrap:anywhere}details code{white-space:pre-wrap}"
+        "</style></head><body><h1>MCU statistical profile</h1>"
+        f"<p>{len(samples):,} samples; {len(ranked)} functions; last sample "
+        f"{samples[-1]['time_us'] / 1e6:.6f} s after start. "
+        f"Output validation: {summary['header'].get('validation_passed', 'unknown')}.</p>"
         f'<p>{html.escape(LIMITATIONS)}</p><ul class="warning">{notices}</ul>'
-        '<p>Drag to zoom; double-click a plot to reset. Time axes are linked. '
-        'Click a function legend to hide it, double-click to isolate it. '
-        'Hotspot percentages and the table remain whole-capture statistics.</p>'
-        f'<p>Function labels are limited to {symbol_max_chars} characters; shortened names '
-        'include a stable ID. Hover plot points/bars or table names for full symbols; '
-        'click a table name to expand and copy it. CSV data retains full names.</p>'
-        f'{plots}<h2>All functions - exclusive PC hits</h2>'
-        '<table><thead><tr><th>Rank</th><th>Function</th><th>Hits</th><th>Share</th>'
-        f'</tr></thead><tbody>{table}</tbody></table>'
-        '<h2>PMU totals (initialization through stop)</h2>'
-        f'<ul>{totals}</ul><p>These totals also include unsampled boundaries.</p>'
-        '<h2>Capture identity</h2><pre>'
-        f'ELF SHA256: {html.escape(summary.get("elf_sha256", "unknown"))}\n'
-        f'Capture SHA256: {html.escape(summary.get("capture_sha256", "unknown"))}'
-        '</pre><p>Local, self-contained report; no CDN or upload required.</p></body></html>',
-        encoding="utf-8")
+        "<p>Drag to zoom; double-click a plot to reset. Time axes are linked. "
+        "Click a function legend to hide it, double-click to isolate it. "
+        "Hotspot percentages and the table remain whole-capture statistics.</p>"
+        f"<p>Function labels are limited to {symbol_max_chars} characters; shortened names "
+        "include a stable ID. Hover plot points/bars or table names for full symbols; "
+        "click a table name to expand and copy it. CSV data retains full names.</p>"
+        f"{plots}<h2>All functions - exclusive PC hits</h2>"
+        "<table><thead><tr><th>Rank</th><th>Function</th><th>Hits</th><th>Share</th>"
+        f"</tr></thead><tbody>{table}</tbody></table>"
+        "<h2>PMU totals (initialization through stop)</h2>"
+        f"<ul>{totals}</ul><p>These totals also include unsampled boundaries.</p>"
+        "<h2>Capture identity</h2><pre>"
+        f"ELF SHA256: {html.escape(summary.get('elf_sha256', 'unknown'))}\n"
+        f"Capture SHA256: {html.escape(summary.get('capture_sha256', 'unknown'))}"
+        "</pre><p>Local, self-contained report; no CDN or upload required.</p></body></html>",
+        encoding="utf-8",
+    )
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--report", type=Path, required=True,
-                        help="Directory containing decoded summary.json and samples.csv")
+    parser.add_argument(
+        "--report",
+        type=Path,
+        required=True,
+        help="Directory containing decoded summary.json and samples.csv",
+    )
     parser.add_argument("--output", type=Path, help="Output directory (default: report directory)")
     parser.add_argument("--html", action="store_true", help="Also write offline Plotly dashboard")
-    parser.add_argument("--symbol-max-chars", type=int, default=120,
-                        help="Maximum displayed function label length (default: 120, minimum: 40)")
+    parser.add_argument(
+        "--symbol-max-chars",
+        type=int,
+        default=120,
+        help="Maximum displayed function label length (default: 120, minimum: 40)",
+    )
     args = parser.parse_args()
     try:
         if args.symbol_max_chars < 40:
@@ -276,11 +381,18 @@ def main():
                 raise ValueError(f"Install {requirements} for --html") from error
         output = args.output or args.report
         output.mkdir(parents=True, exist_ok=True)
-        write_perfetto(output / "samples.perfetto.json", summary, samples, rates, warnings,
-                       args.symbol_max_chars)
+        write_perfetto(
+            output / "samples.perfetto.json",
+            summary,
+            samples,
+            rates,
+            warnings,
+            args.symbol_max_chars,
+        )
         if args.html:
-            write_html(output / "dashboard.html", summary, samples, rates, warnings,
-                       args.symbol_max_chars)
+            write_html(
+                output / "dashboard.html", summary, samples, rates, warnings, args.symbol_max_chars
+            )
     except (OSError, ValueError, KeyError, TypeError) as error:
         parser.exit(1, f"error: {error}\n")
     for warning in warnings:

@@ -57,6 +57,9 @@ and provenance. Do not guess bounds or ownership. Report validation limits.
   `tests/run_rtos_fvp.py --kernel rtx|freertos` builds, checks and runs the capture.
 - Preserve SPDX/project headers and Doxygen contracts. Use `.clang-format` for C/H;
   preserve protected device include order.
+- Format host Python with `ruff format host/` (`python3 -m pip install ruff`).
+  Check with `ruff format --check host/`; explain binary layouts and validation
+  decisions in comments, rather than paraphrasing individual statements.
 - Build the bare-metal AC6 FVP example with
   [its csolution](examples/corstone300/profiler.csolution.yml), contexts
   `profiler.FVP+Corstone300` or `profiler.Unwind+Corstone300`.
