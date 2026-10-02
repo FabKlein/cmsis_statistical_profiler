@@ -9,15 +9,15 @@
  * Title:        test_alif_timer.c
  * Description:  Check per-core channel isolation and shared-clock ownership
  *
- * $Date:        25 September 2026
- * $Revision:    V.1.0.1
+ * $Date:        2 October 2026
+ * $Revision:    V.1.0.2
  *
  * Target :  Arm(R) M-Profile Architecture
  * -------------------------------------------------------------------- */
 
 #include "fake_alif_timer.h"
+#include "profiler_backend.h"
 #include "profiler_utimer_config.h"
-#include "sampling_profiler_cortex_m.h"
 #include <assert.h>
 #include <string.h>
 

@@ -9,8 +9,8 @@
  * Title:        sampling_profiler_unwind.h
  * Description:  Bounded EHABI stack tracing interface
  *
- * $Date:        1 October 2026
- * $Revision:    V.1.0.2
+ * $Date:        2 October 2026
+ * $Revision:    V.1.0.3
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -21,7 +21,7 @@
  */
 #ifndef PROFILER_UNWIND_H
 #define PROFILER_UNWIND_H
-#include "sampling_profiler_cortex_m.h"
+#include "profiler_backend.h"
 
 /** @brief 1 executable allocation; gaps between allocations are never executable. */
 struct ProfilerCodeRegion

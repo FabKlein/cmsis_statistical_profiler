@@ -9,14 +9,14 @@
  * Title:        profiler_timer.c
  * Description:  Board sampling timer adapter template
  *
- * $Date:        25 September 2026
- * $Revision:    V.1.0.1
+ * $Date:        2 October 2026
+ * $Revision:    V.1.0.2
  *
  * Target :  Arm(R) M-Profile Architecture
  *
  * -------------------------------------------------------------------- */
 
-#include "sampling_profiler_cortex_m.h"
+#include "profiler_backend.h"
 #include PROFILER_DEVICE_HEADER
 
 /* TODO(timer): complete every hardware operation below, then remove this guard.
@@ -25,7 +25,7 @@
 
 /* TODO(timer): use the external IRQ enum and EXACT symbol from your startup
  * vector table. Reserve the entire selected timer/IRQ for this adapter. */
-#define TIMER_IRQ YOUR_TIMER_IRQn
+#define TIMER_IRQ     YOUR_TIMER_IRQn
 #define TIMER_HANDLER YOUR_TIMER_IRQHandler
 /* TODO(timer): maximum PERIOD in input counts, not the largest reload value.
  * Examples: 16-bit reload timer => 65536U; 32-bit => UINT32_MAX (format limit). */

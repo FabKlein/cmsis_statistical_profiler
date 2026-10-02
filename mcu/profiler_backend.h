@@ -6,23 +6,23 @@
 
 /* ----------------------------------------------------------------------
  * Project:      CMSIS Statistical Profiler
- * Title:        sampling_profiler_cortex_m.h
+ * Title:        profiler_backend.h
  * Description:  Cortex-M timer hooks, timestamp interface and IRQ entry
  *
- * $Date:        22 September 2026
- * $Revision:    V.1.0.1
+ * $Date:        2 October 2026
+ * $Revision:    V.1.0.2
  *
  * Target :  Arm(R) M-Profile Architecture
  *
  * -------------------------------------------------------------------- */
 
 /**
- * @file sampling_profiler_cortex_m.h
+ * @file profiler_backend.h
  * @brief Cortex-M timer hooks, timestamp interface and IRQ entry.
  */
 
-#ifndef PROFILER_CORTEX_M_H
-#define PROFILER_CORTEX_M_H
+#ifndef PROFILER_BACKEND_H
+#define PROFILER_BACKEND_H
 
 #include "sampling_profiler_port.h"
 #include <stddef.h>

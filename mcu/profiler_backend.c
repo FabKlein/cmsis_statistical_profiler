@@ -10,7 +10,7 @@
  * Description:  Cortex-M timestamping, frame validation and sampling backend
  *
  * $Date:        2 October 2026
- * $Revision:    V.1.0.10
+ * $Revision:    V.1.0.11
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -35,7 +35,7 @@
  * run at different frequencies. Neither replaces the application's RTOS tick.
  */
 
-#include "sampling_profiler_cortex_m.h"
+#include "profiler_backend.h"
 #if PROFILER_STACK_UNWIND
     #include "sampling_profiler_unwind.h"
 #endif

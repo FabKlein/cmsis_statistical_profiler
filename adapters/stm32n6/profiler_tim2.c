@@ -9,14 +9,14 @@
  * Title:        profiler_tim2.c
  * Description:  STM32N6 TIM2 sampling adapter
  *
- * $Date:        25 September 2026
- * $Revision:    V.1.0.1
+ * $Date:        2 October 2026
+ * $Revision:    V.1.0.2
  *
  * Target :  Arm(R) M-Profile Architecture
  *
  * -------------------------------------------------------------------- */
 
-#include "sampling_profiler_cortex_m.h"
+#include "profiler_backend.h"
 #include "stm32n6xx_hal.h"
 #include "stm32n6xx_hal_rcc.h"
 #include "stm32n6xx_hal_rcc_ex.h"

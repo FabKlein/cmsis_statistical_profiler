@@ -61,7 +61,7 @@ The trace is an instruction-level illustration, not a hardware timing benchmark.
 | Role | Source |
 |---|---|
 | Application | [call_tree_main.c](../examples/corstone300_rtos2/call_tree_main.c) |
-| IRQ wrapper | [sampling_profiler_cortex_m.h](../mcu/sampling_profiler_cortex_m.h) |
+| IRQ wrapper | [profiler_backend.h](../mcu/profiler_backend.h) |
 | Timer adapter | [profiler_timer0.c](../adapters/corstone300/profiler_timer0.c) |
 | Capture backend | [profiler_backend.c](../mcu/profiler_backend.c) |
 | Unwinder | [sampling_profiler_unwind.c](../mcu/sampling_profiler_unwind.c) |

@@ -9,14 +9,14 @@
  * Title:        profiler_timestamp.c.example
  * Description:  Free-running timestamp counter adapter template
  *
- * $Date:        22 September 2026
- * $Revision:    V.1.0.0
+ * $Date:        2 October 2026
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
  * -------------------------------------------------------------------- */
 
-#include "sampling_profiler_cortex_m.h"
+#include "profiler_backend.h"
 #include PROFILER_DEVICE_HEADER
 
 /* Copy as .c, add it to the application sources, and set

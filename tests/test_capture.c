@@ -9,15 +9,15 @@
  * Title:        test_capture.c
  * Description:  Capture lifecycle, sampling timer and frame validation tests
  *
- * $Date:        30 September 2026
- * $Revision:    V.1.0.2
+ * $Date:        2 October 2026
+ * $Revision:    V.1.0.3
  *
  * Target :  Arm(R) M-Profile Architecture
  *
  * -------------------------------------------------------------------- */
 
 #include "fake_device.h"
-#include "sampling_profiler_cortex_m.h"
+#include "profiler_backend.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>

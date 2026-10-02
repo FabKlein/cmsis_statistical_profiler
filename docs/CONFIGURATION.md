@@ -55,7 +55,7 @@ in the IRQ path. Inspect disassembly after compiler/LTO changes.
 Reserve the timer/vector for the firmware lifetime. On Alif, reserve a distinct
 channel per core and enable shared clocks in serialized board startup.
 Keep HAL/RTOS handlers unchanged. Use `PROFILER_DEFINE_IRQ_HANDLER` as the actual
-vector entry. See [timer contracts](../mcu/sampling_profiler_cortex_m.h).
+vector entry. See [timer contracts](../mcu/profiler_backend.h).
 Startup, clocks, security routing and linker placement belong to the application.
 
 ## Memory and timestamps

@@ -9,19 +9,19 @@
  * Title:        profiler_ctimer4.c
  * Description:  NXP MIMXRT685 CTIMER4 sampling adapter
  *
- * $Date:        30 September 2026
- * $Revision:    V.1.0.0
+ * $Date:        2 October 2026
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
  * -------------------------------------------------------------------- */
 
-#include "sampling_profiler_cortex_m.h"
 #include "fsl_clock.h"
 #include "fsl_reset.h"
+#include "profiler_backend.h"
 
-#define PROFILER_CTIMER CTIMER4
-#define PROFILER_CTIMER_IRQ CTIMER4_IRQn
+#define PROFILER_CTIMER            CTIMER4
+#define PROFILER_CTIMER_IRQ        CTIMER4_IRQn
 #define PROFILER_CTIMER_CLOCK_GATE CLKCTL1_PSCCTL2_CT32BIT4_CLK_MASK
 #define PROFILER_CTIMER_MATCH_FLAG CTIMER_IR_MR0INT_MASK
 
@@ -34,8 +34,8 @@ int profiler_timer_init(struct ProfilerClock *clock)
     uint32_t hz;
     uint32_t period;
 
-    if (!owned && (((CLKCTL1->PSCCTL2 & PROFILER_CTIMER_CLOCK_GATE) != 0U) ||
-                   (NVIC_GetEnableIRQ(PROFILER_CTIMER_IRQ) != 0U)))
+    if (!owned &&
+        (((CLKCTL1->PSCCTL2 & PROFILER_CTIMER_CLOCK_GATE) != 0U) || (NVIC_GetEnableIRQ(PROFILER_CTIMER_IRQ) != 0U)))
     {
         return profiler_init_fail(PROFILER_INIT_TIMER, PROFILER_INIT_BUSY, PROFILER_CTIMER_IRQ, 0U);
     }

@@ -7,8 +7,8 @@
 # Title:        compile_cortex_m.py
 # Description:  Compile Cortex-M architecture, security and timestamp variants
 #
-# $Date:        1 October 2026
-# $Revision:    V.1.0.2
+# $Date:        2 October 2026
+# $Revision:    V.1.0.3
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -34,7 +34,7 @@ def main():
              ('m35p', 'cm35p'), ('m52', 'cm52'), ('m55', 'cm55'), ('m85', 'cm85')]
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
-        (tmp / 'irq.c').write_text('#include "sampling_profiler_cortex_m.h"\n'
+        (tmp / 'irq.c').write_text('#include "profiler_backend.h"\n'
                                    'PROFILER_DEFINE_IRQ_HANDLER(Test_Handler)\n')
         for cpu, header in cores:
             (tmp / 'device.h').write_text('#include <stdint.h>\n'

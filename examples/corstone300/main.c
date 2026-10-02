@@ -9,8 +9,8 @@
  * Title:        main.c
  * Description:  Corstone-300 capture and workload validation example
  *
- * $Date:        30 September 2026
- * $Revision:    V.1.0.4
+ * $Date:        2 October 2026
+ * $Revision:    V.1.0.5
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -44,8 +44,8 @@
 
 #include "SSE300MPS3.h"
 #include "profile_workload.h"
+#include "profiler_backend.h"
 #include "sampling_profiler.h"
-#include "sampling_profiler_cortex_m.h"
 #include "syscounter_armv8-m_cntrl_reg_map.h"
 
 /* System Counter Control Register (CNTCR), enable bit (EN).

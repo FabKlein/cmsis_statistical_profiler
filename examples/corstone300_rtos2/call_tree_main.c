@@ -9,8 +9,8 @@
  * Title:        call_tree_main.c
  * Description:  CMSIS-RTOS2 dual-thread backtrace test
  *
- * $Date:        1 October 2026
- * $Revision:    V.1.0.5
+ * $Date:        2 October 2026
+ * $Revision:    V.1.0.6
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -47,8 +47,8 @@
 
 #include "SSE300MPS3.h"
 #include "cmsis_os2.h"
+#include "profiler_backend.h"
 #include "sampling_profiler.h"
-#include "sampling_profiler_cortex_m.h"
 #include "syscounter_armv8-m_cntrl_reg_map.h"
 
 /* System Counter Control Register (CNTCR), enable bit (EN).
@@ -57,11 +57,11 @@
 
 /* Fixed pair of distinct workloads plus 1 controller; 8 KiB per thread stack.
  * Changing the worker count also requires updating the workload functions. */
-#define WORKER_COUNT 2U
-#define THREAD_COUNT (WORKER_COUNT + 1U)
+#define WORKER_COUNT     2U
+#define THREAD_COUNT     (WORKER_COUNT + 1U)
 #define CONTROLLER_INDEX WORKER_COUNT
-#define STACK_WORDS 2048U
-#define CAPTURE_SECONDS 2U
+#define STACK_WORDS      2048U
+#define CAPTURE_SECONDS  2U
 
 #if PROFILER_EXAMPLE_FREERTOS
     #include "FreeRTOS.h"

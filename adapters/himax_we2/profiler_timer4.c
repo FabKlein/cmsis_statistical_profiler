@@ -9,8 +9,8 @@
  * Title:        profiler_timer4.c
  * Description:  Himax WE2 TIMER4 sampling adapter
  *
- * $Date:        30 September 2026
- * $Revision:    V.1.0.0
+ * $Date:        2 October 2026
+ * $Revision:    V.1.0.1
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -20,9 +20,9 @@
 
 #include "WE2_core.h"
 #include "hx_drv_timer.h"
-#include "sampling_profiler_cortex_m.h"
+#include "profiler_backend.h"
 
-#define PROFILER_TIMER_ID TIMER_ID_4
+#define PROFILER_TIMER_ID  TIMER_ID_4
 #define PROFILER_TIMER_IRQ TIMER4INT_IRQn
 
 _Static_assert(PROFILER_IRQ_PRIORITY < (1U << __NVIC_PRIO_BITS), "Invalid sampling IRQ priority");

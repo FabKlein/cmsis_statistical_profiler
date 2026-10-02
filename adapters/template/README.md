@@ -42,7 +42,7 @@ lifetime, including across cores; avoid changing shared clocks or resetting bloc
 
 Use `PROFILER_DEFINE_IRQ_HANDLER` as the actual vector entry, without a C/HAL
 wrapper. Ack runs even while gated off/full. Keep it bounded and integer-only;
-never advance HAL time. See [hook contracts](../../mcu/sampling_profiler_cortex_m.h)
+never advance HAL time. See [hook contracts](../../mcu/profiler_backend.h)
 and the [STM32](../stm32n6/profiler_tim2.c),
 [Corstone](../corstone300/profiler_timer0.c) or [Alif](../alif_e8/profiler_utimer.c) adapters.
 

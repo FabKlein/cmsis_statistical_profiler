@@ -9,14 +9,14 @@
  * Title:        profiler_timer0.c
  * Description:  Corstone-300 TIMER0 sampling adapter
  *
- * $Date:        30 September 2026
- * $Revision:    V.1.0.2
+ * $Date:        2 October 2026
+ * $Revision:    V.1.0.3
  *
  * Target :  Arm(R) M-Profile Architecture
  *
  * -------------------------------------------------------------------- */
 
-#include "sampling_profiler_cortex_m.h"
+#include "profiler_backend.h"
 #include PROFILER_DEVICE_HEADER
 #include "syscounter_armv8-m_cntrl_reg_map.h"
 #include "systimer_armv8-m_reg_map.h"
@@ -35,11 +35,11 @@ _Static_assert(PROFILER_TIMER_CLOCK_HZ > 0U && PROFILER_TIMER_CLOCK_HZ <= UINT32
 /* Physical timer register fields, following the BSP system-timer driver:
  * CTL = control, IMASK = interrupt mask, ISTATUS = interrupt status,
  * CFG = configuration, AIVAL = auto-increment value, IRQ = interrupt request. */
-#define CNTP_CTL_ENABLE (1UL << 0)
-#define CNTP_CTL_IMASK (1UL << 1)
-#define CNTP_CTL_ISTATUS (1UL << 2)
-#define CNTP_CFG_AUTOINC (1UL << 0)
-#define CNTP_AIVAL_CTL_ENABLE (1UL << 0)
+#define CNTP_CTL_ENABLE          (1UL << 0)
+#define CNTP_CTL_IMASK           (1UL << 1)
+#define CNTP_CTL_ISTATUS         (1UL << 2)
+#define CNTP_CFG_AUTOINC         (1UL << 0)
+#define CNTP_AIVAL_CTL_ENABLE    (1UL << 0)
 #define CNTP_AIVAL_CTL_IRQ_CLEAR (1UL << 1)
 
 #define TIMER ((struct cnt_base_reg_map_t *)SYSTIMER0_ARMV8_M_BASE_S)

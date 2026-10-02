@@ -9,14 +9,14 @@
  * Title:        profiler_systick.c
  * Description:  Exclusive SysTick sampling timer integration
  *
- * $Date:        25 September 2026
- * $Revision:    V.1.0.1
+ * $Date:        2 October 2026
+ * $Revision:    V.1.0.2
  *
  * Target :  Arm(R) M-Profile Architecture
  *
  * -------------------------------------------------------------------- */
 
-#include "sampling_profiler_cortex_m.h"
+#include "profiler_backend.h"
 #include PROFILER_DEVICE_HEADER
 
 /* Explicit exclusive ownership. No HAL/RTOS tick chaining. */

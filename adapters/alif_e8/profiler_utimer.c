@@ -9,14 +9,14 @@
  * Title:        profiler_utimer.c
  * Description:  Alif Ensemble E8 per-core UTIMER sampling adapter
  *
- * $Date:        30 September 2026
- * $Revision:    V.1.0.2
+ * $Date:        2 October 2026
+ * $Revision:    V.1.0.3
  *
  * Target :  Arm(R) M-Profile Architecture
  *
  * -------------------------------------------------------------------- */
 
-#include "sampling_profiler_cortex_m.h"
+#include "profiler_backend.h"
 #include PROFILER_DEVICE_HEADER
 #include "profiler_utimer_config.h"
 
@@ -25,11 +25,11 @@
 #endif
 _Static_assert(PROFILER_TIMER_CLOCK_HZ > 0U && PROFILER_TIMER_CLOCK_HZ <= UINT32_MAX,
                "Timer clock must fit a positive uint32");
-#define CHANNEL (UTIMER->UTIMER_CHANNEL_CFG[PROFILER_ALIF_UTIMER_CHANNEL])
+#define CHANNEL      (UTIMER->UTIMER_CHANNEL_CFG[PROFILER_ALIF_UTIMER_CHANNEL])
 #define CHANNEL_MASK (1UL << PROFILER_ALIF_UTIMER_CHANNEL)
 /* CNTR_CTRL_EN in the SDK driver; keep this adapter device-header-only. */
 #define COUNTER_ENABLE (1UL << 0)
-#define OVERFLOW 0x80U
+#define OVERFLOW       0x80U
 #define PROGRAM_ENABLE 0x80000000U
 _Static_assert(PROFILER_IRQ_PRIORITY < (1U << __NVIC_PRIO_BITS), "Invalid sampling IRQ priority");
 static uint32_t owned;

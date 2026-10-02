@@ -9,8 +9,8 @@
  * Title:        reference_timestamp.c
  * Description:  Corstone-300 reference-counter timestamp for the example
  *
- * $Date:        30 September 2026
- * $Revision:    V.1.0.1
+ * $Date:        2 October 2026
+ * $Revision:    V.1.0.2
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -22,7 +22,7 @@
  */
 
 #include "SSE300MPS3.h"
-#include "sampling_profiler_cortex_m.h"
+#include "profiler_backend.h"
 #include "syscounter_armv8-m_cntrl_reg_map.h"
 #include "systimer_armv8-m_reg_map.h"
 
