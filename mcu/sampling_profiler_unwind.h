@@ -9,8 +9,8 @@
  * Title:        sampling_profiler_unwind.h
  * Description:  Bounded EHABI stack tracing interface
  *
- * $Date:        25 September 2026
- * $Revision:    V.1.0.1
+ * $Date:        1 October 2026
+ * $Revision:    V.1.0.2
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -53,7 +53,8 @@ int profiler_unwind_tables(struct ProfilerUnwindTables *tables);
 /** @brief Validate and cache table ranges; called before sampling starts. */
 int profiler_unwind_init(void);
 /** @brief Append at most PROFILER_UNWIND_MAX_DEPTH callers, preserving the valid prefix on failure.
- * @param sample Validated PC sample; backtrace fields are overwritten.
+ * @param sample Validated PC sample; metadata and recovered callers are overwritten.
+ * Unused caller slots are untouched and must not be read.
  * @param regs Interrupted r0-r15 virtual registers, updated during unwinding.
  * @param bounds Precise task/MSP allocation intersected with the RAM whitelist.
  * @note Integer-only, no allocation; at most 32 opcode bytes per frame.

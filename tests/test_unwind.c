@@ -9,8 +9,8 @@
  * Title:        test_unwind.c
  * Description:  Bounded compact EHABI unwinder regression tests
  *
- * $Date:        25 September 2026
- * $Revision:    V.1.0.1
+ * $Date:        1 October 2026
+ * $Revision:    V.1.0.2
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -59,10 +59,14 @@ static void reset(uint32_t recipe)
 }
 static void expect(uint32_t depth, uint32_t status)
 {
+    /* Poison unused slots to verify partial/failed traces need no zero fill. */
+    for (uint32_t i = 0; i < PROFILER_UNWIND_MAX_DEPTH; ++i)
+        sample.callers[i] = 0xDEADBEEFU;
+
     profiler_unwind_capture(&sample, regs, &bounds);
     assert(sample.unwind == (depth | (status << 8)));
     for (uint32_t i = depth; i < PROFILER_UNWIND_MAX_DEPTH; ++i)
-        assert(sample.callers[i] == 0U);
+        assert(sample.callers[i] == 0xDEADBEEFU);
 }
 static enum ProfilerInitReason last_reason;
 int profiler_init_fail(enum ProfilerInitStage stage, enum ProfilerInitReason reason, uint32_t value0, uint32_t value1)

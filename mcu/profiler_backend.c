@@ -9,8 +9,8 @@
  * Title:        profiler_backend.c
  * Description:  Cortex-M timestamping, frame validation and sampling backend
  *
- * $Date:        1 October 2026
- * $Revision:    V.1.0.6
+ * $Date:        2 October 2026
+ * $Revision:    V.1.0.10
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -46,18 +46,78 @@
     #error "A CMSIS Cortex-M device header is required"
 #endif
 
+/* EXC_RETURN bits 31:7 must all be 1; bits 6:0 are validated separately. */
+#define EXC_RETURN_PREFIX_MASK  0xFFFFFF80U
+#define EXC_RETURN_RESERVED_BIT (1UL << 1) /* Must be 0 on every supported core. */
+#define EXC_RETURN_THREAD_MODE  (1UL << 3)
+#define EXC_RETURN_BASIC_FRAME  (1UL << 4) /* 1: core registers only; 0: extended FP/MVE frame. */
+
+/* Armv8-M security/stacking fields. On older cores these bit positions are
+ * reserved and must all be 1, rather than describing a security state. */
+#define EXC_RETURN_SECURE_HANDLER          (1UL << 0) /* ES: exception was taken to Secure state. */
+#define EXC_RETURN_DEFAULT_CALLEE_STACKING (1UL << 5) /* DCRS: default callee-register stacking rules. */
+#define EXC_RETURN_SECURE_STACK            (1UL << 6) /* S: interrupted registers are on the Secure stack. */
+#define EXC_RETURN_FRAME_STATE_MASK                                                                                    \
+    (EXC_RETURN_SECURE_STACK | EXC_RETURN_DEFAULT_CALLEE_STACKING | EXC_RETURN_SECURE_HANDLER)
+#define EXC_RETURN_SUPPORTED_MODE_MASK (EXC_RETURN_FRAME_STATE_MASK | EXC_RETURN_THREAD_MODE)
+
+/* Stacked xPSR bit 9 records an extra word used to align the exception stack. */
+#define STACKED_XPSR_ALIGNMENT (1UL << 9)
+
+/* Word indices in the hardware exception frame, starting at the captured SP.
+ * These are frame positions, not architectural register numbers: r12 is word 4.
+ *
+ * Low address -> r0 r1 r2 r3 r12 LR PC xPSR [FP/MVE area] [alignment word]
+ */
+enum
+{
+    FRAME_R0_IDX = 0,
+    FRAME_R1_IDX,
+    FRAME_R2_IDX,
+    FRAME_R3_IDX,
+    FRAME_R12_IDX,
+    FRAME_LR_IDX,
+    FRAME_PC_IDX,
+    FRAME_XPSR_IDX,
+    FRAME_CORE_WORDS
+};
+
+/* The extension reserves S0-S15, FPSCR and 1 additional word. Lazy stacking
+ * reserves this space even if the floating-point registers are not written. */
+#define FRAME_EXTENSION_WORDS 18U
+
+#if PROFILER_STACK_UNWIND
+/* Architectural register numbers in the virtual register set given to EHABI. */
+enum
+{
+    REG_R0_IDX = 0,
+    REG_R4_IDX = 4,
+    REG_R8_IDX = 8,
+    REG_R12_IDX = 12,
+    REG_SP_IDX,
+    REG_LR_IDX,
+    REG_PC_IDX,
+    REG_COUNT
+};
+
+    /* The assembly wrapper saves 2 groups of 4 registers, with r8-r11 first. */
+    #define SAVED_REGISTER_GROUP_WORDS 4U
+    #define SAVED_R8_OFFSET            0U
+    #define SAVED_R4_OFFSET            SAVED_REGISTER_GROUP_WORDS
+#endif
+
 /* EXC_RETURN is the exception-return token supplied by hardware, not a code
  * address. Its bits describe the interrupted mode, stack and frame layout.
  * Armv8-M assigns security meanings to bits reserved on older cores. Only the
  * frame state supported by this build is accepted; no cross-security unwinding. */
 #if defined(__ARM_ARCH) && (__ARM_ARCH >= 8)
     #if defined(__ARM_FEATURE_CMSE) && (__ARM_FEATURE_CMSE == 3)
-        #define PROFILER_FRAME_STATE 0x61U
+        #define PROFILER_FRAME_STATE EXC_RETURN_FRAME_STATE_MASK
     #else
-        #define PROFILER_FRAME_STATE 0x20U
+        #define PROFILER_FRAME_STATE EXC_RETURN_DEFAULT_CALLEE_STACKING
     #endif
 #else
-    #define PROFILER_FRAME_STATE 0x61U
+    #define PROFILER_FRAME_STATE EXC_RETURN_FRAME_STATE_MASK
 #endif
 
 #if !PROFILER_TIMESTAMP_CUSTOM
@@ -120,7 +180,7 @@ static uint32_t ms_fraction;
 /**
  * @brief Advance timer-derived time using an exact fractional millisecond accumulator.
  */
-static void profiler_cortex_m_tick(void)
+static void profiler_tick(void)
 {
     ++interrupt_ticks;
     uint32_t elapsed_ms = tick_whole_ms;
@@ -136,6 +196,7 @@ static void profiler_cortex_m_tick(void)
 }
 
 uint32_t profiler_port_ticks(void) { return interrupt_ticks; }
+
 uint32_t profiler_port_millis(void) { return milliseconds; }
 
 /**
@@ -148,8 +209,9 @@ uint32_t profiler_port_millis(void) { return milliseconds; }
 static int readable_frame(const uint32_t *frame, uint32_t exception_return, struct ProfilerStackBounds *selected)
 {
     uintptr_t address = (uintptr_t)frame;
-    const size_t bytes = 8U * sizeof(uint32_t);
-    if ((address & 3U) != 0U)
+    const size_t bytes = FRAME_CORE_WORDS * sizeof(uint32_t);
+
+    if ((address % sizeof(uint32_t)) != 0U)
         return 0;
 #if PROFILER_PRECISE_STACK_BOUNDS
     /* The application identifies the active stack without calling RTOS services
@@ -190,8 +252,10 @@ uint32_t profiler_timer_period(uint32_t timer_hz, uint32_t max_period)
     /* Round to the closest realizable period; callers publish the actual timer
      * frequency/period so the host need not assume the requested rate was exact. */
     uint64_t period = ((uint64_t)timer_hz + PROFILER_SAMPLE_HZ / 2U) / PROFILER_SAMPLE_HZ;
+
     if (!timer_hz || period < 2U || period > max_period)
         return 0;
+
     return (uint32_t)period;
 }
 
@@ -210,6 +274,7 @@ void profiler_port_stop(void)
 int profiler_port_init(struct ProfilerClock *clock)
 {
     uint32_t timestamp_hz = 0U;
+
     if (!profiler_timestamp_init(&timestamp_hz) || !timestamp_hz)
         return profiler_init_fail(PROFILER_INIT_TIMESTAMP, PROFILER_INIT_UNAVAILABLE, timestamp_hz, 0);
 
@@ -222,6 +287,7 @@ int profiler_port_init(struct ProfilerClock *clock)
     uint32_t primask = __get_PRIMASK();
     __disable_irq();
     clock->timestamp_hz = timestamp_hz;
+
     if (!profiler_timer_init(clock))
     {
         __set_PRIMASK(primask);
@@ -229,6 +295,7 @@ int profiler_port_init(struct ProfilerClock *clock)
             profiler_init_fail(PROFILER_INIT_TIMER, PROFILER_INIT_UNAVAILABLE, 0, 0);
         return 0;
     }
+
     /* 2-period decoding tolerance must stay below half a timestamp wrap. */
     if (!clock->timer_hz || clock->timer_period < 2U ||
         (uint64_t)clock->timer_period * timestamp_hz / clock->timer_hz >= 0x40000000ULL)
@@ -237,6 +304,7 @@ int profiler_port_init(struct ProfilerClock *clock)
         __set_PRIMASK(primask);
         return profiler_init_fail(PROFILER_INIT_TIMER, PROFILER_INIT_BAD_CLOCK, clock->timer_hz, clock->timer_period);
     }
+
     /* Use the adapter's actual period, not PROFILER_SAMPLE_HZ. Division stays
      * here in initialization; each interrupt only adds the precomputed parts. */
     timer_clock_hz = clock->timer_hz;
@@ -288,8 +356,10 @@ __attribute__((used, noinline)) void statistical_sampling_tick(const uint32_t *f
      * introduced by validation and optional backtrace work. */
     if (!profiler_timer_ack())
         return;
+
     uint32_t timestamp = profiler_timestamp_read();
-    profiler_cortex_m_tick();
+
+    profiler_tick();
 
     /* Timer bookkeeping continues while capture is disabled or the buffer is
      * full; only the sample extraction/storage path is gated. */
@@ -300,15 +370,27 @@ __attribute__((used, noinline)) void statistical_sampling_tick(const uint32_t *f
 #if (defined(__FPU_PRESENT) && (__FPU_PRESENT == 1U)) || (defined(__MVE_PRESENT) && (__MVE_PRESENT == 1U))
     extended_supported = 1;
 #endif
+    const int extended_frame = (exception_return & EXC_RETURN_BASIC_FRAME) == 0U;
+
     /* Check the token before trusting the stack pointer. Accept thread-mode
      * frames only: sampling another handler would describe interrupt work. */
-    if ((exception_return & 0xFFFFFF80U) != 0xFFFFFF80U || (exception_return & 2U) != 0U)
+    if ((exception_return & EXC_RETURN_PREFIX_MASK) != EXC_RETURN_PREFIX_MASK ||
+        (exception_return & EXC_RETURN_RESERVED_BIT) != 0U)
     {
         profiler_reject(PROFILER_REJECT_EXC_RETURN);
         return;
     }
-    if ((exception_return & 0x69U) != (PROFILER_FRAME_STATE | 8U) ||
-        (!(exception_return & 0x10U) && !extended_supported))
+
+    /* Reject handler-mode, cross-security and extra callee-stacking layouts.
+     * The frame offsets below are valid only for the accepted layout. */
+    if ((exception_return & EXC_RETURN_SUPPORTED_MODE_MASK) != (PROFILER_FRAME_STATE | EXC_RETURN_THREAD_MODE))
+    {
+        profiler_reject(PROFILER_REJECT_UNSUPPORTED_FRAME);
+        return;
+    }
+
+    /* A basic frame is valid without FP/MVE support; an extended frame is not. */
+    if (extended_frame && !extended_supported)
     {
         profiler_reject(PROFILER_REJECT_UNSUPPORTED_FRAME);
         return;
@@ -316,6 +398,7 @@ __attribute__((used, noinline)) void statistical_sampling_tick(const uint32_t *f
 
     /* No frame dereference is allowed until all 8 core words fit in bounds. */
     struct ProfilerStackBounds bounds;
+
     if (!readable_frame(frame, exception_return, &bounds))
     {
         profiler_reject(PROFILER_REJECT_STACK_BOUNDS);
@@ -324,7 +407,8 @@ __attribute__((used, noinline)) void statistical_sampling_tick(const uint32_t *f
 
     /* Stacked status must describe Thumb thread execution (no active exception).
      * This is a plausibility check, not proof that arbitrary RAM is a frame. */
-    uint32_t xpsr = frame[7];
+    uint32_t xpsr = frame[FRAME_XPSR_IDX];
+
     if ((xpsr & xPSR_T_Msk) == 0U || (xpsr & xPSR_ISR_Msk) != 0U)
     {
         profiler_reject(PROFILER_REJECT_XPSR);
@@ -336,10 +420,11 @@ __attribute__((used, noinline)) void statistical_sampling_tick(const uint32_t *f
     /* Assign mandatory fields explicitly: aggregate zero-initialization of the
      * optional trace can introduce an ISR call to a vectorized libc memset. */
     struct ProfilerSample sample;
+
     sample.timestamp = timestamp;
     sample.tick = profiler_port_ticks();
-    sample.pc = frame[6];
-    sample.lr = frame[5];
+    sample.pc = frame[FRAME_PC_IDX];
+    sample.lr = frame[FRAME_LR_IDX];
     sample.xpsr = xpsr;
     sample.exception_return = exception_return;
 #if PROFILER_PMU_COUNT
@@ -348,19 +433,31 @@ __attribute__((used, noinline)) void statistical_sampling_tick(const uint32_t *f
     profiler_pmu_snapshot(sample.pmu);
 #endif
 #if PROFILER_STACK_UNWIND
-    /* Hardware frame: core words, optionally 18 FP words, optionally alignment padding.
-     * Lazy FP stacking reserves the same space even when FP values were not written. */
-    uint32_t frame_bytes = ((exception_return & 0x10U) ? 8U : 26U) * 4U + ((xpsr & (1U << 9)) ? 4U : 0U);
+    /* Recover SP as it was before the interrupt by stepping past everything
+     * hardware reserved. The optional alignment word belongs to this frame too. */
+    uint32_t frame_bytes = FRAME_CORE_WORDS * sizeof(uint32_t);
     uintptr_t address = (uintptr_t)frame;
-    if (bounds.bytes < frame_bytes || address - bounds.base > bounds.bytes - frame_bytes ||
-        address > UINT32_MAX - frame_bytes)
+
+    if (extended_frame)
+        frame_bytes += FRAME_EXTENSION_WORDS * sizeof(uint32_t);
+
+    if ((xpsr & STACKED_XPSR_ALIGNMENT) != 0U)
+        frame_bytes += sizeof(uint32_t);
+
+    /* readable_frame() already checked the base and core words. Check the
+     * complete frame before deriving SP; subtraction avoids address overflow. */
+    int complete_frame_fits = bounds.bytes >= frame_bytes;
+
+    if (complete_frame_fits)
+        complete_frame_fits = address - bounds.base <= bounds.bytes - frame_bytes;
+
+    /* The virtual Cortex-M SP must also fit in a 32-bit register. */
+    if (!complete_frame_fits || address > UINT32_MAX - frame_bytes)
     {
         /* Keep the valid PC sample even when the full exception frame cannot
          * fit. Backtrace failure must not discard ordinary sampling data. */
-        sample.unwind = PROFILER_UNWIND_BOUNDS << 8;
-        volatile uint32_t *callers = sample.callers;
-        for (uint32_t i = 0; i < PROFILER_UNWIND_MAX_DEPTH; ++i)
-            callers[i] = 0;
+        sample.unwind = PROFILER_UNWIND_BOUNDS << 8; /* Status in bits 15:8; depth in bits 7:0. */
+        /* Depth is 0, so storage does not read the caller array. */
     }
     else
     {
@@ -372,17 +469,23 @@ __attribute__((used, noinline)) void statistical_sampling_tick(const uint32_t *f
          * saved block:  r8 r9 r10 r11 r4 r5 r6 r7
          * regs:         r0 ... r12 SP LR PC  -> EHABI interpreter
          */
-        uint32_t regs[16];
-        for (uint32_t i = 0; i < 4U; ++i)
+        uint32_t regs[REG_COUNT];
+
+        /* Merge the hardware frame and the wrapper's software snapshot.
+         * Neither contains the C handler's current working register values. */
+        for (uint32_t i = 0; i < SAVED_REGISTER_GROUP_WORDS; ++i)
         {
-            regs[i] = frame[i];
-            regs[i + 4U] = saved_r8_r11_r4_r7[i + 4U];
-            regs[i + 8U] = saved_r8_r11_r4_r7[i];
+            regs[REG_R0_IDX + i] = frame[FRAME_R0_IDX + i];
+            regs[REG_R4_IDX + i] = saved_r8_r11_r4_r7[SAVED_R4_OFFSET + i];
+            regs[REG_R8_IDX + i] = saved_r8_r11_r4_r7[SAVED_R8_OFFSET + i];
         }
-        regs[12] = frame[4];
-        regs[13] = (uint32_t)address + frame_bytes;
-        regs[14] = frame[5];
-        regs[15] = frame[6];
+
+        regs[REG_R12_IDX] = frame[FRAME_R12_IDX];
+        regs[REG_SP_IDX] = (uint32_t)address + frame_bytes;
+        regs[REG_LR_IDX] = frame[FRAME_LR_IDX];
+        regs[REG_PC_IDX] = frame[FRAME_PC_IDX];
+
+        /* The unwinder updates this local register set, never the real frame. */
         profiler_unwind_capture(&sample, regs, &bounds);
     }
 #endif

@@ -25,6 +25,7 @@ AlignConsecutiveDeclarations: false
 AlignEscapedNewlinesLeft: false
 AlignOperands:   false
 AlignTrailingComments: true
+AlignConsecutiveMacros: Consecutive
 AllowAllParametersOfDeclarationOnNextLine: false
 BinPackArguments: false
 IndentPPDirectives: BeforeHash

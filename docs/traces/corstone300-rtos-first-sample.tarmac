@@ -1,0 +1,3104 @@
+269065 clk IT (269065) 10001162 bf00 T thread_s : NOP  [functionE+0x576]
+269066 clk IT (269066) 10001164 bf00 T thread_s : NOP  [functionE+0x578]
+269067 clk IT (269067) 10001166 bf00 T thread_s : NOP  [functionE+0x57a]
+269068 clk IT (269068) 10001168 bf00 T thread_s : NOP  [functionE+0x57c]
+269069 clk IT (269069) 1000116a bf00 T thread_s : NOP  [functionE+0x57e]
+269070 clk IT (269070) 1000116c bf00 T thread_s : NOP  [functionE+0x580]
+269071 clk IT (269071) 1000116e bf00 T thread_s : NOP  [functionE+0x582]
+269072 clk IT (269072) 10001170 bf00 T thread_s : NOP  [functionE+0x584]
+269073 clk IT (269073) 10001172 bf00 T thread_s : NOP  [functionE+0x586]
+269074 clk IT (269074) 10001174 bf00 T thread_s : NOP  [functionE+0x588]
+269075 clk IT (269075) 10001176 bf00 T thread_s : NOP  [functionE+0x58a]
+269076 clk IT (269076) 10001178 bf00 T thread_s : NOP  [functionE+0x58c]
+269077 clk IT (269077) 1000117a bf00 T thread_s : NOP  [functionE+0x58e]
+269078 clk IT (269078) 1000117c bf00 T thread_s : NOP  [functionE+0x590]
+269079 clk IT (269079) 1000117e bf00 T thread_s : NOP  [functionE+0x592]
+269080 clk IT (269080) 10001180 bf00 T thread_s : NOP  [functionE+0x594]
+269081 clk IT (269081) 10001182 f7fffcc7 T thread_s : BL       0x10000b14  [functionE+0x596]
+269081 clk R r14 10001187
+269081 clk E 00000000 handler 00000019 CoreEvent_ModeChange
+269081 clk MW4 30002060 300060d4
+269081 clk MW4 30002064 000001c7
+269081 clk MW4 30002068 00000000
+269081 clk MW4 3000206c 00000000
+269081 clk MW4 30002070 00000000
+269081 clk MW4 30002074 10001187
+269081 clk MW4 30002078 10000b14
+269081 clk MW4 3000207c 01000000
+269081 clk R NVIC_ISPR0 00018008
+269081 clk R NVIC_ICPR0 00018008
+269081 clk R ICSR_S 00413000
+269081 clk R ICSR_NS 00401000
+269081 clk INFO_EXCEPTION_REASON: PHASE=ACTIVATE REASONS=UNSPECIFIED PC=0x10000b14 VECTOR=EXT_INT3 FaultCause=NO_FSR_BIT SecurityState=S
+269081 clk E 10000b14 00000013 CoreEvent_EXT_INT3
+269081 clk R r0 00000000
+269081 clk R r1 00000000
+269081 clk R r2 00000000
+269081 clk R r3 00000000
+269081 clk R r12 00000000
+269081 clk R r14 fffffffd
+269081 clk R r13_process_s 30002060
+269081 clk R cpsr 01000013
+269081 clk R PSP_S 30002060
+269081 clk R CONTROL_S 00000000
+269081 clk R NVIC_ISPR0 00018000
+269081 clk R NVIC_ICPR0 00018000
+269081 clk R NVIC_IABR0 00000008
+269081 clk R ICSR_S 00400813
+269081 clk R ICSR_NS 00400813
+269082 clk IT (269082) 100075c4 4671 T handler_s : MOV      r1,lr  [TFM_TIMER0_IRQ_Handler+0x0]
+269082 clk R r1 fffffffd
+269083 clk IT (269083) 100075c6 2204 T handler_s : MOVS     r2,#4  [TFM_TIMER0_IRQ_Handler+0x2]
+269083 clk R r2 00000004
+269083 clk R cpsr 01000013
+269084 clk IT (269084) 100075c8 4211 T handler_s : TST      r1,r2  [TFM_TIMER0_IRQ_Handler+0x4]
+269084 clk R cpsr 01000013
+269085 clk IS (269085) 100075ca d002 T handler_s : BEQ      0x100075d2  [TFM_TIMER0_IRQ_Handler+0x6]
+269086 clk IT (269086) 100075cc f3ef8009 T handler_s : MRS      r0,PSP  [TFM_TIMER0_IRQ_Handler+0x8]
+269086 clk R r0 30002060
+269087 clk IT (269087) 100075d0 e001 T handler_s : B        0x100075d6  [TFM_TIMER0_IRQ_Handler+0xc]
+269088 clk IT (269088) 100075d6 b081 T handler_s : SUB      sp,sp,#4  [TFM_TIMER0_IRQ_Handler+0x12]
+269088 clk R r13_main_s 3007ff94
+269088 clk R MSP_S 3007ff94
+269089 clk IT (269089) 100075d8 b5f0 T handler_s : PUSH     {r4-r7,lr}  [TFM_TIMER0_IRQ_Handler+0x14]
+269089 clk MW4 3007ff80 300060cc
+269089 clk MW4 3007ff84 00000001
+269089 clk MW4 3007ff88 300060c4
+269089 clk MW4 3007ff8c 00000000
+269089 clk MW4 3007ff90 fffffffd
+269089 clk R r13_main_s 3007ff80
+269089 clk R MSP_S 3007ff80
+269090 clk IT (269090) 100075da 4644 T handler_s : MOV      r4,r8  [TFM_TIMER0_IRQ_Handler+0x16]
+269090 clk R r4 00000000
+269091 clk IT (269091) 100075dc 464d T handler_s : MOV      r5,r9  [TFM_TIMER0_IRQ_Handler+0x18]
+269091 clk R r5 00000000
+269092 clk IT (269092) 100075de 4656 T handler_s : MOV      r6,r10  [TFM_TIMER0_IRQ_Handler+0x1a]
+269092 clk R r6 00000000
+269093 clk IT (269093) 100075e0 465f T handler_s : MOV      r7,r11  [TFM_TIMER0_IRQ_Handler+0x1c]
+269093 clk R r7 00000000
+269094 clk IT (269094) 100075e2 b4f0 T handler_s : PUSH     {r4-r7}  [TFM_TIMER0_IRQ_Handler+0x1e]
+269094 clk MW4 3007ff70 00000000
+269094 clk MW4 3007ff74 00000000
+269094 clk MW4 3007ff78 00000000
+269094 clk MW4 3007ff7c 00000000
+269094 clk R r13_main_s 3007ff70
+269094 clk R MSP_S 3007ff70
+269095 clk IT (269095) 100075e4 466a T handler_s : MOV      r2,sp  [TFM_TIMER0_IRQ_Handler+0x20]
+269095 clk R r2 3007ff70
+269096 clk IT (269096) 100075e6 4b05 T handler_s : LDR      r3,0x100075fc  [TFM_TIMER0_IRQ_Handler+0x22]
+269096 clk MR4 100075fc 10007ae9
+269096 clk R r3 10007ae9
+269097 clk IT (269097) 100075e8 4798 T handler_s : BLX      r3  [TFM_TIMER0_IRQ_Handler+0x24]
+269097 clk R r14 100075eb
+269098 clk IT (269098) 10007ae8 e92d47f0 T handler_s : PUSH     {r4-r10,lr}  [statistical_sampling_tick+0x0]
+269098 clk MW4 3007ff50 00000000
+269098 clk MW4 3007ff54 00000000
+269098 clk MW4 3007ff58 00000000
+269098 clk MW4 3007ff5c 00000000
+269098 clk MW4 3007ff60 00000000
+269098 clk MW4 3007ff64 00000000
+269098 clk MW4 3007ff68 00000000
+269098 clk MW4 3007ff6c 100075eb
+269098 clk R r13_main_s 3007ff50
+269098 clk R MSP_S 3007ff50
+269099 clk IT (269099) 10007aec b0aa T handler_s : SUB      sp,sp,#0xa8  [statistical_sampling_tick+0x4]
+269099 clk R r13_main_s 3007fea8
+269099 clk R MSP_S 3007fea8
+269100 clk IT (269100) 10007aee 4691 T handler_s : MOV      r9,r2  [statistical_sampling_tick+0x6]
+269100 clk R r9 3007ff70
+269101 clk IT (269101) 10007af0 460e T handler_s : MOV      r6,r1  [statistical_sampling_tick+0x8]
+269101 clk R r6 fffffffd
+269102 clk IT (269102) 10007af2 4604 T handler_s : MOV      r4,r0  [statistical_sampling_tick+0xa]
+269102 clk R r4 30002060
+269103 clk IT (269103) 10007af4 f7fffd4e T handler_s : BL       0x10007594  [statistical_sampling_tick+0xc]
+269103 clk R r14 10007af9
+269104 clk IT (269104) 10007594 f24600ec T handler_s : MOV      r0,#0x60ec  [profiler_timer_ack+0x0]
+269104 clk R r0 000060ec
+269105 clk IT (269105) 10007598 f2c30000 T handler_s : MOVT     r0,#0x3000  [profiler_timer_ack+0x4]
+269105 clk R r0 300060ec
+269106 clk IT (269106) 1000759c 7800 T handler_s : LDRB     r0,[r0,#0]  [profiler_timer_ack+0x8]
+269106 clk MR1 300060ec 01
+269106 clk R r0 00000001
+269107 clk IT (269107) 1000759e 2801 T handler_s : CMP      r0,#1  [profiler_timer_ack+0xa]
+269107 clk R cpsr 61000013
+269108 clk IS (269108) 100075a0 d106 T handler_s : BNE      0x100075b0  [profiler_timer_ack+0xc]
+269109 clk IT (269109) 100075a2 204c T handler_s : MOVS     r0,#0x4c  [profiler_timer_ack+0xe]
+269109 clk R r0 0000004c
+269109 clk R cpsr 21000013
+269110 clk IT (269110) 100075a4 f6c50000 T handler_s : MOVT     r0,#0x5800  [profiler_timer_ack+0x10]
+269110 clk R r0 5800004c
+269111 clk IT (269111) 100075a8 f8501c20 T handler_s : LDR      r1,[r0,#-0x20]  [profiler_timer_ack+0x14]
+269111 clk MR4 5800002c 00000005
+269111 clk R r1 00000005
+269112 clk IT (269112) 100075ac 0749 T handler_s : LSLS     r1,r1,#29  [profiler_timer_ack+0x18]
+269112 clk R r1 a0000000
+269112 clk R cpsr 81000013
+269113 clk IT (269113) 100075ae d401 T handler_s : BMI      0x100075b4  [profiler_timer_ack+0x1a]
+269114 clk IT (269114) 100075b4 6801 T handler_s : LDR      r1,[r0,#0]  [profiler_timer_ack+0x20]
+269114 clk MR4 5800004c 00000001
+269114 clk R r1 00000001
+269115 clk IT (269115) 100075b6 f0210102 T handler_s : BIC      r1,r1,#2  [profiler_timer_ack+0x22]
+269115 clk R r1 00000001
+269116 clk IT (269116) 100075ba 6001 T handler_s : STR      r1,[r0,#0]  [profiler_timer_ack+0x26]
+269116 clk MW4 5800004c 00000001
+269117 clk IT (269117) 100075bc 2001 T handler_s : MOVS     r0,#1  [profiler_timer_ack+0x28]
+269117 clk R r0 00000001
+269117 clk R cpsr 01000013
+269118 clk IT (269118) 100075be f3bf8f4f T handler_s : DSB      SY  [profiler_timer_ack+0x2a]
+269119 clk IT (269119) 100075c2 4770 T handler_s : BX       lr  [profiler_timer_ack+0x2e]
+269120 clk IT (269120) 10007af8 2800 T handler_s : CMP      r0,#0  [statistical_sampling_tick+0x10]
+269120 clk R cpsr 21000013
+269121 clk IS (269121) 10007afa f00080c7 T handler_s : BEQ      0x10007c8c  [statistical_sampling_tick+0x12]
+269122 clk IT (269122) 10007afe f7fffb61 T handler_s : BL       0x100071c4  [statistical_sampling_tick+0x16]
+269122 clk R r14 10007b03
+269123 clk IT (269123) 100071c4 f04f40b0 T handler_s : MOV.W    r0,#0x58000000  [profiler_timestamp_read+0x0]
+269123 clk R r0 58000000
+269124 clk IT (269124) 100071c8 6800 T handler_s : LDR      r0,[r0,#0]  [profiler_timestamp_read+0x4]
+269124 clk MR4 58000000 000cd528
+269124 clk R r0 000cd528
+269125 clk IT (269125) 100071ca 4770 T handler_s : BX       lr  [profiler_timestamp_read+0x6]
+269126 clk IT (269126) 10007b02 f2461724 T handler_s : MOV      r7,#0x6124  [statistical_sampling_tick+0x1a]
+269126 clk R r7 00006124
+269127 clk IT (269127) 10007b06 f2461234 T handler_s : MOV      r2,#0x6134  [statistical_sampling_tick+0x1e]
+269127 clk R r2 00006134
+269128 clk IT (269128) 10007b0a f2c30702 T handler_s : MOVT     r7,#0x3002  [statistical_sampling_tick+0x22]
+269128 clk R r7 30026124
+269129 clk IT (269129) 10007b0e f2461338 T handler_s : MOV      r3,#0x6138  [statistical_sampling_tick+0x26]
+269129 clk R r3 00006138
+269130 clk IT (269130) 10007b12 6839 T handler_s : LDR      r1,[r7,#0]  [statistical_sampling_tick+0x2a]
+269130 clk MR4 30026124 00000000
+269130 clk R r1 00000000
+269131 clk IT (269131) 10007b14 f2c30202 T handler_s : MOVT     r2,#0x3002  [statistical_sampling_tick+0x2c]
+269131 clk R r2 30026134
+269132 clk IT (269132) 10007b18 3101 T handler_s : ADDS     r1,#1  [statistical_sampling_tick+0x30]
+269132 clk R r1 00000001
+269132 clk R cpsr 01000013
+269133 clk IT (269133) 10007b1a f2c30302 T handler_s : MOVT     r3,#0x3002  [statistical_sampling_tick+0x32]
+269133 clk R r3 30026138
+269134 clk IT (269134) 10007b1e 6039 T handler_s : STR      r1,[r7,#0]  [statistical_sampling_tick+0x36]
+269134 clk MW4 30026124 00000001
+269135 clk IT (269135) 10007b20 f246112c T handler_s : MOV      r1,#0x612c  [statistical_sampling_tick+0x38]
+269135 clk R r1 0000612c
+269136 clk IT (269136) 10007b24 f2c30102 T handler_s : MOVT     r1,#0x3002  [statistical_sampling_tick+0x3c]
+269136 clk R r1 3002612c
+269137 clk IT (269137) 10007b28 6809 T handler_s : LDR      r1,[r1,#0]  [statistical_sampling_tick+0x40]
+269137 clk MR4 3002612c 05f5e100
+269137 clk R r1 05f5e100
+269138 clk IT (269138) 10007b2a 6812 T handler_s : LDR      r2,[r2,#0]  [statistical_sampling_tick+0x42]
+269138 clk MR4 30026134 000493e0
+269138 clk R r2 000493e0
+269139 clk IT (269139) 10007b2c 681d T handler_s : LDR      r5,[r3,#0]  [statistical_sampling_tick+0x44]
+269139 clk MR4 30026138 00000000
+269139 clk R r5 00000000
+269140 clk IT (269140) 10007b2e 1a89 T handler_s : SUBS     r1,r1,r2  [statistical_sampling_tick+0x46]
+269140 clk R r1 05f14d20
+269140 clk R cpsr 21000013
+269141 clk IT (269141) 10007b30 428d T handler_s : CMP      r5,r1  [statistical_sampling_tick+0x48]
+269141 clk R cpsr 81000013
+269142 clk IT (269142) 10007b32 ea52b131 T handler_s : CSNEG    r1,r2,r1,CC  [statistical_sampling_tick+0x4a]
+269142 clk R r1 000493e0
+269143 clk IT (269143) 10007b36 4429 T handler_s : ADD      r1,r1,r5  [statistical_sampling_tick+0x4e]
+269143 clk R r1 000493e0
+269144 clk IT (269144) 10007b38 f2461230 T handler_s : MOV      r2,#0x6130  [statistical_sampling_tick+0x50]
+269144 clk R r2 00006130
+269145 clk IT (269145) 10007b3c 6019 T handler_s : STR      r1,[r3,#0]  [statistical_sampling_tick+0x54]
+269145 clk MW4 30026138 000493e0
+269146 clk IT (269146) 10007b3e f2461128 T handler_s : MOV      r1,#0x6128  [statistical_sampling_tick+0x56]
+269146 clk R r1 00006128
+269147 clk IT (269147) 10007b42 f2c30202 T handler_s : MOVT     r2,#0x3002  [statistical_sampling_tick+0x5a]
+269147 clk R r2 30026130
+269148 clk IT (269148) 10007b46 f2c30102 T handler_s : MOVT     r1,#0x3002  [statistical_sampling_tick+0x5e]
+269148 clk R r1 30026128
+269149 clk IT (269149) 10007b4a 6812 T handler_s : LDR      r2,[r2,#0]  [statistical_sampling_tick+0x62]
+269149 clk MR4 30026130 00000003
+269149 clk R r2 00000003
+269150 clk IT (269150) 10007b4c 680b T handler_s : LDR      r3,[r1,#0]  [statistical_sampling_tick+0x64]
+269150 clk MR4 30026128 00000000
+269150 clk R r3 00000000
+269151 clk IT (269151) 10007b4e 441a T handler_s : ADD      r2,r2,r3  [statistical_sampling_tick+0x66]
+269151 clk R r2 00000003
+269152 clk IT (269152) 10007b50 ea529232 T handler_s : CINC     r2,r2,CS  [statistical_sampling_tick+0x68]
+269152 clk R r2 00000003
+269153 clk IT (269153) 10007b54 600a T handler_s : STR      r2,[r1,#0]  [statistical_sampling_tick+0x6c]
+269153 clk MW4 30026128 00000003
+269154 clk IT (269154) 10007b56 f2461120 T handler_s : MOV      r1,#0x6120  [statistical_sampling_tick+0x6e]
+269154 clk R r1 00006120
+269155 clk IT (269155) 10007b5a f2c30102 T handler_s : MOVT     r1,#0x3002  [statistical_sampling_tick+0x72]
+269155 clk R r1 30026120
+269156 clk IT (269156) 10007b5e 6809 T handler_s : LDR      r1,[r1,#0]  [statistical_sampling_tick+0x76]
+269156 clk MR4 30026120 00000001
+269156 clk R r1 00000001
+269157 clk IT (269157) 10007b60 2900 T handler_s : CMP      r1,#0  [statistical_sampling_tick+0x78]
+269157 clk R cpsr 21000013
+269158 clk IS (269158) 10007b62 f0008093 T handler_s : BEQ      0x10007c8c  [statistical_sampling_tick+0x7a]
+269159 clk IT (269159) 10007b66 f026017d T handler_s : BIC      r1,r6,#0x7d  [statistical_sampling_tick+0x7e]
+269159 clk R r1 ffffff80
+269160 clk IT (269160) 10007b6a 3180 T handler_s : ADDS     r1,r1,#0x80  [statistical_sampling_tick+0x82]
+269160 clk R r1 00000000
+269160 clk R cpsr 61000013
+269161 clk IS (269161) 10007b6c d11d T handler_s : BNE      0x10007baa  [statistical_sampling_tick+0x84]
+269162 clk IT (269162) 10007b6e 43f1 T handler_s : MVNS     r1,r6  [statistical_sampling_tick+0x86]
+269162 clk R r1 00000002
+269162 clk R cpsr 21000013
+269163 clk IT (269163) 10007b70 f0110f69 T handler_s : TST      r1,#0x69  [statistical_sampling_tick+0x88]
+269163 clk R cpsr 61000013
+269164 clk IS (269164) 10007b74 d11b T handler_s : BNE      0x10007bae  [statistical_sampling_tick+0x8c]
+269165 clk IT (269165) 10007b76 07a1 T handler_s : LSLS     r1,r4,#30  [statistical_sampling_tick+0x8e]
+269165 clk R r1 00000000
+269165 clk R cpsr 41000013
+269166 clk IS (269166) 10007b78 d111 T handler_s : BNE      0x10007b9e  [statistical_sampling_tick+0x90]
+269167 clk IT (269167) 10007b7a 4680 T handler_s : MOV      r8,r0  [statistical_sampling_tick+0x92]
+269167 clk R r8 000cd528
+269168 clk IT (269168) 10007b7c 2000 T handler_s : MOVS     r0,#0  [statistical_sampling_tick+0x94]
+269168 clk R r0 00000000
+269168 clk R cpsr 41000013
+269169 clk IT (269169) 10007b7e e9cd0010 T handler_s : STRD     r0,r0,[sp,#0x40]  [statistical_sampling_tick+0x96]
+269169 clk MW4 3007fee8 00000000
+269169 clk MW4 3007feec 00000000
+269170 clk IT (269170) 10007b82 a910 T handler_s : ADD      r1,sp,#0x40  [statistical_sampling_tick+0x9a]
+269170 clk R r1 3007fee8
+269171 clk IT (269171) 10007b84 4630 T handler_s : MOV      r0,r6  [statistical_sampling_tick+0x9c]
+269171 clk R r0 fffffffd
+269172 clk IT (269172) 10007b86 f7f8fe1b T handler_s : BL       0x100007c0  [statistical_sampling_tick+0x9e]
+269172 clk R r14 10007b8b
+269173 clk IT (269173) 100007c0 0740 T handler_s : LSLS     r0,r0,#29  [profiler_stack_bounds+0x0]
+269173 clk R r0 a0000000
+269173 clk R cpsr a1000013
+269174 clk IT (269174) 100007c2 d409 T handler_s : BMI      0x100007d8  [profiler_stack_bounds+0x2]
+269175 clk IT (269175) 100007d8 f24002c0 T handler_s : MOV      r2,#0xc0  [profiler_stack_bounds+0x18]
+269175 clk R r2 000000c0
+269176 clk IT (269176) 100007dc f3ef8309 T handler_s : MRS      r3,PSP  [profiler_stack_bounds+0x1c]
+269176 clk R r3 30002060
+269177 clk IT (269177) 100007e0 f2c30200 T handler_s : MOVT     r2,#0x3000  [profiler_stack_bounds+0x20]
+269177 clk R r2 300000c0
+269178 clk IT (269178) 100007e4 4293 T handler_s : CMP      r3,r2  [profiler_stack_bounds+0x24]
+269178 clk R cpsr 21000013
+269179 clk IS (269179) 100007e6 d303 T handler_s : BCC      0x100007f0  [profiler_stack_bounds+0x26]
+269180 clk IT (269180) 100007e8 1a98 T handler_s : SUBS     r0,r3,r2  [profiler_stack_bounds+0x28]
+269180 clk R r0 00001fa0
+269180 clk R cpsr 21000013
+269181 clk IT (269181) 100007ea f5b05f00 T handler_s : CMP.W    r0,#0x2000  [profiler_stack_bounds+0x2a]
+269181 clk R cpsr 81000013
+269182 clk IT (269182) 100007ee d316 T handler_s : BCC      0x1000081e  [profiler_stack_bounds+0x2e]
+269183 clk IT (269183) 1000081e f44f5000 T handler_s : MOV.W    r0,#0x2000  [profiler_stack_bounds+0x5e]
+269183 clk R r0 00002000
+269184 clk IT (269184) 10000822 e9c12000 T handler_s : STRD     r2,r0,[r1,#0]  [profiler_stack_bounds+0x62]
+269184 clk MW4 3007fee8 300000c0
+269184 clk MW4 3007feec 00002000
+269185 clk IT (269185) 10000826 2001 T handler_s : MOVS     r0,#1  [profiler_stack_bounds+0x66]
+269185 clk R r0 00000001
+269185 clk R cpsr 01000013
+269186 clk IT (269186) 10000828 4770 T handler_s : BX       lr  [profiler_stack_bounds+0x68]
+269187 clk IT (269187) 10007b8a b140 T handler_s : CBZ      r0,0x10007b9e  [statistical_sampling_tick+0xa2]
+269188 clk IT (269188) 10007b8c 9911 T handler_s : LDR      r1,[sp,#0x44]  [statistical_sampling_tick+0xa4]
+269188 clk MR4 3007feec 00002000
+269188 clk R r1 00002000
+269189 clk IT (269189) 10007b8e 2920 T handler_s : CMP      r1,#0x20  [statistical_sampling_tick+0xa6]
+269189 clk R cpsr 21000013
+269190 clk IS (269190) 10007b90 d305 T handler_s : BCC      0x10007b9e  [statistical_sampling_tick+0xa8]
+269191 clk IT (269191) 10007b92 9810 T handler_s : LDR      r0,[sp,#0x40]  [statistical_sampling_tick+0xaa]
+269191 clk MR4 3007fee8 300000c0
+269191 clk R r0 300000c0
+269192 clk IT (269192) 10007b94 424a T handler_s : RSBS     r2,r1,#0  [statistical_sampling_tick+0xac]
+269192 clk R r2 ffffe000
+269192 clk R cpsr 81000013
+269193 clk IT (269193) 10007b96 4290 T handler_s : CMP      r0,r2  [statistical_sampling_tick+0xae]
+269193 clk R cpsr 01000013
+269194 clk IT (269194) 10007b98 bf98 T handler_s : IT       LS  [statistical_sampling_tick+0xb0]
+269194 clk R cpsr 01009813
+269195 clk IT (269195) 10007b9a 42a0 T handler_s : CMPLS    r0,r4  [statistical_sampling_tick+0xb2]
+269195 clk R cpsr 81000013
+269196 clk IT (269196) 10007b9c d90d T handler_s : BLS      0x10007bba  [statistical_sampling_tick+0xb4]
+269197 clk IT (269197) 10007bba 1a22 T handler_s : SUBS     r2,r4,r0  [statistical_sampling_tick+0xd2]
+269197 clk R r2 00001fa0
+269197 clk R cpsr 21000013
+269198 clk IT (269198) 10007bbc f1a10320 T handler_s : SUB.W    r3,r1,#0x20  [statistical_sampling_tick+0xd4]
+269198 clk R r3 00001fe0
+269199 clk IT (269199) 10007bc0 429a T handler_s : CMP      r2,r3  [statistical_sampling_tick+0xd8]
+269199 clk R cpsr 81000013
+269200 clk IS (269200) 10007bc2 d8ec T handler_s : BHI      0x10007b9e  [statistical_sampling_tick+0xda]
+269201 clk IT (269201) 10007bc4 f1b45f40 T handler_s : CMP.W    r4,#0x30000000  [statistical_sampling_tick+0xdc]
+269201 clk R cpsr 21000013
+269202 clk IS (269202) 10007bc8 d3e9 T handler_s : BCC      0x10007b9e  [statistical_sampling_tick+0xe0]
+269203 clk IT (269203) 10007bca f64f73e1 T handler_s : MOV      r3,#0xffe1  [statistical_sampling_tick+0xe2]
+269203 clk R r3 0000ffe1
+269204 clk IT (269204) 10007bce f1044250 T handler_s : ADD.W    r2,r4,#0xd0000000  [statistical_sampling_tick+0xe6]
+269204 clk R r2 00002060
+269205 clk IT (269205) 10007bd2 f2c00307 T handler_s : MOVT     r3,#7  [statistical_sampling_tick+0xea]
+269205 clk R r3 0007ffe1
+269206 clk IT (269206) 10007bd6 429a T handler_s : CMP      r2,r3  [statistical_sampling_tick+0xee]
+269206 clk R cpsr 81000013
+269207 clk IS (269207) 10007bd8 d2e1 T handler_s : BCS      0x10007b9e  [statistical_sampling_tick+0xf0]
+269208 clk IT (269208) 10007bda 2200 T handler_s : MOVS     r2,#0  [statistical_sampling_tick+0xf2]
+269208 clk R r2 00000000
+269208 clk R cpsr 41000013
+269209 clk IT (269209) 10007bdc 4401 T handler_s : ADD      r1,r1,r0  [statistical_sampling_tick+0xf4]
+269209 clk R r1 300020c0
+269210 clk IT (269210) 10007bde f2c30208 T handler_s : MOVT     r2,#0x3008  [statistical_sampling_tick+0xf6]
+269210 clk R r2 30080000
+269211 clk IT (269211) 10007be2 f1b05f40 T handler_s : CMP.W    r0,#0x30000000  [statistical_sampling_tick+0xfa]
+269211 clk R cpsr 21000013
+269212 clk IT (269212) 10007be6 bf98 T handler_s : IT       LS  [statistical_sampling_tick+0xfe]
+269212 clk R cpsr 21009813
+269213 clk IS (269213) 10007be8 f04f5040 T handler_s : MOV.WLS  r0,#0x30000000  [statistical_sampling_tick+0x100]
+269213 clk R cpsr 21000013
+269214 clk IT (269214) 10007bec 1a09 T handler_s : SUBS     r1,r1,r0  [statistical_sampling_tick+0x104]
+269214 clk R r1 00002000
+269214 clk R cpsr 21000013
+269215 clk IT (269215) 10007bee 1a12 T handler_s : SUBS     r2,r2,r0  [statistical_sampling_tick+0x106]
+269215 clk R r2 0007ff40
+269215 clk R cpsr 21000013
+269216 clk IT (269216) 10007bf0 4291 T handler_s : CMP      r1,r2  [statistical_sampling_tick+0x108]
+269216 clk R cpsr 81000013
+269217 clk IT (269217) 10007bf2 ea518132 T handler_s : CSEL     r1,r1,r2,CC  [statistical_sampling_tick+0x10a]
+269217 clk R r1 00002000
+269218 clk IT (269218) 10007bf6 69e3 T handler_s : LDR      r3,[r4,#0x1c]  [statistical_sampling_tick+0x10e]
+269218 clk MR4 3000207c 01000000
+269218 clk R r3 01000000
+269219 clk IT (269219) 10007bf8 f24012ff T handler_s : MOV      r2,#0x1ff  [statistical_sampling_tick+0x110]
+269219 clk R r2 000001ff
+269220 clk IT (269220) 10007bfc f2c01200 T handler_s : MOVT     r2,#0x100  [statistical_sampling_tick+0x114]
+269220 clk R r2 010001ff
+269221 clk IT (269221) 10007c00 401a T handler_s : ANDS     r2,r2,r3  [statistical_sampling_tick+0x118]
+269221 clk R r2 01000000
+269221 clk R cpsr 01000013
+269222 clk IT (269222) 10007c02 f1b27f80 T handler_s : CMP.W    r2,#0x1000000  [statistical_sampling_tick+0x11a]
+269222 clk R cpsr 61000013
+269223 clk IT (269223) 10007c06 9028 T handler_s : STR      r0,[sp,#0xa0]  [statistical_sampling_tick+0x11e]
+269223 clk MW4 3007ff48 300000c0
+269224 clk IT (269224) 10007c08 9129 T handler_s : STR      r1,[sp,#0xa4]  [statistical_sampling_tick+0x120]
+269224 clk MW4 3007ff4c 00002000
+269225 clk IS (269225) 10007c0a d11c T handler_s : BNE      0x10007c46  [statistical_sampling_tick+0x122]
+269226 clk IT (269226) 10007c0c f8cd8040 T handler_s : STR      r8,[sp,#0x40]  [statistical_sampling_tick+0x124]
+269226 clk MW4 3007fee8 000cd528
+269227 clk IT (269227) 10007c10 683d T handler_s : LDR      r5,[r7,#0]  [statistical_sampling_tick+0x128]
+269227 clk MR4 30026124 00000001
+269227 clk R r5 00000001
+269228 clk IT (269228) 10007c12 e9d42705 T handler_s : LDRD     r2,r7,[r4,#0x14]  [statistical_sampling_tick+0x12a]
+269228 clk MR4 30002074 10001187
+269228 clk MR4 30002078 10000b14
+269228 clk R r2 10001187
+269228 clk R r7 10000b14
+269229 clk IT (269229) 10007c16 e9cd2313 T handler_s : STRD     r2,r3,[sp,#0x4c]  [statistical_sampling_tick+0x12e]
+269229 clk MW4 3007fef4 10001187
+269229 clk MW4 3007fef8 01000000
+269230 clk IT (269230) 10007c1a e9cd5711 T handler_s : STRD     r5,r7,[sp,#0x44]  [statistical_sampling_tick+0x132]
+269230 clk MW4 3007feec 00000001
+269230 clk MW4 3007fef0 10000b14
+269231 clk IT (269231) 10007c1e 2504 T handler_s : MOVS     r5,#4  [statistical_sampling_tick+0x136]
+269231 clk R r5 00000004
+269231 clk R cpsr 21000013
+269232 clk IT (269232) 10007c20 ea0513d3 T handler_s : AND      r3,r5,r3,LSR #7  [statistical_sampling_tick+0x138]
+269232 clk R r3 00000000
+269233 clk IT (269233) 10007c24 06f5 T handler_s : LSLS     r5,r6,#27  [statistical_sampling_tick+0x13c]
+269233 clk R r5 e8000000
+269233 clk R cpsr a1000013
+269234 clk IT (269234) 10007c26 f04f0520 T handler_s : MOV.W    r5,#0x20  [statistical_sampling_tick+0x13e]
+269234 clk R r5 00000020
+269235 clk IT (269235) 10007c2a bf58 T handler_s : IT       PL  [statistical_sampling_tick+0x142]
+269235 clk R cpsr a1005813
+269236 clk IS (269236) 10007c2c 2568 T handler_s : MOVPL    r5,#0x68  [statistical_sampling_tick+0x144]
+269236 clk R cpsr a1000013
+269237 clk IT (269237) 10007c2e 442b T handler_s : ADD      r3,r3,r5  [statistical_sampling_tick+0x146]
+269237 clk R r3 00000020
+269238 clk IT (269238) 10007c30 4299 T handler_s : CMP      r1,r3  [statistical_sampling_tick+0x148]
+269238 clk R cpsr 21000013
+269239 clk IT (269239) 10007c32 9615 T handler_s : STR      r6,[sp,#0x54]  [statistical_sampling_tick+0x14a]
+269239 clk MW4 3007fefc fffffffd
+269240 clk IS (269240) 10007c34 d303 T handler_s : BCC      0x10007c3e  [statistical_sampling_tick+0x14c]
+269241 clk IT (269241) 10007c36 1a20 T handler_s : SUBS     r0,r4,r0  [statistical_sampling_tick+0x14e]
+269241 clk R r0 00001fa0
+269241 clk R cpsr 21000013
+269242 clk IT (269242) 10007c38 1ac9 T handler_s : SUBS     r1,r1,r3  [statistical_sampling_tick+0x150]
+269242 clk R r1 00001fe0
+269242 clk R cpsr 21000013
+269243 clk IT (269243) 10007c3a 4288 T handler_s : CMP      r0,r1  [statistical_sampling_tick+0x152]
+269243 clk R cpsr 81000013
+269244 clk IT (269244) 10007c3c d905 T handler_s : BLS      0x10007c4a  [statistical_sampling_tick+0x154]
+269245 clk IT (269245) 10007c4a e8940063 T handler_s : LDM      r4,{r0,r1,r5,r6}  [statistical_sampling_tick+0x162]
+269245 clk MR4 30002060 300060d4
+269245 clk MR4 30002064 000001c7
+269245 clk MR4 30002068 00000000
+269245 clk MR4 3000206c 00000000
+269245 clk R r0 300060d4
+269245 clk R r1 000001c7
+269245 clk R r5 00000000
+269245 clk R r6 00000000
+269245 clk R cpsr 81000013
+269246 clk IT (269246) 10007c4e e9d9ac02 T handler_s : LDRD     r10,r12,[r9,#8]  [statistical_sampling_tick+0x166]
+269246 clk MR4 3007ff78 00000000
+269246 clk MR4 3007ff7c 00000000
+269246 clk R r10 00000000
+269246 clk R r12 00000000
+269247 clk IT (269247) 10007c52 e88d0063 T handler_s : STM      sp,{r0,r1,r5,r6}  [statistical_sampling_tick+0x16a]
+269247 clk MW4 3007fea8 300060d4
+269247 clk MW4 3007feac 000001c7
+269247 clk MW4 3007feb0 00000000
+269247 clk MW4 3007feb4 00000000
+269248 clk IT (269248) 10007c56 e9d95004 T handler_s : LDRD     r5,r0,[r9,#0x10]  [statistical_sampling_tick+0x16e]
+269248 clk MR4 3007ff80 300060cc
+269248 clk MR4 3007ff84 00000001
+269248 clk R r0 00000001
+269248 clk R r5 300060cc
+269249 clk IT (269249) 10007c5a e9d91606 T handler_s : LDRD     r1,r6,[r9,#0x18]  [statistical_sampling_tick+0x172]
+269249 clk MR4 3007ff88 300060c4
+269249 clk MR4 3007ff8c 00000000
+269249 clk R r1 300060c4
+269249 clk R r6 00000000
+269250 clk IT (269250) 10007c5e e9d9e800 T handler_s : LDRD     lr,r8,[r9,#0]  [statistical_sampling_tick+0x176]
+269250 clk MR4 3007ff70 00000000
+269250 clk MR4 3007ff74 00000000
+269250 clk R r8 00000000
+269250 clk R r14 00000000
+269251 clk IT (269251) 10007c62 e9cd5004 T handler_s : STRD     r5,r0,[sp,#0x10]  [statistical_sampling_tick+0x17a]
+269251 clk MW4 3007feb8 300060cc
+269251 clk MW4 3007febc 00000001
+269252 clk IT (269252) 10007c66 a806 T handler_s : ADD      r0,sp,#0x18  [statistical_sampling_tick+0x17e]
+269252 clk R r0 3007fec0
+269253 clk IT (269253) 10007c68 e8804042 T handler_s : STM      r0,{r1,r6,lr}  [statistical_sampling_tick+0x180]
+269253 clk MW4 3007fec0 300060c4
+269253 clk MW4 3007fec4 00000000
+269253 clk MW4 3007fec8 00000000
+269254 clk IT (269254) 10007c6c a90d T handler_s : ADD      r1,sp,#0x34  [statistical_sampling_tick+0x184]
+269254 clk R r1 3007fedc
+269255 clk IT (269255) 10007c6e 6920 T handler_s : LDR      r0,[r4,#0x10]  [statistical_sampling_tick+0x186]
+269255 clk MR4 30002070 00000000
+269255 clk R r0 00000000
+269256 clk IT (269256) 10007c70 e9cd8a09 T handler_s : STRD     r8,r10,[sp,#0x24]  [statistical_sampling_tick+0x188]
+269256 clk MW4 3007fecc 00000000
+269256 clk MW4 3007fed0 00000000
+269257 clk IT (269257) 10007c74 e9cdc00b T handler_s : STRD     r12,r0,[sp,#0x2c]  [statistical_sampling_tick+0x18c]
+269257 clk MW4 3007fed4 00000000
+269257 clk MW4 3007fed8 00000000
+269258 clk IT (269258) 10007c78 1918 T handler_s : ADDS     r0,r3,r4  [statistical_sampling_tick+0x190]
+269258 clk R r0 30002080
+269258 clk R cpsr 01000013
+269259 clk IT (269259) 10007c7a c185 T handler_s : STM      r1!,{r0,r2,r7}  [statistical_sampling_tick+0x192]
+269259 clk MW4 3007fedc 30002080
+269259 clk MW4 3007fee0 10001187
+269259 clk MW4 3007fee4 10000b14
+269259 clk R r1 3007fee8
+269260 clk IT (269260) 10007c7c a810 T handler_s : ADD      r0,sp,#0x40  [statistical_sampling_tick+0x194]
+269260 clk R r0 3007fee8
+269261 clk IT (269261) 10007c7e 4669 T handler_s : MOV      r1,sp  [statistical_sampling_tick+0x196]
+269261 clk R r1 3007fea8
+269262 clk IT (269262) 10007c80 aa28 T handler_s : ADD      r2,sp,#0xa0  [statistical_sampling_tick+0x198]
+269262 clk R r2 3007ff48
+269263 clk IT (269263) 10007c82 f000f8af T handler_s : BL       0x10007de4  [statistical_sampling_tick+0x19a]
+269263 clk R r14 10007c87
+269264 clk IT (269264) 10007de4 e92d4ff0 T handler_s : PUSH     {r4-r11,lr}  [profiler_unwind_capture+0x0]
+269264 clk MW4 3007fe84 30002060
+269264 clk MW4 3007fe88 300060cc
+269264 clk MW4 3007fe8c 00000000
+269264 clk MW4 3007fe90 10000b14
+269264 clk MW4 3007fe94 00000000
+269264 clk MW4 3007fe98 3007ff70
+269264 clk MW4 3007fe9c 00000000
+269264 clk MW4 3007fea0 00000000
+269264 clk MW4 3007fea4 10007c87
+269264 clk R r13_main_s 3007fe84
+269264 clk R MSP_S 3007fe84
+269265 clk IT (269265) 10007de8 b08f T handler_s : SUB      sp,sp,#0x3c  [profiler_unwind_capture+0x4]
+269265 clk R r13_main_s 3007fe48
+269265 clk R MSP_S 3007fe48
+269266 clk IT (269266) 10007dea f246133c T handler_s : MOV      r3,#0x613c  [profiler_unwind_capture+0x6]
+269266 clk R r3 0000613c
+269267 clk IT (269267) 10007dee f2c30302 T handler_s : MOVT     r3,#0x3002  [profiler_unwind_capture+0xa]
+269267 clk R r3 3002613c
+269268 clk IT (269268) 10007df2 781b T handler_s : LDRB     r3,[r3,#0]  [profiler_unwind_capture+0xe]
+269268 clk MR1 3002613c 01
+269268 clk R r3 00000001
+269269 clk IT (269269) 10007df4 2b01 T handler_s : CMP      r3,#1  [profiler_unwind_capture+0x10]
+269269 clk R cpsr 61000013
+269270 clk IS (269270) 10007df6 d109 T handler_s : BNE      0x10007e0c  [profiler_unwind_capture+0x12]
+269271 clk IT (269271) 10007df8 6853 T handler_s : LDR      r3,[r2,#4]  [profiler_unwind_capture+0x14]
+269271 clk MR4 3007ff4c 00002000
+269271 clk R r3 00002000
+269272 clk IT (269272) 10007dfa b13b T handler_s : CBZ      r3,0x10007e0c  [profiler_unwind_capture+0x16]
+269273 clk IT (269273) 10007dfc 6817 T handler_s : LDR      r7,[r2,#0]  [profiler_unwind_capture+0x18]
+269273 clk MR4 3007ff48 300000c0
+269273 clk R r7 300000c0
+269274 clk IT (269274) 10007dfe 468a T handler_s : MOV      r10,r1  [profiler_unwind_capture+0x1a]
+269274 clk R r10 3007fea8
+269275 clk IT (269275) 10007e00 18f9 T handler_s : ADDS     r1,r7,r3  [profiler_unwind_capture+0x1c]
+269275 clk R r1 300020c0
+269275 clk R cpsr 01000013
+269276 clk IS (269276) 10007e02 d203 T handler_s : BCS      0x10007e0c  [profiler_unwind_capture+0x1e]
+269277 clk IT (269277) 10007e04 f8da5034 T handler_s : LDR      r5,[r10,#0x34]  [profiler_unwind_capture+0x20]
+269277 clk MR4 3007fedc 30002080
+269277 clk R r5 30002080
+269278 clk IT (269278) 10007e08 07a9 T handler_s : LSLS     r1,r5,#30  [profiler_unwind_capture+0x24]
+269278 clk R r1 00000000
+269278 clk R cpsr 41000013
+269279 clk IT (269279) 10007e0a d007 T handler_s : BEQ      0x10007e1c  [profiler_unwind_capture+0x26]
+269280 clk IT (269280) 10007e1c 4259 T handler_s : RSBS     r1,r3,#0  [profiler_unwind_capture+0x38]
+269280 clk R r1 ffffe000
+269280 clk R cpsr 81000013
+269281 clk IT (269281) 10007e1e f44f7640 T handler_s : MOV.W    r6,#0x300  [profiler_unwind_capture+0x3a]
+269281 clk R r6 00000300
+269282 clk IT (269282) 10007e22 428f T handler_s : CMP      r7,r1  [profiler_unwind_capture+0x3e]
+269282 clk R cpsr 01000013
+269283 clk IT (269283) 10007e24 f04f0100 T handler_s : MOV.W    r1,#0  [profiler_unwind_capture+0x40]
+269283 clk R r1 00000000
+269284 clk IS (269284) 10007e28 d8f3 T handler_s : BHI      0x10007e12  [profiler_unwind_capture+0x44]
+269285 clk IT (269285) 10007e2a 1bef T handler_s : SUBS     r7,r5,r7  [profiler_unwind_capture+0x46]
+269285 clk R r7 00001fc0
+269285 clk R cpsr 21000013
+269286 clk IS (269286) 10007e2c d3f1 T handler_s : BCC      0x10007e12  [profiler_unwind_capture+0x48]
+269287 clk IT (269287) 10007e2e 429f T handler_s : CMP      r7,r3  [profiler_unwind_capture+0x4a]
+269287 clk R cpsr 81000013
+269288 clk IS (269288) 10007e30 d8ef T handler_s : BHI      0x10007e12  [profiler_unwind_capture+0x4c]
+269289 clk IT (269289) 10007e32 f2461740 T handler_s : MOV      r7,#0x6140  [profiler_unwind_capture+0x4e]
+269289 clk R r7 00006140
+269290 clk IT (269290) 10007e36 f04f0b00 T handler_s : MOV.W    r11,#0  [profiler_unwind_capture+0x52]
+269290 clk R r11 00000000
+269291 clk IT (269291) 10007e3a f2c30702 T handler_s : MOVT     r7,#0x3002  [profiler_unwind_capture+0x56]
+269291 clk R r7 30026140
+269292 clk IT (269292) 10007e3e 6839 T handler_s : LDR      r1,[r7,#0]  [profiler_unwind_capture+0x5a]
+269292 clk MR4 30026140 300060dc
+269292 clk R r1 300060dc
+269293 clk IT (269293) 10007e40 f8d7c008 T handler_s : LDR      r12,[r7,#8]  [profiler_unwind_capture+0x5c]
+269293 clk MR4 30026148 1000a1c0
+269293 clk R r12 1000a1c0
+269294 clk IT (269294) 10007e44 f8d7e010 T handler_s : LDR      lr,[r7,#0x10]  [profiler_unwind_capture+0x60]
+269294 clk MR4 30026150 1000a1c0
+269294 clk R r14 1000a1c0
+269295 clk IT (269295) 10007e48 1d0b T handler_s : ADDS     r3,r1,#4  [profiler_unwind_capture+0x64]
+269295 clk R r3 300060e0
+269295 clk R cpsr 01000013
+269296 clk IT (269296) 10007e4a f8da103c T handler_s : LDR      r1,[r10,#0x3c]  [profiler_unwind_capture+0x66]
+269296 clk MR4 3007fee4 10000b14
+269296 clk R r1 10000b14
+269297 clk IT (269297) 10007e4e f0210401 T handler_s : BIC      r4,r1,#1  [profiler_unwind_capture+0x6a]
+269297 clk R r4 10000b14
+269298 clk IT (269298) 10007e52 2901 T handler_s : CMP      r1,#1  [profiler_unwind_capture+0x6e]
+269298 clk R cpsr 21000013
+269299 clk IT (269299) 10007e54 4621 T handler_s : MOV      r1,r4  [profiler_unwind_capture+0x70]
+269299 clk R r1 10000b14
+269300 clk IT (269300) 10007e56 bf88 T handler_s : IT       HI  [profiler_unwind_capture+0x72]
+269300 clk R cpsr 21008813
+269301 clk IT (269301) 10007e58 3902 T handler_s : SUBHI    r1,#2  [profiler_unwind_capture+0x74]
+269301 clk R r1 10000b12
+269301 clk R cpsr 21000013
+269302 clk IT (269302) 10007e5a f8d78004 T handler_s : LDR      r8,[r7,#4]  [profiler_unwind_capture+0x76]
+269302 clk MR4 30026144 00000001
+269302 clk R r8 00000001
+269303 clk IT (269303) 10007e5e f1bb0f00 T handler_s : CMP.W    r11,#0  [profiler_unwind_capture+0x7a]
+269303 clk R cpsr 61000013
+269304 clk IT (269304) 10007e62 ea518914 T handler_s : CSEL     r9,r1,r4,NE  [profiler_unwind_capture+0x7e]
+269304 clk R r9 10000b14
+269305 clk IT (269305) 10007e66 f1b80f00 T handler_s : CMP.W    r8,#0  [profiler_unwind_capture+0x82]
+269305 clk R cpsr 21000013
+269306 clk IS (269306) 10007e6a f0008296 T handler_s : BEQ      0x1000839a  [profiler_unwind_capture+0x86]
+269307 clk IT (269307) 10007e6e f8da1034 T handler_s : LDR      r1,[r10,#0x34]  [profiler_unwind_capture+0x8a]
+269307 clk MR4 3007fedc 30002080
+269307 clk R r1 30002080
+269308 clk IT (269308) 10007e72 9404 T handler_s : STR      r4,[sp,#0x10]  [profiler_unwind_capture+0x8e]
+269308 clk MW4 3007fe58 10000b14
+269309 clk IT (269309) 10007e74 e9cd1305 T handler_s : STRD     r1,r3,[sp,#0x14]  [profiler_unwind_capture+0x90]
+269309 clk MW4 3007fe5c 30002080
+269309 clk MW4 3007fe60 300060e0
+269310 clk IT (269310) 10007e78 4619 T handler_s : MOV      r1,r3  [profiler_unwind_capture+0x94]
+269310 clk R r1 300060e0
+269311 clk IT (269311) 10007e7a 4643 T handler_s : MOV      r3,r8  [profiler_unwind_capture+0x96]
+269311 clk R r3 00000001
+269312 clk IT (269312) 10007e7c e005 T handler_s : B        0x10007e8a  [profiler_unwind_capture+0x98]
+269313 clk IT (269313) 10007e8a 680d T handler_s : LDR      r5,[r1,#0]  [profiler_unwind_capture+0xa6]
+269313 clk MR4 300060e0 00009872
+269313 clk R r5 00009872
+269314 clk IT (269314) 10007e8c 2d00 T handler_s : CMP      r5,#0  [profiler_unwind_capture+0xa8]
+269314 clk R cpsr 21000013
+269315 clk IS (269315) 10007e8e d0f7 T handler_s : BEQ      0x10007e80  [profiler_unwind_capture+0xaa]
+269316 clk IT (269316) 10007e90 f8514c04 T handler_s : LDR      r4,[r1,#-4]  [profiler_unwind_capture+0xac]
+269316 clk MR4 300060dc 100007c0
+269316 clk R r4 100007c0
+269317 clk IT (269317) 10007e94 426e T handler_s : RSBS     r6,r5,#0  [profiler_unwind_capture+0xb0]
+269317 clk R r6 ffff678e
+269317 clk R cpsr 81000013
+269318 clk IT (269318) 10007e96 42b4 T handler_s : CMP      r4,r6  [profiler_unwind_capture+0xb2]
+269318 clk R cpsr 01000013
+269319 clk IS (269319) 10007e98 d8f2 T handler_s : BHI      0x10007e80  [profiler_unwind_capture+0xb4]
+269320 clk IT (269320) 10007e9a 45a1 T handler_s : CMP      r9,r4  [profiler_unwind_capture+0xb6]
+269320 clk R cpsr 21000013
+269321 clk IT (269321) 10007e9c bf28 T handler_s : IT       CS  [profiler_unwind_capture+0xb8]
+269321 clk R cpsr 21002813
+269322 clk IT (269322) 10007e9e 2d02 T handler_s : CMPCS    r5,#2  [profiler_unwind_capture+0xba]
+269322 clk R cpsr 21000013
+269323 clk IS (269323) 10007ea0 d3ee T handler_s : BCC      0x10007e80  [profiler_unwind_capture+0xbc]
+269324 clk IT (269324) 10007ea2 eba90604 T handler_s : SUB      r6,r9,r4  [profiler_unwind_capture+0xbe]
+269324 clk R r6 00000354
+269325 clk IT (269325) 10007ea6 3d02 T handler_s : SUBS     r5,#2  [profiler_unwind_capture+0xc2]
+269325 clk R r5 00009870
+269325 clk R cpsr 21000013
+269326 clk IT (269326) 10007ea8 42ae T handler_s : CMP      r6,r5  [profiler_unwind_capture+0xc4]
+269326 clk R cpsr 81000013
+269327 clk IS (269327) 10007eaa d8e9 T handler_s : BHI      0x10007e80  [profiler_unwind_capture+0xc6]
+269328 clk IT (269328) 10007eac 68f9 T handler_s : LDR      r1,[r7,#0xc]  [profiler_unwind_capture+0xc8]
+269328 clk MR4 3002614c 000004d0
+269328 clk R r1 000004d0
+269329 clk IT (269329) 10007eae f8cdb008 T handler_s : STR      r11,[sp,#8]  [profiler_unwind_capture+0xca]
+269329 clk MW4 3007fe50 00000000
+269330 clk IT (269330) 10007eb2 08cb T handler_s : LSRS     r3,r1,#3  [profiler_unwind_capture+0xce]
+269330 clk R r3 0000009a
+269330 clk R cpsr 01000013
+269331 clk IS (269331) 10007eb4 f0008274 T handler_s : BEQ      0x100083a0  [profiler_unwind_capture+0xd0]
+269332 clk IT (269332) 10007eb8 2100 T handler_s : MOVS     r1,#0  [profiler_unwind_capture+0xd4]
+269332 clk R r1 00000000
+269332 clk R cpsr 41000013
+269333 clk IT (269333) 10007eba 1a5e T handler_s : SUBS     r6,r3,r1  [profiler_unwind_capture+0xd6]
+269333 clk R r6 0000009a
+269333 clk R cpsr 21000013
+269334 clk IT (269334) 10007ebc eb010656 T handler_s : ADD      r6,r1,r6,LSR #1  [profiler_unwind_capture+0xd8]
+269334 clk R r6 0000004d
+269335 clk IT (269335) 10007ec0 f85c5036 T handler_s : LDR      r5,[r12,r6,LSL #3]  [profiler_unwind_capture+0xdc]
+269335 clk MR4 1000a428 7fffe1e4
+269335 clk R r5 7fffe1e4
+269336 clk IT (269336) 10007ec4 eb0c04c6 T handler_s : ADD      r4,r12,r6,LSL #3  [profiler_unwind_capture+0xe0]
+269336 clk R r4 1000a428
+269337 clk IT (269337) 10007ec8 006f T handler_s : LSLS     r7,r5,#1  [profiler_unwind_capture+0xe4]
+269337 clk R r7 ffffc3c8
+269337 clk R cpsr 81000013
+269338 clk IT (269338) 10007eca f365071e T handler_s : BFI      r7,r5,#0,#31  [profiler_unwind_capture+0xe6]
+269338 clk R r7 ffffe1e4
+269339 clk IT (269339) 10007ece 4427 T handler_s : ADD      r7,r7,r4  [profiler_unwind_capture+0xea]
+269339 clk R r7 1000860c
+269340 clk IT (269340) 10007ed0 454f T handler_s : CMP      r7,r9  [profiler_unwind_capture+0xec]
+269340 clk R cpsr 21000013
+269341 clk IT (269341) 10007ed2 ea568383 T handler_s : CSEL     r3,r6,r3,HI  [profiler_unwind_capture+0xee]
+269341 clk R r3 0000004d
+269342 clk IT (269342) 10007ed6 ea519186 T handler_s : CSINC    r1,r1,r6,HI  [profiler_unwind_capture+0xf2]
+269342 clk R r1 00000000
+269343 clk IT (269343) 10007eda 4299 T handler_s : CMP      r1,r3  [profiler_unwind_capture+0xf6]
+269343 clk R cpsr 81000013
+269344 clk IT (269344) 10007edc d3ed T handler_s : BCC      0x10007eba  [profiler_unwind_capture+0xf8]
+269345 clk IT (269345) 10007eba 1a5e T handler_s : SUBS     r6,r3,r1  [profiler_unwind_capture+0xd6]
+269345 clk R r6 0000004d
+269345 clk R cpsr 21000013
+269346 clk IT (269346) 10007ebc eb010656 T handler_s : ADD      r6,r1,r6,LSR #1  [profiler_unwind_capture+0xd8]
+269346 clk R r6 00000026
+269347 clk IT (269347) 10007ec0 f85c5036 T handler_s : LDR      r5,[r12,r6,LSL #3]  [profiler_unwind_capture+0xdc]
+269347 clk MR4 1000a2f0 7fffd330
+269347 clk R r5 7fffd330
+269348 clk IT (269348) 10007ec4 eb0c04c6 T handler_s : ADD      r4,r12,r6,LSL #3  [profiler_unwind_capture+0xe0]
+269348 clk R r4 1000a2f0
+269349 clk IT (269349) 10007ec8 006f T handler_s : LSLS     r7,r5,#1  [profiler_unwind_capture+0xe4]
+269349 clk R r7 ffffa660
+269349 clk R cpsr 81000013
+269350 clk IT (269350) 10007eca f365071e T handler_s : BFI      r7,r5,#0,#31  [profiler_unwind_capture+0xe6]
+269350 clk R r7 ffffd330
+269351 clk IT (269351) 10007ece 4427 T handler_s : ADD      r7,r7,r4  [profiler_unwind_capture+0xea]
+269351 clk R r7 10007620
+269352 clk IT (269352) 10007ed0 454f T handler_s : CMP      r7,r9  [profiler_unwind_capture+0xec]
+269352 clk R cpsr 21000013
+269353 clk IT (269353) 10007ed2 ea568383 T handler_s : CSEL     r3,r6,r3,HI  [profiler_unwind_capture+0xee]
+269353 clk R r3 00000026
+269354 clk IT (269354) 10007ed6 ea519186 T handler_s : CSINC    r1,r1,r6,HI  [profiler_unwind_capture+0xf2]
+269354 clk R r1 00000000
+269355 clk IT (269355) 10007eda 4299 T handler_s : CMP      r1,r3  [profiler_unwind_capture+0xf6]
+269355 clk R cpsr 81000013
+269356 clk IT (269356) 10007edc d3ed T handler_s : BCC      0x10007eba  [profiler_unwind_capture+0xf8]
+269357 clk IT (269357) 10007eba 1a5e T handler_s : SUBS     r6,r3,r1  [profiler_unwind_capture+0xd6]
+269357 clk R r6 00000026
+269357 clk R cpsr 21000013
+269358 clk IT (269358) 10007ebc eb010656 T handler_s : ADD      r6,r1,r6,LSR #1  [profiler_unwind_capture+0xd8]
+269358 clk R r6 00000013
+269359 clk IT (269359) 10007ec0 f85c5036 T handler_s : LDR      r5,[r12,r6,LSL #3]  [profiler_unwind_capture+0xdc]
+269359 clk MR4 1000a258 7fff9cdc
+269359 clk R r5 7fff9cdc
+269360 clk IT (269360) 10007ec4 eb0c04c6 T handler_s : ADD      r4,r12,r6,LSL #3  [profiler_unwind_capture+0xe0]
+269360 clk R r4 1000a258
+269361 clk IT (269361) 10007ec8 006f T handler_s : LSLS     r7,r5,#1  [profiler_unwind_capture+0xe4]
+269361 clk R r7 ffff39b8
+269361 clk R cpsr 81000013
+269362 clk IT (269362) 10007eca f365071e T handler_s : BFI      r7,r5,#0,#31  [profiler_unwind_capture+0xe6]
+269362 clk R r7 ffff9cdc
+269363 clk IT (269363) 10007ece 4427 T handler_s : ADD      r7,r7,r4  [profiler_unwind_capture+0xea]
+269363 clk R r7 10003f34
+269364 clk IT (269364) 10007ed0 454f T handler_s : CMP      r7,r9  [profiler_unwind_capture+0xec]
+269364 clk R cpsr 21000013
+269365 clk IT (269365) 10007ed2 ea568383 T handler_s : CSEL     r3,r6,r3,HI  [profiler_unwind_capture+0xee]
+269365 clk R r3 00000013
+269366 clk IT (269366) 10007ed6 ea519186 T handler_s : CSINC    r1,r1,r6,HI  [profiler_unwind_capture+0xf2]
+269366 clk R r1 00000000
+269367 clk IT (269367) 10007eda 4299 T handler_s : CMP      r1,r3  [profiler_unwind_capture+0xf6]
+269367 clk R cpsr 81000013
+269368 clk IT (269368) 10007edc d3ed T handler_s : BCC      0x10007eba  [profiler_unwind_capture+0xf8]
+269369 clk IT (269369) 10007eba 1a5e T handler_s : SUBS     r6,r3,r1  [profiler_unwind_capture+0xd6]
+269369 clk R r6 00000013
+269369 clk R cpsr 21000013
+269370 clk IT (269370) 10007ebc eb010656 T handler_s : ADD      r6,r1,r6,LSR #1  [profiler_unwind_capture+0xd8]
+269370 clk R r6 00000009
+269371 clk IT (269371) 10007ec0 f85c5036 T handler_s : LDR      r5,[r12,r6,LSL #3]  [profiler_unwind_capture+0xdc]
+269371 clk MR4 1000a208 7fff6900
+269371 clk R r5 7fff6900
+269372 clk IT (269372) 10007ec4 eb0c04c6 T handler_s : ADD      r4,r12,r6,LSL #3  [profiler_unwind_capture+0xe0]
+269372 clk R r4 1000a208
+269373 clk IT (269373) 10007ec8 006f T handler_s : LSLS     r7,r5,#1  [profiler_unwind_capture+0xe4]
+269373 clk R r7 fffed200
+269373 clk R cpsr 81000013
+269374 clk IT (269374) 10007eca f365071e T handler_s : BFI      r7,r5,#0,#31  [profiler_unwind_capture+0xe6]
+269374 clk R r7 ffff6900
+269375 clk IT (269375) 10007ece 4427 T handler_s : ADD      r7,r7,r4  [profiler_unwind_capture+0xea]
+269375 clk R r7 10000b08
+269376 clk IT (269376) 10007ed0 454f T handler_s : CMP      r7,r9  [profiler_unwind_capture+0xec]
+269376 clk R cpsr 81000013
+269377 clk IT (269377) 10007ed2 ea568383 T handler_s : CSEL     r3,r6,r3,HI  [profiler_unwind_capture+0xee]
+269377 clk R r3 00000013
+269378 clk IT (269378) 10007ed6 ea519186 T handler_s : CSINC    r1,r1,r6,HI  [profiler_unwind_capture+0xf2]
+269378 clk R r1 0000000a
+269379 clk IT (269379) 10007eda 4299 T handler_s : CMP      r1,r3  [profiler_unwind_capture+0xf6]
+269379 clk R cpsr 81000013
+269380 clk IT (269380) 10007edc d3ed T handler_s : BCC      0x10007eba  [profiler_unwind_capture+0xf8]
+269381 clk IT (269381) 10007eba 1a5e T handler_s : SUBS     r6,r3,r1  [profiler_unwind_capture+0xd6]
+269381 clk R r6 00000009
+269381 clk R cpsr 21000013
+269382 clk IT (269382) 10007ebc eb010656 T handler_s : ADD      r6,r1,r6,LSR #1  [profiler_unwind_capture+0xd8]
+269382 clk R r6 0000000e
+269383 clk IT (269383) 10007ec0 f85c5036 T handler_s : LDR      r5,[r12,r6,LSL #3]  [profiler_unwind_capture+0xdc]
+269383 clk MR4 1000a230 7fff9668
+269383 clk R r5 7fff9668
+269384 clk IT (269384) 10007ec4 eb0c04c6 T handler_s : ADD      r4,r12,r6,LSL #3  [profiler_unwind_capture+0xe0]
+269384 clk R r4 1000a230
+269385 clk IT (269385) 10007ec8 006f T handler_s : LSLS     r7,r5,#1  [profiler_unwind_capture+0xe4]
+269385 clk R r7 ffff2cd0
+269385 clk R cpsr 81000013
+269386 clk IT (269386) 10007eca f365071e T handler_s : BFI      r7,r5,#0,#31  [profiler_unwind_capture+0xe6]
+269386 clk R r7 ffff9668
+269387 clk IT (269387) 10007ece 4427 T handler_s : ADD      r7,r7,r4  [profiler_unwind_capture+0xea]
+269387 clk R r7 10003898
+269388 clk IT (269388) 10007ed0 454f T handler_s : CMP      r7,r9  [profiler_unwind_capture+0xec]
+269388 clk R cpsr 21000013
+269389 clk IT (269389) 10007ed2 ea568383 T handler_s : CSEL     r3,r6,r3,HI  [profiler_unwind_capture+0xee]
+269389 clk R r3 0000000e
+269390 clk IT (269390) 10007ed6 ea519186 T handler_s : CSINC    r1,r1,r6,HI  [profiler_unwind_capture+0xf2]
+269390 clk R r1 0000000a
+269391 clk IT (269391) 10007eda 4299 T handler_s : CMP      r1,r3  [profiler_unwind_capture+0xf6]
+269391 clk R cpsr 81000013
+269392 clk IT (269392) 10007edc d3ed T handler_s : BCC      0x10007eba  [profiler_unwind_capture+0xf8]
+269393 clk IT (269393) 10007eba 1a5e T handler_s : SUBS     r6,r3,r1  [profiler_unwind_capture+0xd6]
+269393 clk R r6 00000004
+269393 clk R cpsr 21000013
+269394 clk IT (269394) 10007ebc eb010656 T handler_s : ADD      r6,r1,r6,LSR #1  [profiler_unwind_capture+0xd8]
+269394 clk R r6 0000000c
+269395 clk IT (269395) 10007ec0 f85c5036 T handler_s : LDR      r5,[r12,r6,LSL #3]  [profiler_unwind_capture+0xdc]
+269395 clk MR4 1000a220 7fff8350
+269395 clk R r5 7fff8350
+269396 clk IT (269396) 10007ec4 eb0c04c6 T handler_s : ADD      r4,r12,r6,LSL #3  [profiler_unwind_capture+0xe0]
+269396 clk R r4 1000a220
+269397 clk IT (269397) 10007ec8 006f T handler_s : LSLS     r7,r5,#1  [profiler_unwind_capture+0xe4]
+269397 clk R r7 ffff06a0
+269397 clk R cpsr 81000013
+269398 clk IT (269398) 10007eca f365071e T handler_s : BFI      r7,r5,#0,#31  [profiler_unwind_capture+0xe6]
+269398 clk R r7 ffff8350
+269399 clk IT (269399) 10007ece 4427 T handler_s : ADD      r7,r7,r4  [profiler_unwind_capture+0xea]
+269399 clk R r7 10002570
+269400 clk IT (269400) 10007ed0 454f T handler_s : CMP      r7,r9  [profiler_unwind_capture+0xec]
+269400 clk R cpsr 21000013
+269401 clk IT (269401) 10007ed2 ea568383 T handler_s : CSEL     r3,r6,r3,HI  [profiler_unwind_capture+0xee]
+269401 clk R r3 0000000c
+269402 clk IT (269402) 10007ed6 ea519186 T handler_s : CSINC    r1,r1,r6,HI  [profiler_unwind_capture+0xf2]
+269402 clk R r1 0000000a
+269403 clk IT (269403) 10007eda 4299 T handler_s : CMP      r1,r3  [profiler_unwind_capture+0xf6]
+269403 clk R cpsr 81000013
+269404 clk IT (269404) 10007edc d3ed T handler_s : BCC      0x10007eba  [profiler_unwind_capture+0xf8]
+269405 clk IT (269405) 10007eba 1a5e T handler_s : SUBS     r6,r3,r1  [profiler_unwind_capture+0xd6]
+269405 clk R r6 00000002
+269405 clk R cpsr 21000013
+269406 clk IT (269406) 10007ebc eb010656 T handler_s : ADD      r6,r1,r6,LSR #1  [profiler_unwind_capture+0xd8]
+269406 clk R r6 0000000b
+269407 clk IT (269407) 10007ec0 f85c5036 T handler_s : LDR      r5,[r12,r6,LSL #3]  [profiler_unwind_capture+0xdc]
+269407 clk MR4 1000a218 7fff69d4
+269407 clk R r5 7fff69d4
+269408 clk IT (269408) 10007ec4 eb0c04c6 T handler_s : ADD      r4,r12,r6,LSL #3  [profiler_unwind_capture+0xe0]
+269408 clk R r4 1000a218
+269409 clk IT (269409) 10007ec8 006f T handler_s : LSLS     r7,r5,#1  [profiler_unwind_capture+0xe4]
+269409 clk R r7 fffed3a8
+269409 clk R cpsr 81000013
+269410 clk IT (269410) 10007eca f365071e T handler_s : BFI      r7,r5,#0,#31  [profiler_unwind_capture+0xe6]
+269410 clk R r7 ffff69d4
+269411 clk IT (269411) 10007ece 4427 T handler_s : ADD      r7,r7,r4  [profiler_unwind_capture+0xea]
+269411 clk R r7 10000bec
+269412 clk IT (269412) 10007ed0 454f T handler_s : CMP      r7,r9  [profiler_unwind_capture+0xec]
+269412 clk R cpsr 21000013
+269413 clk IT (269413) 10007ed2 ea568383 T handler_s : CSEL     r3,r6,r3,HI  [profiler_unwind_capture+0xee]
+269413 clk R r3 0000000b
+269414 clk IT (269414) 10007ed6 ea519186 T handler_s : CSINC    r1,r1,r6,HI  [profiler_unwind_capture+0xf2]
+269414 clk R r1 0000000a
+269415 clk IT (269415) 10007eda 4299 T handler_s : CMP      r1,r3  [profiler_unwind_capture+0xf6]
+269415 clk R cpsr 81000013
+269416 clk IT (269416) 10007edc d3ed T handler_s : BCC      0x10007eba  [profiler_unwind_capture+0xf8]
+269417 clk IT (269417) 10007eba 1a5e T handler_s : SUBS     r6,r3,r1  [profiler_unwind_capture+0xd6]
+269417 clk R r6 00000001
+269417 clk R cpsr 21000013
+269418 clk IT (269418) 10007ebc eb010656 T handler_s : ADD      r6,r1,r6,LSR #1  [profiler_unwind_capture+0xd8]
+269418 clk R r6 0000000a
+269419 clk IT (269419) 10007ec0 f85c5036 T handler_s : LDR      r5,[r12,r6,LSL #3]  [profiler_unwind_capture+0xdc]
+269419 clk MR4 1000a210 7fff6904
+269419 clk R r5 7fff6904
+269420 clk IT (269420) 10007ec4 eb0c04c6 T handler_s : ADD      r4,r12,r6,LSL #3  [profiler_unwind_capture+0xe0]
+269420 clk R r4 1000a210
+269421 clk IT (269421) 10007ec8 006f T handler_s : LSLS     r7,r5,#1  [profiler_unwind_capture+0xe4]
+269421 clk R r7 fffed208
+269421 clk R cpsr 81000013
+269422 clk IT (269422) 10007eca f365071e T handler_s : BFI      r7,r5,#0,#31  [profiler_unwind_capture+0xe6]
+269422 clk R r7 ffff6904
+269423 clk IT (269423) 10007ece 4427 T handler_s : ADD      r7,r7,r4  [profiler_unwind_capture+0xea]
+269423 clk R r7 10000b14
+269424 clk IT (269424) 10007ed0 454f T handler_s : CMP      r7,r9  [profiler_unwind_capture+0xec]
+269424 clk R cpsr 61000013
+269425 clk IT (269425) 10007ed2 ea568383 T handler_s : CSEL     r3,r6,r3,HI  [profiler_unwind_capture+0xee]
+269425 clk R r3 0000000b
+269426 clk IT (269426) 10007ed6 ea519186 T handler_s : CSINC    r1,r1,r6,HI  [profiler_unwind_capture+0xf2]
+269426 clk R r1 0000000b
+269427 clk IT (269427) 10007eda 4299 T handler_s : CMP      r1,r3  [profiler_unwind_capture+0xf6]
+269427 clk R cpsr 61000013
+269428 clk IS (269428) 10007edc d3ed T handler_s : BCC      0x10007eba  [profiler_unwind_capture+0xf8]
+269429 clk IT (269429) 10007ede 2900 T handler_s : CMP      r1,#0  [profiler_unwind_capture+0xfa]
+269429 clk R cpsr 21000013
+269430 clk IS (269430) 10007ee0 f000825e T handler_s : BEQ      0x100083a0  [profiler_unwind_capture+0xfc]
+269431 clk IT (269431) 10007ee4 eb0c0bc1 T handler_s : ADD      r11,r12,r1,LSL #3  [profiler_unwind_capture+0x100]
+269431 clk R r11 1000a218
+269432 clk IT (269432) 10007ee8 f8cde00c T handler_s : STR      lr,[sp,#0xc]  [profiler_unwind_capture+0x104]
+269432 clk MW4 3007fe54 1000a1c0
+269433 clk IT (269433) 10007eec 4659 T handler_s : MOV      r1,r11  [profiler_unwind_capture+0x108]
+269433 clk R r1 1000a218
+269434 clk IT (269434) 10007eee f8513d08 T handler_s : LDR      r3,[r1,#-8]!  [profiler_unwind_capture+0x10a]
+269434 clk MR4 1000a210 7fff6904
+269434 clk R r1 1000a210
+269434 clk R r3 7fff6904
+269435 clk IT (269435) 10007ef2 f0234700 T handler_s : BIC      r7,r3,#0x80000000  [profiler_unwind_capture+0x10e]
+269435 clk R r7 7fff6904
+269436 clk IT (269436) 10007ef6 f0034380 T handler_s : AND      r3,r3,#0x40000000  [profiler_unwind_capture+0x112]
+269436 clk R r3 40000000
+269437 clk IT (269437) 10007efa 4439 T handler_s : ADD      r1,r1,r7  [profiler_unwind_capture+0x116]
+269437 clk R r1 90000b14
+269438 clk IT (269438) 10007efc eb010e43 T handler_s : ADD      lr,r1,r3,LSL #1  [profiler_unwind_capture+0x118]
+269438 clk R r14 10000b14
+269439 clk IT (269439) 10007f00 9b06 T handler_s : LDR      r3,[sp,#0x18]  [profiler_unwind_capture+0x11c]
+269439 clk MR4 3007fe60 300060e0
+269439 clk R r3 300060e0
+269440 clk IT (269440) 10007f02 2100 T handler_s : MOVS     r1,#0  [profiler_unwind_capture+0x11e]
+269440 clk R r1 00000000
+269440 clk R cpsr 61000013
+269441 clk IT (269441) 10007f04 e003 T handler_s : B        0x10007f0e  [profiler_unwind_capture+0x120]
+269442 clk IT (269442) 10007f0e 681c T handler_s : LDR      r4,[r3,#0]  [profiler_unwind_capture+0x12a]
+269442 clk MR4 300060e0 00009872
+269442 clk R r4 00009872
+269443 clk IT (269443) 10007f10 2c00 T handler_s : CMP      r4,#0  [profiler_unwind_capture+0x12c]
+269443 clk R cpsr 21000013
+269444 clk IS (269444) 10007f12 d0f8 T handler_s : BEQ      0x10007f06  [profiler_unwind_capture+0x12e]
+269445 clk IT (269445) 10007f14 f8535c04 T handler_s : LDR      r5,[r3,#-4]  [profiler_unwind_capture+0x130]
+269445 clk MR4 300060dc 100007c0
+269445 clk R r5 100007c0
+269446 clk IT (269446) 10007f18 4266 T handler_s : RSBS     r6,r4,#0  [profiler_unwind_capture+0x134]
+269446 clk R r6 ffff678e
+269446 clk R cpsr 81000013
+269447 clk IT (269447) 10007f1a 42b5 T handler_s : CMP      r5,r6  [profiler_unwind_capture+0x136]
+269447 clk R cpsr 01000013
+269448 clk IS (269448) 10007f1c d8f3 T handler_s : BHI      0x10007f06  [profiler_unwind_capture+0x138]
+269449 clk IT (269449) 10007f1e 45ae T handler_s : CMP      lr,r5  [profiler_unwind_capture+0x13a]
+269449 clk R cpsr 21000013
+269450 clk IT (269450) 10007f20 bf28 T handler_s : IT       CS  [profiler_unwind_capture+0x13c]
+269450 clk R cpsr 21002813
+269451 clk IT (269451) 10007f22 2c02 T handler_s : CMPCS    r4,#2  [profiler_unwind_capture+0x13e]
+269451 clk R cpsr 21000013
+269452 clk IS (269452) 10007f24 d3ef T handler_s : BCC      0x10007f06  [profiler_unwind_capture+0x140]
+269453 clk IT (269453) 10007f26 ebae0505 T handler_s : SUB      r5,lr,r5  [profiler_unwind_capture+0x142]
+269453 clk R r5 00000354
+269454 clk IT (269454) 10007f2a 3c02 T handler_s : SUBS     r4,#2  [profiler_unwind_capture+0x146]
+269454 clk R r4 00009870
+269454 clk R cpsr 21000013
+269455 clk IT (269455) 10007f2c 42a5 T handler_s : CMP      r5,r4  [profiler_unwind_capture+0x148]
+269455 clk R cpsr 81000013
+269456 clk IS (269456) 10007f2e d8ea T handler_s : BHI      0x10007f06  [profiler_unwind_capture+0x14a]
+269457 clk IT (269457) 10007f30 f1010e01 T handler_s : ADD.W    lr,r1,#1  [profiler_unwind_capture+0x14c]
+269457 clk R r14 00000001
+269458 clk IT (269458) 10007f34 e001 T handler_s : B        0x10007f3a  [profiler_unwind_capture+0x150]
+269459 clk IT (269459) 10007f3a 9b06 T handler_s : LDR      r3,[sp,#0x18]  [profiler_unwind_capture+0x156]
+269459 clk MR4 3007fe60 300060e0
+269459 clk R r3 300060e0
+269460 clk IT (269460) 10007f3c 2500 T handler_s : MOVS     r5,#0  [profiler_unwind_capture+0x158]
+269460 clk R r5 00000000
+269460 clk R cpsr 41000013
+269461 clk IT (269461) 10007f3e e003 T handler_s : B        0x10007f48  [profiler_unwind_capture+0x15a]
+269462 clk IT (269462) 10007f48 681c T handler_s : LDR      r4,[r3,#0]  [profiler_unwind_capture+0x164]
+269462 clk MR4 300060e0 00009872
+269462 clk R r4 00009872
+269463 clk IT (269463) 10007f4a 2c00 T handler_s : CMP      r4,#0  [profiler_unwind_capture+0x166]
+269463 clk R cpsr 21000013
+269464 clk IS (269464) 10007f4c d0f8 T handler_s : BEQ      0x10007f40  [profiler_unwind_capture+0x168]
+269465 clk IT (269465) 10007f4e f8531c04 T handler_s : LDR      r1,[r3,#-4]  [profiler_unwind_capture+0x16a]
+269465 clk MR4 300060dc 100007c0
+269465 clk R r1 100007c0
+269466 clk IT (269466) 10007f52 4266 T handler_s : RSBS     r6,r4,#0  [profiler_unwind_capture+0x16e]
+269466 clk R r6 ffff678e
+269466 clk R cpsr 81000013
+269467 clk IT (269467) 10007f54 42b1 T handler_s : CMP      r1,r6  [profiler_unwind_capture+0x170]
+269467 clk R cpsr 01000013
+269468 clk IS (269468) 10007f56 d8f3 T handler_s : BHI      0x10007f40  [profiler_unwind_capture+0x172]
+269469 clk IT (269469) 10007f58 4589 T handler_s : CMP      r9,r1  [profiler_unwind_capture+0x174]
+269469 clk R cpsr 21000013
+269470 clk IT (269470) 10007f5a bf28 T handler_s : IT       CS  [profiler_unwind_capture+0x176]
+269470 clk R cpsr 21002813
+269471 clk IT (269471) 10007f5c 2c02 T handler_s : CMPCS    r4,#2  [profiler_unwind_capture+0x178]
+269471 clk R cpsr 21000013
+269472 clk IS (269472) 10007f5e d3ef T handler_s : BCC      0x10007f40  [profiler_unwind_capture+0x17a]
+269473 clk IT (269473) 10007f60 eba90101 T handler_s : SUB      r1,r9,r1  [profiler_unwind_capture+0x17c]
+269473 clk R r1 00000354
+269474 clk IT (269474) 10007f64 3c02 T handler_s : SUBS     r4,#2  [profiler_unwind_capture+0x180]
+269474 clk R r4 00009870
+269474 clk R cpsr 21000013
+269475 clk IT (269475) 10007f66 42a1 T handler_s : CMP      r1,r4  [profiler_unwind_capture+0x182]
+269475 clk R cpsr 81000013
+269476 clk IS (269476) 10007f68 d8ea T handler_s : BHI      0x10007f40  [profiler_unwind_capture+0x184]
+269477 clk IT (269477) 10007f6a 1c69 T handler_s : ADDS     r1,r5,#1  [profiler_unwind_capture+0x186]
+269477 clk R r1 00000001
+269477 clk R cpsr 01000013
+269478 clk IT (269478) 10007f6c e000 T handler_s : B        0x10007f70  [profiler_unwind_capture+0x188]
+269479 clk IT (269479) 10007f70 458e T handler_s : CMP      lr,r1  [profiler_unwind_capture+0x18c]
+269479 clk R cpsr 61000013
+269480 clk IS (269480) 10007f72 f0408215 T handler_s : BNE      0x100083a0  [profiler_unwind_capture+0x18e]
+269481 clk IT (269481) 10007f76 f85b1d04 T handler_s : LDR      r1,[r11,#-4]!  [profiler_unwind_capture+0x192]
+269481 clk MR4 1000a214 80b0b0b0
+269481 clk R r1 80b0b0b0
+269481 clk R r11 1000a214
+269482 clk IT (269482) 10007f7a 2901 T handler_s : CMP      r1,#1  [profiler_unwind_capture+0x196]
+269482 clk R cpsr a1000013
+269483 clk IS (269483) 10007f7c f0008210 T handler_s : BEQ      0x100083a0  [profiler_unwind_capture+0x198]
+269484 clk IT (269484) 10007f80 2900 T handler_s : CMP      r1,#0  [profiler_unwind_capture+0x19c]
+269484 clk R cpsr a1000013
+269485 clk IT (269485) 10007f82 d437 T handler_s : BMI      0x10007ff4  [profiler_unwind_capture+0x19e]
+269486 clk IT (269486) 10007ff4 0e09 T handler_s : LSRS     r1,r1,#24  [profiler_unwind_capture+0x210]
+269486 clk R r1 00000080
+269486 clk R cpsr 21000013
+269487 clk IT (269487) 10007ff6 2980 T handler_s : CMP      r1,#0x80  [profiler_unwind_capture+0x212]
+269487 clk R cpsr 61000013
+269488 clk IS (269488) 10007ff8 f20081dc T handler_s : BHI      0x100083b4  [profiler_unwind_capture+0x214]
+269489 clk IT (269489) 10007ffc f04f0803 T handler_s : MOV.W    r8,#3  [profiler_unwind_capture+0x218]
+269489 clk R r8 00000003
+269490 clk IT (269490) 10008000 2701 T handler_s : MOVS     r7,#1  [profiler_unwind_capture+0x21c]
+269490 clk R r7 00000001
+269490 clk R cpsr 21000013
+269491 clk IT (269491) 10008002 e00f T handler_s : B        0x10008024  [profiler_unwind_capture+0x21e]
+269492 clk IT (269492) 10008024 f04f0900 T handler_s : MOV.W    r9,#0  [profiler_unwind_capture+0x240]
+269492 clk R r9 00000000
+269493 clk IT (269493) 10008028 2100 T handler_s : MOVS     r1,#0  [profiler_unwind_capture+0x244]
+269493 clk R r1 00000000
+269493 clk R cpsr 61000013
+269494 clk IT (269494) 1000802a 2900 T handler_s : CMP      r1,#0  [profiler_unwind_capture+0x246]
+269494 clk R cpsr 61000013
+269495 clk IT (269495) 1000802c f04f0304 T handler_s : MOV.W    r3,#4  [profiler_unwind_capture+0x248]
+269495 clk R r3 00000004
+269496 clk IT (269496) 10008030 ea588503 T handler_s : CSEL     r5,r8,r3,EQ  [profiler_unwind_capture+0x24c]
+269496 clk R r5 00000003
+269497 clk IT (269497) 10008034 f85b3021 T handler_s : LDR      r3,[r11,r1,LSL #2]  [profiler_unwind_capture+0x250]
+269497 clk MR4 1000a214 80b0b0b0
+269497 clk R r3 80b0b0b0
+269498 clk IT (269498) 10008038 f045e001 T handler_s : DLS      lr,r5  [profiler_unwind_capture+0x254]
+269498 clk R r14 00000003
+269499 clk IT (269499) 1000803c ac07 T handler_s : ADD      r4,sp,#0x1c  [profiler_unwind_capture+0x258]
+269499 clk R r4 3007fe64
+269500 clk IT (269500) 1000803e eb040609 T handler_s : ADD.W    r6,r4,r9  [profiler_unwind_capture+0x25a]
+269500 clk R r6 3007fe64
+269501 clk IT (269501) 10008042 f06f0407 T handler_s : MVN      r4,#7  [profiler_unwind_capture+0x25e]
+269501 clk R r4 fffffff8
+269502 clk IT (269502) 10008046 eb0404c5 T handler_s : ADD      r4,r4,r5,LSL #3  [profiler_unwind_capture+0x262]
+269502 clk R r4 00000010
+269503 clk IT (269503) 1000804a 44a9 T handler_s : ADD      r9,r9,r5  [profiler_unwind_capture+0x266]
+269503 clk R r9 00000003
+269504 clk IT (269504) 1000804c fa23f504 T handler_s : LSR      r5,r3,r4  [profiler_unwind_capture+0x268]
+269504 clk R r5 000080b0
+269505 clk IT (269505) 10008050 3c08 T handler_s : SUBS     r4,r4,#8  [profiler_unwind_capture+0x26c]
+269505 clk R r4 00000008
+269505 clk R cpsr 21000013
+269506 clk IT (269506) 10008052 f8065b01 T handler_s : STRB     r5,[r6],#1  [profiler_unwind_capture+0x26e]
+269506 clk MW1 3007fe64 b0
+269506 clk R r6 3007fe65
+269507 clk IT (269507) 10008056 f00fc807 T handler_s : LE       lr,0x1000804c  [profiler_unwind_capture+0x272]
+269507 clk R r14 00000002
+269507 clk R LO_BRANCH_INFO.VALID 00000001
+269507 clk R LO_BRANCH_INFO.JUMP_ADDR 1000804c
+269507 clk R LO_BRANCH_INFO.END_ADDR 10008056
+269508 clk IT (269508) 1000804c fa23f504 T handler_s : LSR      r5,r3,r4  [profiler_unwind_capture+0x268]
+269508 clk R r5 0080b0b0
+269509 clk IT (269509) 10008050 3c08 T handler_s : SUBS     r4,r4,#8  [profiler_unwind_capture+0x26c]
+269509 clk R r4 00000000
+269509 clk R cpsr 61000013
+269510 clk IT (269510) 10008052 f8065b01 T handler_s : STRB     r5,[r6],#1  [profiler_unwind_capture+0x26e]
+269510 clk MW1 3007fe65 b0
+269510 clk R r6 3007fe66
+269511 clk IT (269511) 10008056 f00fc807 T handler_s : LE       lr,0x1000804c  [profiler_unwind_capture+0x272]
+269511 clk R r14 00000001
+269512 clk IT (269512) 1000804c fa23f504 T handler_s : LSR      r5,r3,r4  [profiler_unwind_capture+0x268]
+269512 clk R r5 80b0b0b0
+269513 clk IT (269513) 10008050 3c08 T handler_s : SUBS     r4,r4,#8  [profiler_unwind_capture+0x26c]
+269513 clk R r4 fffffff8
+269513 clk R cpsr 81000013
+269514 clk IT (269514) 10008052 f8065b01 T handler_s : STRB     r5,[r6],#1  [profiler_unwind_capture+0x26e]
+269514 clk MW1 3007fe66 b0
+269514 clk R r6 3007fe67
+269515 clk IT (269515) 10008056 f00fc807 T handler_s : LE       lr,0x1000804c  [profiler_unwind_capture+0x272]
+269516 clk IT (269516) 1000805a 3101 T handler_s : ADDS     r1,#1  [profiler_unwind_capture+0x276]
+269516 clk R r1 00000001
+269516 clk R cpsr 01000013
+269517 clk IT (269517) 1000805c 42b9 T handler_s : CMP      r1,r7  [profiler_unwind_capture+0x278]
+269517 clk R cpsr 61000013
+269518 clk IS (269518) 1000805e d1e4 T handler_s : BNE      0x1000802a  [profiler_unwind_capture+0x27a]
+269519 clk IT (269519) 10008060 9b05 T handler_s : LDR      r3,[sp,#0x14]  [profiler_unwind_capture+0x27c]
+269519 clk MR4 3007fe5c 30002080
+269519 clk R r3 30002080
+269520 clk IT (269520) 10008062 f1b90f00 T handler_s : CMP.W    r9,#0  [profiler_unwind_capture+0x27e]
+269520 clk R cpsr 21000013
+269521 clk IT (269521) 10008066 4698 T handler_s : MOV      r8,r3  [profiler_unwind_capture+0x282]
+269521 clk R r8 30002080
+269522 clk IS (269522) 10008068 f000813b T handler_s : BEQ      0x100082e2  [profiler_unwind_capture+0x284]
+269523 clk IT (269523) 1000806c 4698 T handler_s : MOV      r8,r3  [profiler_unwind_capture+0x288]
+269523 clk R r8 30002080
+269524 clk IT (269524) 1000806e 2300 T handler_s : MOVS     r3,#0  [profiler_unwind_capture+0x28a]
+269524 clk R r3 00000000
+269524 clk R cpsr 61000013
+269525 clk IT (269525) 10008070 2700 T handler_s : MOVS     r7,#0  [profiler_unwind_capture+0x28c]
+269525 clk R r7 00000000
+269525 clk R cpsr 61000013
+269526 clk IT (269526) 10008072 a907 T handler_s : ADD      r1,sp,#0x1c  [profiler_unwind_capture+0x28e]
+269526 clk R r1 3007fe64
+269527 clk IT (269527) 10008074 9301 T handler_s : STR      r3,[sp,#4]  [profiler_unwind_capture+0x290]
+269527 clk MW4 3007fe4c 00000000
+269528 clk IT (269528) 10008076 57c9 T handler_s : LDRSB    r1,[r1,r7]  [profiler_unwind_capture+0x292]
+269528 clk MR1 3007fe64 b0
+269528 clk R r1 ffffffb0
+269529 clk IT (269529) 10008078 2900 T handler_s : CMP      r1,#0  [profiler_unwind_capture+0x294]
+269529 clk R cpsr a1000013
+269530 clk IT (269530) 1000807a b2cc T handler_s : UXTB     r4,r1  [profiler_unwind_capture+0x296]
+269530 clk R r4 000000b0
+269531 clk IT (269531) 1000807c d40c T handler_s : BMI      0x10008098  [profiler_unwind_capture+0x298]
+269532 clk IT (269532) 10008098 2c8f T handler_s : CMP      r4,#0x8f  [profiler_unwind_capture+0x2b4]
+269532 clk R cpsr 21000013
+269533 clk IT (269533) 1000809a d813 T handler_s : BHI      0x100080c4  [profiler_unwind_capture+0x2b6]
+269534 clk IT (269534) 100080c4 2c9f T handler_s : CMP      r4,#0x9f  [profiler_unwind_capture+0x2e0]
+269534 clk R cpsr 21000013
+269535 clk IT (269535) 100080c6 d80c T handler_s : BHI      0x100080e2  [profiler_unwind_capture+0x2e2]
+269536 clk IT (269536) 100080e2 2caf T handler_s : CMP      r4,#0xaf  [profiler_unwind_capture+0x2fe]
+269536 clk R cpsr 21000013
+269537 clk IT (269537) 100080e4 d80a T handler_s : BHI      0x100080fc  [profiler_unwind_capture+0x300]
+269538 clk IT (269538) 100080fc 2cb1 T handler_s : CMP      r4,#0xb1  [profiler_unwind_capture+0x318]
+269538 clk R cpsr 81000013
+269539 clk IS (269539) 100080fe d05e T handler_s : BEQ      0x100081be  [profiler_unwind_capture+0x31a]
+269540 clk IT (269540) 10008100 2cb2 T handler_s : CMP      r4,#0xb2  [profiler_unwind_capture+0x31c]
+269540 clk R cpsr 81000013
+269541 clk IS (269541) 10008102 d023 T handler_s : BEQ      0x1000814c  [profiler_unwind_capture+0x31e]
+269542 clk IT (269542) 10008104 2cb0 T handler_s : CMP      r4,#0xb0  [profiler_unwind_capture+0x320]
+269542 clk R cpsr 61000013
+269543 clk IT (269543) 10008106 f00080e8 T handler_s : BEQ      0x100082da  [profiler_unwind_capture+0x322]
+269544 clk IT (269544) 100082da 9b01 T handler_s : LDR      r3,[sp,#4]  [profiler_unwind_capture+0x4f6]
+269544 clk MR4 3007fe4c 00000000
+269544 clk R r3 00000000
+269545 clk IT (269545) 100082dc 2b00 T handler_s : CMP      r3,#0  [profiler_unwind_capture+0x4f8]
+269545 clk R cpsr 61000013
+269546 clk IT (269546) 100082de 9b05 T handler_s : LDR      r3,[sp,#0x14]  [profiler_unwind_capture+0x4fa]
+269546 clk MR4 3007fe5c 30002080
+269546 clk R r3 30002080
+269547 clk IS (269547) 100082e0 d103 T handler_s : BNE      0x100082ea  [profiler_unwind_capture+0x4fc]
+269548 clk IT (269548) 100082e2 f8da1038 T handler_s : LDR      r1,[r10,#0x38]  [profiler_unwind_capture+0x4fe]
+269548 clk MR4 3007fee0 10001187
+269548 clk R r1 10001187
+269549 clk IT (269549) 100082e6 f8ca103c T handler_s : STR      r1,[r10,#0x3c]  [profiler_unwind_capture+0x502]
+269549 clk MW4 3007fee4 10001187
+269550 clk IT (269550) 100082ea 4598 T handler_s : CMP      r8,r3  [profiler_unwind_capture+0x506]
+269550 clk R cpsr 61000013
+269551 clk IS (269551) 100082ec d367 T handler_s : BCC      0x100083be  [profiler_unwind_capture+0x508]
+269552 clk IT (269552) 100082ee f8da903c T handler_s : LDR      r9,[r10,#0x3c]  [profiler_unwind_capture+0x50a]
+269552 clk MR4 3007fee4 10001187
+269552 clk R r9 10001187
+269553 clk IT (269553) 100082f2 f2461140 T handler_s : MOV      r1,#0x6140  [profiler_unwind_capture+0x50e]
+269553 clk R r1 00006140
+269554 clk IT (269554) 100082f6 f8ddb008 T handler_s : LDR      r11,[sp,#8]  [profiler_unwind_capture+0x512]
+269554 clk MR4 3007fe50 00000000
+269554 clk R r11 00000000
+269555 clk IT (269555) 100082fa f1b90f00 T handler_s : CMP.W    r9,#0  [profiler_unwind_capture+0x516]
+269555 clk R cpsr 21000013
+269556 clk IT (269556) 100082fe f2c30102 T handler_s : MOVT     r1,#0x3002  [profiler_unwind_capture+0x51a]
+269556 clk R r1 30026140
+269557 clk IS (269557) 10008302 d061 T handler_s : BEQ      0x100083c8  [profiler_unwind_capture+0x51e]
+269558 clk IT (269558) 10008304 f1b90f01 T handler_s : CMP.W    r9,#1  [profiler_unwind_capture+0x520]
+269558 clk R cpsr 21000013
+269559 clk IT (269559) 10008308 f44f6680 T handler_s : MOV.W    r6,#0x400  [profiler_unwind_capture+0x524]
+269559 clk R r6 00000400
+269560 clk IT (269560) 1000830c bf18 T handler_s : IT       NE  [profiler_unwind_capture+0x528]
+269560 clk R cpsr 21001813
+269561 clk IT (269561) 1000830e f0190301 T handler_s : ANDSNE   r3,r9,#1  [profiler_unwind_capture+0x52a]
+269561 clk R r3 00000001
+269561 clk R cpsr 21000013
+269562 clk IS (269562) 10008312 d038 T handler_s : BEQ      0x10008386  [profiler_unwind_capture+0x52e]
+269563 clk IT (269563) 10008314 684d T handler_s : LDR      r5,[r1,#4]  [profiler_unwind_capture+0x530]
+269563 clk MR4 30026144 00000001
+269563 clk R r5 00000001
+269564 clk IT (269564) 10008316 b3b5 T handler_s : CBZ      r5,0x10008386  [profiler_unwind_capture+0x532]
+269565 clk IT (269565) 10008318 f0290e01 T handler_s : BIC      lr,r9,#1  [profiler_unwind_capture+0x534]
+269565 clk R r14 10001186
+269566 clk IT (269566) 1000831c 9b06 T handler_s : LDR      r3,[sp,#0x18]  [profiler_unwind_capture+0x538]
+269566 clk MR4 3007fe60 300060e0
+269566 clk R r3 300060e0
+269567 clk IT (269567) 1000831e f1ae0602 T handler_s : SUB.W    r6,lr,#2  [profiler_unwind_capture+0x53a]
+269567 clk R r6 10001184
+269568 clk IT (269568) 10008322 e003 T handler_s : B        0x1000832c  [profiler_unwind_capture+0x53e]
+269569 clk IT (269569) 1000832c 681f T handler_s : LDR      r7,[r3,#0]  [profiler_unwind_capture+0x548]
+269569 clk MR4 300060e0 00009872
+269569 clk R r7 00009872
+269570 clk IT (269570) 1000832e 2f00 T handler_s : CMP      r7,#0  [profiler_unwind_capture+0x54a]
+269570 clk R cpsr 21000013
+269571 clk IS (269571) 10008330 d0f8 T handler_s : BEQ      0x10008324  [profiler_unwind_capture+0x54c]
+269572 clk IT (269572) 10008332 f8534c04 T handler_s : LDR      r4,[r3,#-4]  [profiler_unwind_capture+0x54e]
+269572 clk MR4 300060dc 100007c0
+269572 clk R r4 100007c0
+269573 clk IT (269573) 10008336 4279 T handler_s : RSBS     r1,r7,#0  [profiler_unwind_capture+0x552]
+269573 clk R r1 ffff678e
+269573 clk R cpsr 81000013
+269574 clk IT (269574) 10008338 428c T handler_s : CMP      r4,r1  [profiler_unwind_capture+0x554]
+269574 clk R cpsr 01000013
+269575 clk IS (269575) 1000833a d8f3 T handler_s : BHI      0x10008324  [profiler_unwind_capture+0x556]
+269576 clk IT (269576) 1000833c 42a6 T handler_s : CMP      r6,r4  [profiler_unwind_capture+0x558]
+269576 clk R cpsr 21000013
+269577 clk IT (269577) 1000833e bf28 T handler_s : IT       CS  [profiler_unwind_capture+0x55a]
+269577 clk R cpsr 21002813
+269578 clk IT (269578) 10008340 2f02 T handler_s : CMPCS    r7,#2  [profiler_unwind_capture+0x55c]
+269578 clk R cpsr 21000013
+269579 clk IS (269579) 10008342 d3ef T handler_s : BCC      0x10008324  [profiler_unwind_capture+0x55e]
+269580 clk IT (269580) 10008344 1b31 T handler_s : SUBS     r1,r6,r4  [profiler_unwind_capture+0x560]
+269580 clk R r1 000009c4
+269580 clk R cpsr 21000013
+269581 clk IT (269581) 10008346 1ebc T handler_s : SUBS     r4,r7,#2  [profiler_unwind_capture+0x562]
+269581 clk R r4 00009870
+269581 clk R cpsr 21000013
+269582 clk IT (269582) 10008348 42a1 T handler_s : CMP      r1,r4  [profiler_unwind_capture+0x564]
+269582 clk R cpsr 81000013
+269583 clk IS (269583) 1000834a d8eb T handler_s : BHI      0x10008324  [profiler_unwind_capture+0x566]
+269584 clk IT (269584) 1000834c 9905 T handler_s : LDR      r1,[sp,#0x14]  [profiler_unwind_capture+0x568]
+269584 clk MR4 3007fe5c 30002080
+269584 clk R r1 30002080
+269585 clk IT (269585) 1000834e 4588 T handler_s : CMP      r8,r1  [profiler_unwind_capture+0x56a]
+269585 clk R cpsr 61000013
+269586 clk IS (269586) 10008350 d102 T handler_s : BNE      0x10008358  [profiler_unwind_capture+0x56c]
+269587 clk IT (269587) 10008352 9904 T handler_s : LDR      r1,[sp,#0x10]  [profiler_unwind_capture+0x56e]
+269587 clk MR4 3007fe58 10000b14
+269587 clk R r1 10000b14
+269588 clk IT (269588) 10008354 458e T handler_s : CMP      lr,r1  [profiler_unwind_capture+0x570]
+269588 clk R cpsr 21000013
+269589 clk IS (269589) 10008356 d039 T handler_s : BEQ      0x100083cc  [profiler_unwind_capture+0x572]
+269590 clk IT (269590) 10008358 f100011c T handler_s : ADD.W    r1,r0,#0x1c  [profiler_unwind_capture+0x574]
+269590 clk R r1 3007ff04
+269591 clk IT (269591) 1000835c f2461740 T handler_s : MOV      r7,#0x6140  [profiler_unwind_capture+0x578]
+269591 clk R r7 00006140
+269592 clk IT (269592) 10008360 f841902b T handler_s : STR      r9,[r1,r11,LSL #2]  [profiler_unwind_capture+0x57c]
+269592 clk MW4 3007ff04 10001187
+269593 clk IT (269593) 10008364 f10b0b01 T handler_s : ADD.W    r11,r11,#1  [profiler_unwind_capture+0x580]
+269593 clk R r11 00000001
+269594 clk IT (269594) 10008368 f8dde00c T handler_s : LDR      lr,[sp,#0xc]  [profiler_unwind_capture+0x584]
+269594 clk MR4 3007fe54 1000a1c0
+269594 clk R r14 1000a1c0
+269595 clk IT (269595) 1000836c f44f66c0 T handler_s : MOV.W    r6,#0x600  [profiler_unwind_capture+0x588]
+269595 clk R r6 00000600
+269596 clk IT (269596) 10008370 9b06 T handler_s : LDR      r3,[sp,#0x18]  [profiler_unwind_capture+0x58c]
+269596 clk MR4 3007fe60 300060e0
+269596 clk R r3 300060e0
+269597 clk IT (269597) 10008372 2110 T handler_s : MOVS     r1,#0x10  [profiler_unwind_capture+0x58e]
+269597 clk R r1 00000010
+269597 clk R cpsr 21000013
+269598 clk IT (269598) 10008374 f1bb0f10 T handler_s : CMP.W    r11,#0x10  [profiler_unwind_capture+0x590]
+269598 clk R cpsr 81000013
+269599 clk IT (269599) 10008378 f2c30702 T handler_s : MOVT     r7,#0x3002  [profiler_unwind_capture+0x594]
+269599 clk R r7 30026140
+269600 clk IT (269600) 1000837c f47fad65 T handler_s : BNE      0x10007e4a  [profiler_unwind_capture+0x598]
+269601 clk IT (269601) 10007e4a f8da103c T handler_s : LDR      r1,[r10,#0x3c]  [profiler_unwind_capture+0x66]
+269601 clk MR4 3007fee4 10001187
+269601 clk R r1 10001187
+269602 clk IT (269602) 10007e4e f0210401 T handler_s : BIC      r4,r1,#1  [profiler_unwind_capture+0x6a]
+269602 clk R r4 10001186
+269603 clk IT (269603) 10007e52 2901 T handler_s : CMP      r1,#1  [profiler_unwind_capture+0x6e]
+269603 clk R cpsr 21000013
+269604 clk IT (269604) 10007e54 4621 T handler_s : MOV      r1,r4  [profiler_unwind_capture+0x70]
+269604 clk R r1 10001186
+269605 clk IT (269605) 10007e56 bf88 T handler_s : IT       HI  [profiler_unwind_capture+0x72]
+269605 clk R cpsr 21008813
+269606 clk IT (269606) 10007e58 3902 T handler_s : SUBHI    r1,#2  [profiler_unwind_capture+0x74]
+269606 clk R r1 10001184
+269606 clk R cpsr 21000013
+269607 clk IT (269607) 10007e5a f8d78004 T handler_s : LDR      r8,[r7,#4]  [profiler_unwind_capture+0x76]
+269607 clk MR4 30026144 00000001
+269607 clk R r8 00000001
+269608 clk IT (269608) 10007e5e f1bb0f00 T handler_s : CMP.W    r11,#0  [profiler_unwind_capture+0x7a]
+269608 clk R cpsr 21000013
+269609 clk IT (269609) 10007e62 ea518914 T handler_s : CSEL     r9,r1,r4,NE  [profiler_unwind_capture+0x7e]
+269609 clk R r9 10001184
+269610 clk IT (269610) 10007e66 f1b80f00 T handler_s : CMP.W    r8,#0  [profiler_unwind_capture+0x82]
+269610 clk R cpsr 21000013
+269611 clk IS (269611) 10007e6a f0008296 T handler_s : BEQ      0x1000839a  [profiler_unwind_capture+0x86]
+269612 clk IT (269612) 10007e6e f8da1034 T handler_s : LDR      r1,[r10,#0x34]  [profiler_unwind_capture+0x8a]
+269612 clk MR4 3007fedc 30002080
+269612 clk R r1 30002080
+269613 clk IT (269613) 10007e72 9404 T handler_s : STR      r4,[sp,#0x10]  [profiler_unwind_capture+0x8e]
+269613 clk MW4 3007fe58 10001186
+269614 clk IT (269614) 10007e74 e9cd1305 T handler_s : STRD     r1,r3,[sp,#0x14]  [profiler_unwind_capture+0x90]
+269614 clk MW4 3007fe5c 30002080
+269614 clk MW4 3007fe60 300060e0
+269615 clk IT (269615) 10007e78 4619 T handler_s : MOV      r1,r3  [profiler_unwind_capture+0x94]
+269615 clk R r1 300060e0
+269616 clk IT (269616) 10007e7a 4643 T handler_s : MOV      r3,r8  [profiler_unwind_capture+0x96]
+269616 clk R r3 00000001
+269617 clk IT (269617) 10007e7c e005 T handler_s : B        0x10007e8a  [profiler_unwind_capture+0x98]
+269618 clk IT (269618) 10007e8a 680d T handler_s : LDR      r5,[r1,#0]  [profiler_unwind_capture+0xa6]
+269618 clk MR4 300060e0 00009872
+269618 clk R r5 00009872
+269619 clk IT (269619) 10007e8c 2d00 T handler_s : CMP      r5,#0  [profiler_unwind_capture+0xa8]
+269619 clk R cpsr 21000013
+269620 clk IS (269620) 10007e8e d0f7 T handler_s : BEQ      0x10007e80  [profiler_unwind_capture+0xaa]
+269621 clk IT (269621) 10007e90 f8514c04 T handler_s : LDR      r4,[r1,#-4]  [profiler_unwind_capture+0xac]
+269621 clk MR4 300060dc 100007c0
+269621 clk R r4 100007c0
+269622 clk IT (269622) 10007e94 426e T handler_s : RSBS     r6,r5,#0  [profiler_unwind_capture+0xb0]
+269622 clk R r6 ffff678e
+269622 clk R cpsr 81000013
+269623 clk IT (269623) 10007e96 42b4 T handler_s : CMP      r4,r6  [profiler_unwind_capture+0xb2]
+269623 clk R cpsr 01000013
+269624 clk IS (269624) 10007e98 d8f2 T handler_s : BHI      0x10007e80  [profiler_unwind_capture+0xb4]
+269625 clk IT (269625) 10007e9a 45a1 T handler_s : CMP      r9,r4  [profiler_unwind_capture+0xb6]
+269625 clk R cpsr 21000013
+269626 clk IT (269626) 10007e9c bf28 T handler_s : IT       CS  [profiler_unwind_capture+0xb8]
+269626 clk R cpsr 21002813
+269627 clk IT (269627) 10007e9e 2d02 T handler_s : CMPCS    r5,#2  [profiler_unwind_capture+0xba]
+269627 clk R cpsr 21000013
+269628 clk IS (269628) 10007ea0 d3ee T handler_s : BCC      0x10007e80  [profiler_unwind_capture+0xbc]
+269629 clk IT (269629) 10007ea2 eba90604 T handler_s : SUB      r6,r9,r4  [profiler_unwind_capture+0xbe]
+269629 clk R r6 000009c4
+269630 clk IT (269630) 10007ea6 3d02 T handler_s : SUBS     r5,#2  [profiler_unwind_capture+0xc2]
+269630 clk R r5 00009870
+269630 clk R cpsr 21000013
+269631 clk IT (269631) 10007ea8 42ae T handler_s : CMP      r6,r5  [profiler_unwind_capture+0xc4]
+269631 clk R cpsr 81000013
+269632 clk IS (269632) 10007eaa d8e9 T handler_s : BHI      0x10007e80  [profiler_unwind_capture+0xc6]
+269633 clk IT (269633) 10007eac 68f9 T handler_s : LDR      r1,[r7,#0xc]  [profiler_unwind_capture+0xc8]
+269633 clk MR4 3002614c 000004d0
+269633 clk R r1 000004d0
+269634 clk IT (269634) 10007eae f8cdb008 T handler_s : STR      r11,[sp,#8]  [profiler_unwind_capture+0xca]
+269634 clk MW4 3007fe50 00000001
+269635 clk IT (269635) 10007eb2 08cb T handler_s : LSRS     r3,r1,#3  [profiler_unwind_capture+0xce]
+269635 clk R r3 0000009a
+269635 clk R cpsr 01000013
+269636 clk IS (269636) 10007eb4 f0008274 T handler_s : BEQ      0x100083a0  [profiler_unwind_capture+0xd0]
+269637 clk IT (269637) 10007eb8 2100 T handler_s : MOVS     r1,#0  [profiler_unwind_capture+0xd4]
+269637 clk R r1 00000000
+269637 clk R cpsr 41000013
+269638 clk IT (269638) 10007eba 1a5e T handler_s : SUBS     r6,r3,r1  [profiler_unwind_capture+0xd6]
+269638 clk R r6 0000009a
+269638 clk R cpsr 21000013
+269639 clk IT (269639) 10007ebc eb010656 T handler_s : ADD      r6,r1,r6,LSR #1  [profiler_unwind_capture+0xd8]
+269639 clk R r6 0000004d
+269640 clk IT (269640) 10007ec0 f85c5036 T handler_s : LDR      r5,[r12,r6,LSL #3]  [profiler_unwind_capture+0xdc]
+269640 clk MR4 1000a428 7fffe1e4
+269640 clk R r5 7fffe1e4
+269641 clk IT (269641) 10007ec4 eb0c04c6 T handler_s : ADD      r4,r12,r6,LSL #3  [profiler_unwind_capture+0xe0]
+269641 clk R r4 1000a428
+269642 clk IT (269642) 10007ec8 006f T handler_s : LSLS     r7,r5,#1  [profiler_unwind_capture+0xe4]
+269642 clk R r7 ffffc3c8
+269642 clk R cpsr 81000013
+269643 clk IT (269643) 10007eca f365071e T handler_s : BFI      r7,r5,#0,#31  [profiler_unwind_capture+0xe6]
+269643 clk R r7 ffffe1e4
+269644 clk IT (269644) 10007ece 4427 T handler_s : ADD      r7,r7,r4  [profiler_unwind_capture+0xea]
+269644 clk R r7 1000860c
+269645 clk IT (269645) 10007ed0 454f T handler_s : CMP      r7,r9  [profiler_unwind_capture+0xec]
+269645 clk R cpsr 21000013
+269646 clk IT (269646) 10007ed2 ea568383 T handler_s : CSEL     r3,r6,r3,HI  [profiler_unwind_capture+0xee]
+269646 clk R r3 0000004d
+269647 clk IT (269647) 10007ed6 ea519186 T handler_s : CSINC    r1,r1,r6,HI  [profiler_unwind_capture+0xf2]
+269647 clk R r1 00000000
+269648 clk IT (269648) 10007eda 4299 T handler_s : CMP      r1,r3  [profiler_unwind_capture+0xf6]
+269648 clk R cpsr 81000013
+269649 clk IT (269649) 10007edc d3ed T handler_s : BCC      0x10007eba  [profiler_unwind_capture+0xf8]
+269650 clk IT (269650) 10007eba 1a5e T handler_s : SUBS     r6,r3,r1  [profiler_unwind_capture+0xd6]
+269650 clk R r6 0000004d
+269650 clk R cpsr 21000013
+269651 clk IT (269651) 10007ebc eb010656 T handler_s : ADD      r6,r1,r6,LSR #1  [profiler_unwind_capture+0xd8]
+269651 clk R r6 00000026
+269652 clk IT (269652) 10007ec0 f85c5036 T handler_s : LDR      r5,[r12,r6,LSL #3]  [profiler_unwind_capture+0xdc]
+269652 clk MR4 1000a2f0 7fffd330
+269652 clk R r5 7fffd330
+269653 clk IT (269653) 10007ec4 eb0c04c6 T handler_s : ADD      r4,r12,r6,LSL #3  [profiler_unwind_capture+0xe0]
+269653 clk R r4 1000a2f0
+269654 clk IT (269654) 10007ec8 006f T handler_s : LSLS     r7,r5,#1  [profiler_unwind_capture+0xe4]
+269654 clk R r7 ffffa660
+269654 clk R cpsr 81000013
+269655 clk IT (269655) 10007eca f365071e T handler_s : BFI      r7,r5,#0,#31  [profiler_unwind_capture+0xe6]
+269655 clk R r7 ffffd330
+269656 clk IT (269656) 10007ece 4427 T handler_s : ADD      r7,r7,r4  [profiler_unwind_capture+0xea]
+269656 clk R r7 10007620
+269657 clk IT (269657) 10007ed0 454f T handler_s : CMP      r7,r9  [profiler_unwind_capture+0xec]
+269657 clk R cpsr 21000013
+269658 clk IT (269658) 10007ed2 ea568383 T handler_s : CSEL     r3,r6,r3,HI  [profiler_unwind_capture+0xee]
+269658 clk R r3 00000026
+269659 clk IT (269659) 10007ed6 ea519186 T handler_s : CSINC    r1,r1,r6,HI  [profiler_unwind_capture+0xf2]
+269659 clk R r1 00000000
+269660 clk IT (269660) 10007eda 4299 T handler_s : CMP      r1,r3  [profiler_unwind_capture+0xf6]
+269660 clk R cpsr 81000013
+269661 clk IT (269661) 10007edc d3ed T handler_s : BCC      0x10007eba  [profiler_unwind_capture+0xf8]
+269662 clk IT (269662) 10007eba 1a5e T handler_s : SUBS     r6,r3,r1  [profiler_unwind_capture+0xd6]
+269662 clk R r6 00000026
+269662 clk R cpsr 21000013
+269663 clk IT (269663) 10007ebc eb010656 T handler_s : ADD      r6,r1,r6,LSR #1  [profiler_unwind_capture+0xd8]
+269663 clk R r6 00000013
+269664 clk IT (269664) 10007ec0 f85c5036 T handler_s : LDR      r5,[r12,r6,LSL #3]  [profiler_unwind_capture+0xdc]
+269664 clk MR4 1000a258 7fff9cdc
+269664 clk R r5 7fff9cdc
+269665 clk IT (269665) 10007ec4 eb0c04c6 T handler_s : ADD      r4,r12,r6,LSL #3  [profiler_unwind_capture+0xe0]
+269665 clk R r4 1000a258
+269666 clk IT (269666) 10007ec8 006f T handler_s : LSLS     r7,r5,#1  [profiler_unwind_capture+0xe4]
+269666 clk R r7 ffff39b8
+269666 clk R cpsr 81000013
+269667 clk IT (269667) 10007eca f365071e T handler_s : BFI      r7,r5,#0,#31  [profiler_unwind_capture+0xe6]
+269667 clk R r7 ffff9cdc
+269668 clk IT (269668) 10007ece 4427 T handler_s : ADD      r7,r7,r4  [profiler_unwind_capture+0xea]
+269668 clk R r7 10003f34
+269669 clk IT (269669) 10007ed0 454f T handler_s : CMP      r7,r9  [profiler_unwind_capture+0xec]
+269669 clk R cpsr 21000013
+269670 clk IT (269670) 10007ed2 ea568383 T handler_s : CSEL     r3,r6,r3,HI  [profiler_unwind_capture+0xee]
+269670 clk R r3 00000013
+269671 clk IT (269671) 10007ed6 ea519186 T handler_s : CSINC    r1,r1,r6,HI  [profiler_unwind_capture+0xf2]
+269671 clk R r1 00000000
+269672 clk IT (269672) 10007eda 4299 T handler_s : CMP      r1,r3  [profiler_unwind_capture+0xf6]
+269672 clk R cpsr 81000013
+269673 clk IT (269673) 10007edc d3ed T handler_s : BCC      0x10007eba  [profiler_unwind_capture+0xf8]
+269674 clk IT (269674) 10007eba 1a5e T handler_s : SUBS     r6,r3,r1  [profiler_unwind_capture+0xd6]
+269674 clk R r6 00000013
+269674 clk R cpsr 21000013
+269675 clk IT (269675) 10007ebc eb010656 T handler_s : ADD      r6,r1,r6,LSR #1  [profiler_unwind_capture+0xd8]
+269675 clk R r6 00000009
+269676 clk IT (269676) 10007ec0 f85c5036 T handler_s : LDR      r5,[r12,r6,LSL #3]  [profiler_unwind_capture+0xdc]
+269676 clk MR4 1000a208 7fff6900
+269676 clk R r5 7fff6900
+269677 clk IT (269677) 10007ec4 eb0c04c6 T handler_s : ADD      r4,r12,r6,LSL #3  [profiler_unwind_capture+0xe0]
+269677 clk R r4 1000a208
+269678 clk IT (269678) 10007ec8 006f T handler_s : LSLS     r7,r5,#1  [profiler_unwind_capture+0xe4]
+269678 clk R r7 fffed200
+269678 clk R cpsr 81000013
+269679 clk IT (269679) 10007eca f365071e T handler_s : BFI      r7,r5,#0,#31  [profiler_unwind_capture+0xe6]
+269679 clk R r7 ffff6900
+269680 clk IT (269680) 10007ece 4427 T handler_s : ADD      r7,r7,r4  [profiler_unwind_capture+0xea]
+269680 clk R r7 10000b08
+269681 clk IT (269681) 10007ed0 454f T handler_s : CMP      r7,r9  [profiler_unwind_capture+0xec]
+269681 clk R cpsr 81000013
+269682 clk IT (269682) 10007ed2 ea568383 T handler_s : CSEL     r3,r6,r3,HI  [profiler_unwind_capture+0xee]
+269682 clk R r3 00000013
+269683 clk IT (269683) 10007ed6 ea519186 T handler_s : CSINC    r1,r1,r6,HI  [profiler_unwind_capture+0xf2]
+269683 clk R r1 0000000a
+269684 clk IT (269684) 10007eda 4299 T handler_s : CMP      r1,r3  [profiler_unwind_capture+0xf6]
+269684 clk R cpsr 81000013
+269685 clk IT (269685) 10007edc d3ed T handler_s : BCC      0x10007eba  [profiler_unwind_capture+0xf8]
+269686 clk IT (269686) 10007eba 1a5e T handler_s : SUBS     r6,r3,r1  [profiler_unwind_capture+0xd6]
+269686 clk R r6 00000009
+269686 clk R cpsr 21000013
+269687 clk IT (269687) 10007ebc eb010656 T handler_s : ADD      r6,r1,r6,LSR #1  [profiler_unwind_capture+0xd8]
+269687 clk R r6 0000000e
+269688 clk IT (269688) 10007ec0 f85c5036 T handler_s : LDR      r5,[r12,r6,LSL #3]  [profiler_unwind_capture+0xdc]
+269688 clk MR4 1000a230 7fff9668
+269688 clk R r5 7fff9668
+269689 clk IT (269689) 10007ec4 eb0c04c6 T handler_s : ADD      r4,r12,r6,LSL #3  [profiler_unwind_capture+0xe0]
+269689 clk R r4 1000a230
+269690 clk IT (269690) 10007ec8 006f T handler_s : LSLS     r7,r5,#1  [profiler_unwind_capture+0xe4]
+269690 clk R r7 ffff2cd0
+269690 clk R cpsr 81000013
+269691 clk IT (269691) 10007eca f365071e T handler_s : BFI      r7,r5,#0,#31  [profiler_unwind_capture+0xe6]
+269691 clk R r7 ffff9668
+269692 clk IT (269692) 10007ece 4427 T handler_s : ADD      r7,r7,r4  [profiler_unwind_capture+0xea]
+269692 clk R r7 10003898
+269693 clk IT (269693) 10007ed0 454f T handler_s : CMP      r7,r9  [profiler_unwind_capture+0xec]
+269693 clk R cpsr 21000013
+269694 clk IT (269694) 10007ed2 ea568383 T handler_s : CSEL     r3,r6,r3,HI  [profiler_unwind_capture+0xee]
+269694 clk R r3 0000000e
+269695 clk IT (269695) 10007ed6 ea519186 T handler_s : CSINC    r1,r1,r6,HI  [profiler_unwind_capture+0xf2]
+269695 clk R r1 0000000a
+269696 clk IT (269696) 10007eda 4299 T handler_s : CMP      r1,r3  [profiler_unwind_capture+0xf6]
+269696 clk R cpsr 81000013
+269697 clk IT (269697) 10007edc d3ed T handler_s : BCC      0x10007eba  [profiler_unwind_capture+0xf8]
+269698 clk IT (269698) 10007eba 1a5e T handler_s : SUBS     r6,r3,r1  [profiler_unwind_capture+0xd6]
+269698 clk R r6 00000004
+269698 clk R cpsr 21000013
+269699 clk IT (269699) 10007ebc eb010656 T handler_s : ADD      r6,r1,r6,LSR #1  [profiler_unwind_capture+0xd8]
+269699 clk R r6 0000000c
+269700 clk IT (269700) 10007ec0 f85c5036 T handler_s : LDR      r5,[r12,r6,LSL #3]  [profiler_unwind_capture+0xdc]
+269700 clk MR4 1000a220 7fff8350
+269700 clk R r5 7fff8350
+269701 clk IT (269701) 10007ec4 eb0c04c6 T handler_s : ADD      r4,r12,r6,LSL #3  [profiler_unwind_capture+0xe0]
+269701 clk R r4 1000a220
+269702 clk IT (269702) 10007ec8 006f T handler_s : LSLS     r7,r5,#1  [profiler_unwind_capture+0xe4]
+269702 clk R r7 ffff06a0
+269702 clk R cpsr 81000013
+269703 clk IT (269703) 10007eca f365071e T handler_s : BFI      r7,r5,#0,#31  [profiler_unwind_capture+0xe6]
+269703 clk R r7 ffff8350
+269704 clk IT (269704) 10007ece 4427 T handler_s : ADD      r7,r7,r4  [profiler_unwind_capture+0xea]
+269704 clk R r7 10002570
+269705 clk IT (269705) 10007ed0 454f T handler_s : CMP      r7,r9  [profiler_unwind_capture+0xec]
+269705 clk R cpsr 21000013
+269706 clk IT (269706) 10007ed2 ea568383 T handler_s : CSEL     r3,r6,r3,HI  [profiler_unwind_capture+0xee]
+269706 clk R r3 0000000c
+269707 clk IT (269707) 10007ed6 ea519186 T handler_s : CSINC    r1,r1,r6,HI  [profiler_unwind_capture+0xf2]
+269707 clk R r1 0000000a
+269708 clk IT (269708) 10007eda 4299 T handler_s : CMP      r1,r3  [profiler_unwind_capture+0xf6]
+269708 clk R cpsr 81000013
+269709 clk IT (269709) 10007edc d3ed T handler_s : BCC      0x10007eba  [profiler_unwind_capture+0xf8]
+269710 clk IT (269710) 10007eba 1a5e T handler_s : SUBS     r6,r3,r1  [profiler_unwind_capture+0xd6]
+269710 clk R r6 00000002
+269710 clk R cpsr 21000013
+269711 clk IT (269711) 10007ebc eb010656 T handler_s : ADD      r6,r1,r6,LSR #1  [profiler_unwind_capture+0xd8]
+269711 clk R r6 0000000b
+269712 clk IT (269712) 10007ec0 f85c5036 T handler_s : LDR      r5,[r12,r6,LSL #3]  [profiler_unwind_capture+0xdc]
+269712 clk MR4 1000a218 7fff69d4
+269712 clk R r5 7fff69d4
+269713 clk IT (269713) 10007ec4 eb0c04c6 T handler_s : ADD      r4,r12,r6,LSL #3  [profiler_unwind_capture+0xe0]
+269713 clk R r4 1000a218
+269714 clk IT (269714) 10007ec8 006f T handler_s : LSLS     r7,r5,#1  [profiler_unwind_capture+0xe4]
+269714 clk R r7 fffed3a8
+269714 clk R cpsr 81000013
+269715 clk IT (269715) 10007eca f365071e T handler_s : BFI      r7,r5,#0,#31  [profiler_unwind_capture+0xe6]
+269715 clk R r7 ffff69d4
+269716 clk IT (269716) 10007ece 4427 T handler_s : ADD      r7,r7,r4  [profiler_unwind_capture+0xea]
+269716 clk R r7 10000bec
+269717 clk IT (269717) 10007ed0 454f T handler_s : CMP      r7,r9  [profiler_unwind_capture+0xec]
+269717 clk R cpsr 81000013
+269718 clk IT (269718) 10007ed2 ea568383 T handler_s : CSEL     r3,r6,r3,HI  [profiler_unwind_capture+0xee]
+269718 clk R r3 0000000c
+269719 clk IT (269719) 10007ed6 ea519186 T handler_s : CSINC    r1,r1,r6,HI  [profiler_unwind_capture+0xf2]
+269719 clk R r1 0000000c
+269720 clk IT (269720) 10007eda 4299 T handler_s : CMP      r1,r3  [profiler_unwind_capture+0xf6]
+269720 clk R cpsr 61000013
+269721 clk IS (269721) 10007edc d3ed T handler_s : BCC      0x10007eba  [profiler_unwind_capture+0xf8]
+269722 clk IT (269722) 10007ede 2900 T handler_s : CMP      r1,#0  [profiler_unwind_capture+0xfa]
+269722 clk R cpsr 21000013
+269723 clk IS (269723) 10007ee0 f000825e T handler_s : BEQ      0x100083a0  [profiler_unwind_capture+0xfc]
+269724 clk IT (269724) 10007ee4 eb0c0bc1 T handler_s : ADD      r11,r12,r1,LSL #3  [profiler_unwind_capture+0x100]
+269724 clk R r11 1000a220
+269725 clk IT (269725) 10007ee8 f8cde00c T handler_s : STR      lr,[sp,#0xc]  [profiler_unwind_capture+0x104]
+269725 clk MW4 3007fe54 1000a1c0
+269726 clk IT (269726) 10007eec 4659 T handler_s : MOV      r1,r11  [profiler_unwind_capture+0x108]
+269726 clk R r1 1000a220
+269727 clk IT (269727) 10007eee f8513d08 T handler_s : LDR      r3,[r1,#-8]!  [profiler_unwind_capture+0x10a]
+269727 clk MR4 1000a218 7fff69d4
+269727 clk R r1 1000a218
+269727 clk R r3 7fff69d4
+269728 clk IT (269728) 10007ef2 f0234700 T handler_s : BIC      r7,r3,#0x80000000  [profiler_unwind_capture+0x10e]
+269728 clk R r7 7fff69d4
+269729 clk IT (269729) 10007ef6 f0034380 T handler_s : AND      r3,r3,#0x40000000  [profiler_unwind_capture+0x112]
+269729 clk R r3 40000000
+269730 clk IT (269730) 10007efa 4439 T handler_s : ADD      r1,r1,r7  [profiler_unwind_capture+0x116]
+269730 clk R r1 90000bec
+269731 clk IT (269731) 10007efc eb010e43 T handler_s : ADD      lr,r1,r3,LSL #1  [profiler_unwind_capture+0x118]
+269731 clk R r14 10000bec
+269732 clk IT (269732) 10007f00 9b06 T handler_s : LDR      r3,[sp,#0x18]  [profiler_unwind_capture+0x11c]
+269732 clk MR4 3007fe60 300060e0
+269732 clk R r3 300060e0
+269733 clk IT (269733) 10007f02 2100 T handler_s : MOVS     r1,#0  [profiler_unwind_capture+0x11e]
+269733 clk R r1 00000000
+269733 clk R cpsr 61000013
+269734 clk IT (269734) 10007f04 e003 T handler_s : B        0x10007f0e  [profiler_unwind_capture+0x120]
+269735 clk IT (269735) 10007f0e 681c T handler_s : LDR      r4,[r3,#0]  [profiler_unwind_capture+0x12a]
+269735 clk MR4 300060e0 00009872
+269735 clk R r4 00009872
+269736 clk IT (269736) 10007f10 2c00 T handler_s : CMP      r4,#0  [profiler_unwind_capture+0x12c]
+269736 clk R cpsr 21000013
+269737 clk IS (269737) 10007f12 d0f8 T handler_s : BEQ      0x10007f06  [profiler_unwind_capture+0x12e]
+269738 clk IT (269738) 10007f14 f8535c04 T handler_s : LDR      r5,[r3,#-4]  [profiler_unwind_capture+0x130]
+269738 clk MR4 300060dc 100007c0
+269738 clk R r5 100007c0
+269739 clk IT (269739) 10007f18 4266 T handler_s : RSBS     r6,r4,#0  [profiler_unwind_capture+0x134]
+269739 clk R r6 ffff678e
+269739 clk R cpsr 81000013
+269740 clk IT (269740) 10007f1a 42b5 T handler_s : CMP      r5,r6  [profiler_unwind_capture+0x136]
+269740 clk R cpsr 01000013
+269741 clk IS (269741) 10007f1c d8f3 T handler_s : BHI      0x10007f06  [profiler_unwind_capture+0x138]
+269742 clk IT (269742) 10007f1e 45ae T handler_s : CMP      lr,r5  [profiler_unwind_capture+0x13a]
+269742 clk R cpsr 21000013
+269743 clk IT (269743) 10007f20 bf28 T handler_s : IT       CS  [profiler_unwind_capture+0x13c]
+269743 clk R cpsr 21002813
+269744 clk IT (269744) 10007f22 2c02 T handler_s : CMPCS    r4,#2  [profiler_unwind_capture+0x13e]
+269744 clk R cpsr 21000013
+269745 clk IS (269745) 10007f24 d3ef T handler_s : BCC      0x10007f06  [profiler_unwind_capture+0x140]
+269746 clk IT (269746) 10007f26 ebae0505 T handler_s : SUB      r5,lr,r5  [profiler_unwind_capture+0x142]
+269746 clk R r5 0000042c
+269747 clk IT (269747) 10007f2a 3c02 T handler_s : SUBS     r4,#2  [profiler_unwind_capture+0x146]
+269747 clk R r4 00009870
+269747 clk R cpsr 21000013
+269748 clk IT (269748) 10007f2c 42a5 T handler_s : CMP      r5,r4  [profiler_unwind_capture+0x148]
+269748 clk R cpsr 81000013
+269749 clk IS (269749) 10007f2e d8ea T handler_s : BHI      0x10007f06  [profiler_unwind_capture+0x14a]
+269750 clk IT (269750) 10007f30 f1010e01 T handler_s : ADD.W    lr,r1,#1  [profiler_unwind_capture+0x14c]
+269750 clk R r14 00000001
+269751 clk IT (269751) 10007f34 e001 T handler_s : B        0x10007f3a  [profiler_unwind_capture+0x150]
+269752 clk IT (269752) 10007f3a 9b06 T handler_s : LDR      r3,[sp,#0x18]  [profiler_unwind_capture+0x156]
+269752 clk MR4 3007fe60 300060e0
+269752 clk R r3 300060e0
+269753 clk IT (269753) 10007f3c 2500 T handler_s : MOVS     r5,#0  [profiler_unwind_capture+0x158]
+269753 clk R r5 00000000
+269753 clk R cpsr 41000013
+269754 clk IT (269754) 10007f3e e003 T handler_s : B        0x10007f48  [profiler_unwind_capture+0x15a]
+269755 clk IT (269755) 10007f48 681c T handler_s : LDR      r4,[r3,#0]  [profiler_unwind_capture+0x164]
+269755 clk MR4 300060e0 00009872
+269755 clk R r4 00009872
+269756 clk IT (269756) 10007f4a 2c00 T handler_s : CMP      r4,#0  [profiler_unwind_capture+0x166]
+269756 clk R cpsr 21000013
+269757 clk IS (269757) 10007f4c d0f8 T handler_s : BEQ      0x10007f40  [profiler_unwind_capture+0x168]
+269758 clk IT (269758) 10007f4e f8531c04 T handler_s : LDR      r1,[r3,#-4]  [profiler_unwind_capture+0x16a]
+269758 clk MR4 300060dc 100007c0
+269758 clk R r1 100007c0
+269759 clk IT (269759) 10007f52 4266 T handler_s : RSBS     r6,r4,#0  [profiler_unwind_capture+0x16e]
+269759 clk R r6 ffff678e
+269759 clk R cpsr 81000013
+269760 clk IT (269760) 10007f54 42b1 T handler_s : CMP      r1,r6  [profiler_unwind_capture+0x170]
+269760 clk R cpsr 01000013
+269761 clk IS (269761) 10007f56 d8f3 T handler_s : BHI      0x10007f40  [profiler_unwind_capture+0x172]
+269762 clk IT (269762) 10007f58 4589 T handler_s : CMP      r9,r1  [profiler_unwind_capture+0x174]
+269762 clk R cpsr 21000013
+269763 clk IT (269763) 10007f5a bf28 T handler_s : IT       CS  [profiler_unwind_capture+0x176]
+269763 clk R cpsr 21002813
+269764 clk IT (269764) 10007f5c 2c02 T handler_s : CMPCS    r4,#2  [profiler_unwind_capture+0x178]
+269764 clk R cpsr 21000013
+269765 clk IS (269765) 10007f5e d3ef T handler_s : BCC      0x10007f40  [profiler_unwind_capture+0x17a]
+269766 clk IT (269766) 10007f60 eba90101 T handler_s : SUB      r1,r9,r1  [profiler_unwind_capture+0x17c]
+269766 clk R r1 000009c4
+269767 clk IT (269767) 10007f64 3c02 T handler_s : SUBS     r4,#2  [profiler_unwind_capture+0x180]
+269767 clk R r4 00009870
+269767 clk R cpsr 21000013
+269768 clk IT (269768) 10007f66 42a1 T handler_s : CMP      r1,r4  [profiler_unwind_capture+0x182]
+269768 clk R cpsr 81000013
+269769 clk IS (269769) 10007f68 d8ea T handler_s : BHI      0x10007f40  [profiler_unwind_capture+0x184]
+269770 clk IT (269770) 10007f6a 1c69 T handler_s : ADDS     r1,r5,#1  [profiler_unwind_capture+0x186]
+269770 clk R r1 00000001
+269770 clk R cpsr 01000013
+269771 clk IT (269771) 10007f6c e000 T handler_s : B        0x10007f70  [profiler_unwind_capture+0x188]
+269772 clk IT (269772) 10007f70 458e T handler_s : CMP      lr,r1  [profiler_unwind_capture+0x18c]
+269772 clk R cpsr 61000013
+269773 clk IS (269773) 10007f72 f0408215 T handler_s : BNE      0x100083a0  [profiler_unwind_capture+0x18e]
+269774 clk IT (269774) 10007f76 f85b1d04 T handler_s : LDR      r1,[r11,#-4]!  [profiler_unwind_capture+0x192]
+269774 clk MR4 1000a21c 808408b0
+269774 clk R r1 808408b0
+269774 clk R r11 1000a21c
+269775 clk IT (269775) 10007f7a 2901 T handler_s : CMP      r1,#1  [profiler_unwind_capture+0x196]
+269775 clk R cpsr a1000013
+269776 clk IS (269776) 10007f7c f0008210 T handler_s : BEQ      0x100083a0  [profiler_unwind_capture+0x198]
+269777 clk IT (269777) 10007f80 2900 T handler_s : CMP      r1,#0  [profiler_unwind_capture+0x19c]
+269777 clk R cpsr a1000013
+269778 clk IT (269778) 10007f82 d437 T handler_s : BMI      0x10007ff4  [profiler_unwind_capture+0x19e]
+269779 clk IT (269779) 10007ff4 0e09 T handler_s : LSRS     r1,r1,#24  [profiler_unwind_capture+0x210]
+269779 clk R r1 00000080
+269779 clk R cpsr 21000013
+269780 clk IT (269780) 10007ff6 2980 T handler_s : CMP      r1,#0x80  [profiler_unwind_capture+0x212]
+269780 clk R cpsr 61000013
+269781 clk IS (269781) 10007ff8 f20081dc T handler_s : BHI      0x100083b4  [profiler_unwind_capture+0x214]
+269782 clk IT (269782) 10007ffc f04f0803 T handler_s : MOV.W    r8,#3  [profiler_unwind_capture+0x218]
+269782 clk R r8 00000003
+269783 clk IT (269783) 10008000 2701 T handler_s : MOVS     r7,#1  [profiler_unwind_capture+0x21c]
+269783 clk R r7 00000001
+269783 clk R cpsr 21000013
+269784 clk IT (269784) 10008002 e00f T handler_s : B        0x10008024  [profiler_unwind_capture+0x21e]
+269785 clk IT (269785) 10008024 f04f0900 T handler_s : MOV.W    r9,#0  [profiler_unwind_capture+0x240]
+269785 clk R r9 00000000
+269786 clk IT (269786) 10008028 2100 T handler_s : MOVS     r1,#0  [profiler_unwind_capture+0x244]
+269786 clk R r1 00000000
+269786 clk R cpsr 61000013
+269787 clk IT (269787) 1000802a 2900 T handler_s : CMP      r1,#0  [profiler_unwind_capture+0x246]
+269787 clk R cpsr 61000013
+269788 clk IT (269788) 1000802c f04f0304 T handler_s : MOV.W    r3,#4  [profiler_unwind_capture+0x248]
+269788 clk R r3 00000004
+269789 clk IT (269789) 10008030 ea588503 T handler_s : CSEL     r5,r8,r3,EQ  [profiler_unwind_capture+0x24c]
+269789 clk R r5 00000003
+269790 clk IT (269790) 10008034 f85b3021 T handler_s : LDR      r3,[r11,r1,LSL #2]  [profiler_unwind_capture+0x250]
+269790 clk MR4 1000a21c 808408b0
+269790 clk R r3 808408b0
+269791 clk IT (269791) 10008038 f045e001 T handler_s : DLS      lr,r5  [profiler_unwind_capture+0x254]
+269791 clk R r14 00000003
+269792 clk IT (269792) 1000803c ac07 T handler_s : ADD      r4,sp,#0x1c  [profiler_unwind_capture+0x258]
+269792 clk R r4 3007fe64
+269793 clk IT (269793) 1000803e eb040609 T handler_s : ADD.W    r6,r4,r9  [profiler_unwind_capture+0x25a]
+269793 clk R r6 3007fe64
+269794 clk IT (269794) 10008042 f06f0407 T handler_s : MVN      r4,#7  [profiler_unwind_capture+0x25e]
+269794 clk R r4 fffffff8
+269795 clk IT (269795) 10008046 eb0404c5 T handler_s : ADD      r4,r4,r5,LSL #3  [profiler_unwind_capture+0x262]
+269795 clk R r4 00000010
+269796 clk IT (269796) 1000804a 44a9 T handler_s : ADD      r9,r9,r5  [profiler_unwind_capture+0x266]
+269796 clk R r9 00000003
+269797 clk IT (269797) 1000804c fa23f504 T handler_s : LSR      r5,r3,r4  [profiler_unwind_capture+0x268]
+269797 clk R r5 00008084
+269798 clk IT (269798) 10008050 3c08 T handler_s : SUBS     r4,r4,#8  [profiler_unwind_capture+0x26c]
+269798 clk R r4 00000008
+269798 clk R cpsr 21000013
+269799 clk IT (269799) 10008052 f8065b01 T handler_s : STRB     r5,[r6],#1  [profiler_unwind_capture+0x26e]
+269799 clk MW1 3007fe64 84
+269799 clk R r6 3007fe65
+269800 clk IT (269800) 10008056 f00fc807 T handler_s : LE       lr,0x1000804c  [profiler_unwind_capture+0x272]
+269800 clk R r14 00000002
+269801 clk IT (269801) 1000804c fa23f504 T handler_s : LSR      r5,r3,r4  [profiler_unwind_capture+0x268]
+269801 clk R r5 00808408
+269802 clk IT (269802) 10008050 3c08 T handler_s : SUBS     r4,r4,#8  [profiler_unwind_capture+0x26c]
+269802 clk R r4 00000000
+269802 clk R cpsr 61000013
+269803 clk IT (269803) 10008052 f8065b01 T handler_s : STRB     r5,[r6],#1  [profiler_unwind_capture+0x26e]
+269803 clk MW1 3007fe65 08
+269803 clk R r6 3007fe66
+269804 clk IT (269804) 10008056 f00fc807 T handler_s : LE       lr,0x1000804c  [profiler_unwind_capture+0x272]
+269804 clk R r14 00000001
+269805 clk IT (269805) 1000804c fa23f504 T handler_s : LSR      r5,r3,r4  [profiler_unwind_capture+0x268]
+269805 clk R r5 808408b0
+269806 clk IT (269806) 10008050 3c08 T handler_s : SUBS     r4,r4,#8  [profiler_unwind_capture+0x26c]
+269806 clk R r4 fffffff8
+269806 clk R cpsr 81000013
+269807 clk IT (269807) 10008052 f8065b01 T handler_s : STRB     r5,[r6],#1  [profiler_unwind_capture+0x26e]
+269807 clk MW1 3007fe66 b0
+269807 clk R r6 3007fe67
+269808 clk IT (269808) 10008056 f00fc807 T handler_s : LE       lr,0x1000804c  [profiler_unwind_capture+0x272]
+269809 clk IT (269809) 1000805a 3101 T handler_s : ADDS     r1,#1  [profiler_unwind_capture+0x276]
+269809 clk R r1 00000001
+269809 clk R cpsr 01000013
+269810 clk IT (269810) 1000805c 42b9 T handler_s : CMP      r1,r7  [profiler_unwind_capture+0x278]
+269810 clk R cpsr 61000013
+269811 clk IS (269811) 1000805e d1e4 T handler_s : BNE      0x1000802a  [profiler_unwind_capture+0x27a]
+269812 clk IT (269812) 10008060 9b05 T handler_s : LDR      r3,[sp,#0x14]  [profiler_unwind_capture+0x27c]
+269812 clk MR4 3007fe5c 30002080
+269812 clk R r3 30002080
+269813 clk IT (269813) 10008062 f1b90f00 T handler_s : CMP.W    r9,#0  [profiler_unwind_capture+0x27e]
+269813 clk R cpsr 21000013
+269814 clk IT (269814) 10008066 4698 T handler_s : MOV      r8,r3  [profiler_unwind_capture+0x282]
+269814 clk R r8 30002080
+269815 clk IS (269815) 10008068 f000813b T handler_s : BEQ      0x100082e2  [profiler_unwind_capture+0x284]
+269816 clk IT (269816) 1000806c 4698 T handler_s : MOV      r8,r3  [profiler_unwind_capture+0x288]
+269816 clk R r8 30002080
+269817 clk IT (269817) 1000806e 2300 T handler_s : MOVS     r3,#0  [profiler_unwind_capture+0x28a]
+269817 clk R r3 00000000
+269817 clk R cpsr 61000013
+269818 clk IT (269818) 10008070 2700 T handler_s : MOVS     r7,#0  [profiler_unwind_capture+0x28c]
+269818 clk R r7 00000000
+269818 clk R cpsr 61000013
+269819 clk IT (269819) 10008072 a907 T handler_s : ADD      r1,sp,#0x1c  [profiler_unwind_capture+0x28e]
+269819 clk R r1 3007fe64
+269820 clk IT (269820) 10008074 9301 T handler_s : STR      r3,[sp,#4]  [profiler_unwind_capture+0x290]
+269820 clk MW4 3007fe4c 00000000
+269821 clk IT (269821) 10008076 57c9 T handler_s : LDRSB    r1,[r1,r7]  [profiler_unwind_capture+0x292]
+269821 clk MR1 3007fe64 84
+269821 clk R r1 ffffff84
+269822 clk IT (269822) 10008078 2900 T handler_s : CMP      r1,#0  [profiler_unwind_capture+0x294]
+269822 clk R cpsr a1000013
+269823 clk IT (269823) 1000807a b2cc T handler_s : UXTB     r4,r1  [profiler_unwind_capture+0x296]
+269823 clk R r4 00000084
+269824 clk IT (269824) 1000807c d40c T handler_s : BMI      0x10008098  [profiler_unwind_capture+0x298]
+269825 clk IT (269825) 10008098 2c8f T handler_s : CMP      r4,#0x8f  [profiler_unwind_capture+0x2b4]
+269825 clk R cpsr 81000013
+269826 clk IS (269826) 1000809a d813 T handler_s : BHI      0x100080c4  [profiler_unwind_capture+0x2b6]
+269827 clk IT (269827) 1000809c 3701 T handler_s : ADDS     r7,#1  [profiler_unwind_capture+0x2b8]
+269827 clk R r7 00000001
+269827 clk R cpsr 01000013
+269828 clk IT (269828) 1000809e 454f T handler_s : CMP      r7,r9  [profiler_unwind_capture+0x2ba]
+269828 clk R cpsr 81000013
+269829 clk IS (269829) 100080a0 f0808188 T handler_s : BCS      0x100083b4  [profiler_unwind_capture+0x2bc]
+269830 clk IT (269830) 100080a4 a907 T handler_s : ADD      r1,sp,#0x1c  [profiler_unwind_capture+0x2c0]
+269830 clk R r1 3007fe64
+269831 clk IT (269831) 100080a6 5dc9 T handler_s : LDRB     r1,[r1,r7]  [profiler_unwind_capture+0x2c2]
+269831 clk MR1 3007fe65 08
+269831 clk R r1 00000008
+269832 clk IT (269832) 100080a8 f364210b T handler_s : BFI      r1,r4,#8,#4  [profiler_unwind_capture+0x2c4]
+269832 clk R r1 00000408
+269833 clk IT (269833) 100080ac 2900 T handler_s : CMP      r1,#0  [profiler_unwind_capture+0x2c8]
+269833 clk R cpsr 21000013
+269834 clk IS (269834) 100080ae f0008181 T handler_s : BEQ      0x100083b4  [profiler_unwind_capture+0x2ca]
+269835 clk IT (269835) 100080b2 ea4f1e01 T handler_s : LSL      lr,r1,#4  [profiler_unwind_capture+0x2ce]
+269835 clk R r14 00004080
+269836 clk IT (269836) 100080b6 e08e T handler_s : B        0x100081d6  [profiler_unwind_capture+0x2d2]
+269837 clk IT (269837) 100081d6 2500 T handler_s : MOVS     r5,#0  [profiler_unwind_capture+0x3f2]
+269837 clk R r5 00000000
+269837 clk R cpsr 61000013
+269838 clk IT (269838) 100081d8 44a8 T handler_s : ADD      r8,r8,r5  [profiler_unwind_capture+0x3f4]
+269838 clk R r8 30002080
+269839 clk IT (269839) 100081da ea5f7188 T handler_s : LSLS     r1,r8,#30  [profiler_unwind_capture+0x3f6]
+269839 clk R r1 00000000
+269839 clk R cpsr 41000013
+269840 clk IT (269840) 100081de f8ca8034 T handler_s : STR      r8,[r10,#0x34]  [profiler_unwind_capture+0x3fa]
+269840 clk MW4 3007fedc 30002080
+269841 clk IS (269841) 100081e2 f04080e2 T handler_s : BNE      0x100083aa  [profiler_unwind_capture+0x3fe]
+269842 clk IT (269842) 100081e6 6811 T handler_s : LDR      r1,[r2,#0]  [profiler_unwind_capture+0x402]
+269842 clk MR4 3007ff48 300000c0
+269842 clk R r1 300000c0
+269843 clk IT (269843) 100081e8 f44f7640 T handler_s : MOV.W    r6,#0x300  [profiler_unwind_capture+0x404]
+269843 clk R r6 00000300
+269844 clk IT (269844) 100081ec 4588 T handler_s : CMP      r8,r1  [profiler_unwind_capture+0x408]
+269844 clk R cpsr 21000013
+269845 clk IS (269845) 100081ee f0c080d1 T handler_s : BCC      0x10008394  [profiler_unwind_capture+0x40a]
+269846 clk IT (269846) 100081f2 6853 T handler_s : LDR      r3,[r2,#4]  [profiler_unwind_capture+0x40e]
+269846 clk MR4 3007ff4c 00002000
+269846 clk R r3 00002000
+269847 clk IT (269847) 100081f4 9700 T handler_s : STR      r7,[sp,#0]  [profiler_unwind_capture+0x410]
+269847 clk MW4 3007fe48 00000001
+269848 clk IT (269848) 100081f6 2b00 T handler_s : CMP      r3,#0  [profiler_unwind_capture+0x412]
+269848 clk R cpsr 21000013
+269849 clk IS (269849) 100081f8 f00080cc T handler_s : BEQ      0x10008394  [profiler_unwind_capture+0x414]
+269850 clk IT (269850) 100081fc 425c T handler_s : RSBS     r4,r3,#0  [profiler_unwind_capture+0x418]
+269850 clk R r4 ffffe000
+269850 clk R cpsr 81000013
+269851 clk IT (269851) 100081fe 42a1 T handler_s : CMP      r1,r4  [profiler_unwind_capture+0x41a]
+269851 clk R cpsr 01000013
+269852 clk IS (269852) 10008200 f20080c8 T handler_s : BHI      0x10008394  [profiler_unwind_capture+0x41c]
+269853 clk IT (269853) 10008204 eba80101 T handler_s : SUB      r1,r8,r1  [profiler_unwind_capture+0x420]
+269853 clk R r1 00001fc0
+269854 clk IT (269854) 10008208 4299 T handler_s : CMP      r1,r3  [profiler_unwind_capture+0x424]
+269854 clk R cpsr 81000013
+269855 clk IS (269855) 1000820a f20080c3 T handler_s : BHI      0x10008394  [profiler_unwind_capture+0x426]
+269856 clk IT (269856) 1000820e f1be0f00 T handler_s : CMP.W    lr,#0  [profiler_unwind_capture+0x42a]
+269856 clk R cpsr 21000013
+269857 clk IS (269857) 10008212 d046 T handler_s : BEQ      0x100082a2  [profiler_unwind_capture+0x42e]
+269858 clk IT (269858) 10008214 2500 T handler_s : MOVS     r5,#0  [profiler_unwind_capture+0x430]
+269858 clk R r5 00000000
+269858 clk R cpsr 61000013
+269859 clk IT (269859) 10008216 4651 T handler_s : MOV      r1,r10  [profiler_unwind_capture+0x432]
+269859 clk R r1 3007fea8
+269860 clk IT (269860) 10008218 fa2ef305 T handler_s : LSR      r3,lr,r5  [profiler_unwind_capture+0x434]
+269860 clk R r3 00004080
+269861 clk IT (269861) 1000821c 07db T handler_s : LSLS     r3,r3,#31  [profiler_unwind_capture+0x438]
+269861 clk R r3 00000000
+269861 clk R cpsr 41000013
+269862 clk IT (269862) 1000821e d020 T handler_s : BEQ      0x10008262  [profiler_unwind_capture+0x43a]
+269863 clk IT (269863) 10008262 3501 T handler_s : ADDS     r5,#1  [profiler_unwind_capture+0x47e]
+269863 clk R r5 00000001
+269863 clk R cpsr 01000013
+269864 clk IT (269864) 10008264 3104 T handler_s : ADDS     r1,#4  [profiler_unwind_capture+0x480]
+269864 clk R r1 3007feac
+269864 clk R cpsr 01000013
+269865 clk IT (269865) 10008266 2d10 T handler_s : CMP      r5,#0x10  [profiler_unwind_capture+0x482]
+269865 clk R cpsr 81000013
+269866 clk IT (269866) 10008268 d1d6 T handler_s : BNE      0x10008218  [profiler_unwind_capture+0x484]
+269867 clk IT (269867) 10008218 fa2ef305 T handler_s : LSR      r3,lr,r5  [profiler_unwind_capture+0x434]
+269867 clk R r3 00002040
+269868 clk IT (269868) 1000821c 07db T handler_s : LSLS     r3,r3,#31  [profiler_unwind_capture+0x438]
+269868 clk R r3 00000000
+269868 clk R cpsr 41000013
+269869 clk IT (269869) 1000821e d020 T handler_s : BEQ      0x10008262  [profiler_unwind_capture+0x43a]
+269870 clk IT (269870) 10008262 3501 T handler_s : ADDS     r5,#1  [profiler_unwind_capture+0x47e]
+269870 clk R r5 00000002
+269870 clk R cpsr 01000013
+269871 clk IT (269871) 10008264 3104 T handler_s : ADDS     r1,#4  [profiler_unwind_capture+0x480]
+269871 clk R r1 3007feb0
+269871 clk R cpsr 01000013
+269872 clk IT (269872) 10008266 2d10 T handler_s : CMP      r5,#0x10  [profiler_unwind_capture+0x482]
+269872 clk R cpsr 81000013
+269873 clk IT (269873) 10008268 d1d6 T handler_s : BNE      0x10008218  [profiler_unwind_capture+0x484]
+269874 clk IT (269874) 10008218 fa2ef305 T handler_s : LSR      r3,lr,r5  [profiler_unwind_capture+0x434]
+269874 clk R r3 00001020
+269875 clk IT (269875) 1000821c 07db T handler_s : LSLS     r3,r3,#31  [profiler_unwind_capture+0x438]
+269875 clk R r3 00000000
+269875 clk R cpsr 41000013
+269876 clk IT (269876) 1000821e d020 T handler_s : BEQ      0x10008262  [profiler_unwind_capture+0x43a]
+269877 clk IT (269877) 10008262 3501 T handler_s : ADDS     r5,#1  [profiler_unwind_capture+0x47e]
+269877 clk R r5 00000003
+269877 clk R cpsr 01000013
+269878 clk IT (269878) 10008264 3104 T handler_s : ADDS     r1,#4  [profiler_unwind_capture+0x480]
+269878 clk R r1 3007feb4
+269878 clk R cpsr 01000013
+269879 clk IT (269879) 10008266 2d10 T handler_s : CMP      r5,#0x10  [profiler_unwind_capture+0x482]
+269879 clk R cpsr 81000013
+269880 clk IT (269880) 10008268 d1d6 T handler_s : BNE      0x10008218  [profiler_unwind_capture+0x484]
+269881 clk IT (269881) 10008218 fa2ef305 T handler_s : LSR      r3,lr,r5  [profiler_unwind_capture+0x434]
+269881 clk R r3 00000810
+269882 clk IT (269882) 1000821c 07db T handler_s : LSLS     r3,r3,#31  [profiler_unwind_capture+0x438]
+269882 clk R r3 00000000
+269882 clk R cpsr 41000013
+269883 clk IT (269883) 1000821e d020 T handler_s : BEQ      0x10008262  [profiler_unwind_capture+0x43a]
+269884 clk IT (269884) 10008262 3501 T handler_s : ADDS     r5,#1  [profiler_unwind_capture+0x47e]
+269884 clk R r5 00000004
+269884 clk R cpsr 01000013
+269885 clk IT (269885) 10008264 3104 T handler_s : ADDS     r1,#4  [profiler_unwind_capture+0x480]
+269885 clk R r1 3007feb8
+269885 clk R cpsr 01000013
+269886 clk IT (269886) 10008266 2d10 T handler_s : CMP      r5,#0x10  [profiler_unwind_capture+0x482]
+269886 clk R cpsr 81000013
+269887 clk IT (269887) 10008268 d1d6 T handler_s : BNE      0x10008218  [profiler_unwind_capture+0x484]
+269888 clk IT (269888) 10008218 fa2ef305 T handler_s : LSR      r3,lr,r5  [profiler_unwind_capture+0x434]
+269888 clk R r3 00000408
+269889 clk IT (269889) 1000821c 07db T handler_s : LSLS     r3,r3,#31  [profiler_unwind_capture+0x438]
+269889 clk R r3 00000000
+269889 clk R cpsr 41000013
+269890 clk IT (269890) 1000821e d020 T handler_s : BEQ      0x10008262  [profiler_unwind_capture+0x43a]
+269891 clk IT (269891) 10008262 3501 T handler_s : ADDS     r5,#1  [profiler_unwind_capture+0x47e]
+269891 clk R r5 00000005
+269891 clk R cpsr 01000013
+269892 clk IT (269892) 10008264 3104 T handler_s : ADDS     r1,#4  [profiler_unwind_capture+0x480]
+269892 clk R r1 3007febc
+269892 clk R cpsr 01000013
+269893 clk IT (269893) 10008266 2d10 T handler_s : CMP      r5,#0x10  [profiler_unwind_capture+0x482]
+269893 clk R cpsr 81000013
+269894 clk IT (269894) 10008268 d1d6 T handler_s : BNE      0x10008218  [profiler_unwind_capture+0x484]
+269895 clk IT (269895) 10008218 fa2ef305 T handler_s : LSR      r3,lr,r5  [profiler_unwind_capture+0x434]
+269895 clk R r3 00000204
+269896 clk IT (269896) 1000821c 07db T handler_s : LSLS     r3,r3,#31  [profiler_unwind_capture+0x438]
+269896 clk R r3 00000000
+269896 clk R cpsr 41000013
+269897 clk IT (269897) 1000821e d020 T handler_s : BEQ      0x10008262  [profiler_unwind_capture+0x43a]
+269898 clk IT (269898) 10008262 3501 T handler_s : ADDS     r5,#1  [profiler_unwind_capture+0x47e]
+269898 clk R r5 00000006
+269898 clk R cpsr 01000013
+269899 clk IT (269899) 10008264 3104 T handler_s : ADDS     r1,#4  [profiler_unwind_capture+0x480]
+269899 clk R r1 3007fec0
+269899 clk R cpsr 01000013
+269900 clk IT (269900) 10008266 2d10 T handler_s : CMP      r5,#0x10  [profiler_unwind_capture+0x482]
+269900 clk R cpsr 81000013
+269901 clk IT (269901) 10008268 d1d6 T handler_s : BNE      0x10008218  [profiler_unwind_capture+0x484]
+269902 clk IT (269902) 10008218 fa2ef305 T handler_s : LSR      r3,lr,r5  [profiler_unwind_capture+0x434]
+269902 clk R r3 00000102
+269903 clk IT (269903) 1000821c 07db T handler_s : LSLS     r3,r3,#31  [profiler_unwind_capture+0x438]
+269903 clk R r3 00000000
+269903 clk R cpsr 61000013
+269904 clk IT (269904) 1000821e d020 T handler_s : BEQ      0x10008262  [profiler_unwind_capture+0x43a]
+269905 clk IT (269905) 10008262 3501 T handler_s : ADDS     r5,#1  [profiler_unwind_capture+0x47e]
+269905 clk R r5 00000007
+269905 clk R cpsr 01000013
+269906 clk IT (269906) 10008264 3104 T handler_s : ADDS     r1,#4  [profiler_unwind_capture+0x480]
+269906 clk R r1 3007fec4
+269906 clk R cpsr 01000013
+269907 clk IT (269907) 10008266 2d10 T handler_s : CMP      r5,#0x10  [profiler_unwind_capture+0x482]
+269907 clk R cpsr 81000013
+269908 clk IT (269908) 10008268 d1d6 T handler_s : BNE      0x10008218  [profiler_unwind_capture+0x484]
+269909 clk IT (269909) 10008218 fa2ef305 T handler_s : LSR      r3,lr,r5  [profiler_unwind_capture+0x434]
+269909 clk R r3 00000081
+269910 clk IT (269910) 1000821c 07db T handler_s : LSLS     r3,r3,#31  [profiler_unwind_capture+0x438]
+269910 clk R r3 80000000
+269910 clk R cpsr 81000013
+269911 clk IS (269911) 1000821e d020 T handler_s : BEQ      0x10008262  [profiler_unwind_capture+0x43a]
+269912 clk IT (269912) 10008220 ea5f7388 T handler_s : LSLS     r3,r8,#30  [profiler_unwind_capture+0x43c]
+269912 clk R r3 00000000
+269912 clk R cpsr 41000013
+269913 clk IS (269913) 10008224 f04080c1 T handler_s : BNE      0x100083aa  [profiler_unwind_capture+0x440]
+269914 clk IT (269914) 10008228 6853 T handler_s : LDR      r3,[r2,#4]  [profiler_unwind_capture+0x444]
+269914 clk MR4 3007ff4c 00002000
+269914 clk R r3 00002000
+269915 clk IT (269915) 1000822a f44f7640 T handler_s : MOV.W    r6,#0x300  [profiler_unwind_capture+0x446]
+269915 clk R r6 00000300
+269916 clk IT (269916) 1000822e 2b04 T handler_s : CMP      r3,#4  [profiler_unwind_capture+0x44a]
+269916 clk R cpsr 21000013
+269917 clk IT (269917) 10008230 bf24 T handler_s : ITT      CS  [profiler_unwind_capture+0x44c]
+269917 clk R cpsr 21002413
+269918 clk IT (269918) 10008232 6814 T handler_s : LDRCS    r4,[r2,#0]  [profiler_unwind_capture+0x44e]
+269918 clk MR4 3007ff48 300000c0
+269918 clk R r4 300000c0
+269918 clk R cpsr 21002813
+269919 clk IT (269919) 10008234 ebb80b04 T handler_s : SUBSCS   r11,r8,r4  [profiler_unwind_capture+0x450]
+269919 clk R r11 00001fc0
+269919 clk R cpsr 21000013
+269920 clk IS (269920) 10008238 f0c080ac T handler_s : BCC      0x10008394  [profiler_unwind_capture+0x454]
+269921 clk IT (269921) 1000823c 2b00 T handler_s : CMP      r3,#0  [profiler_unwind_capture+0x458]
+269921 clk R cpsr 21000013
+269922 clk IS (269922) 1000823e f00080a9 T handler_s : BEQ      0x10008394  [profiler_unwind_capture+0x45a]
+269923 clk IT (269923) 10008242 425f T handler_s : RSBS     r7,r3,#0  [profiler_unwind_capture+0x45e]
+269923 clk R r7 ffffe000
+269923 clk R cpsr 81000013
+269924 clk IT (269924) 10008244 42bc T handler_s : CMP      r4,r7  [profiler_unwind_capture+0x460]
+269924 clk R cpsr 01000013
+269925 clk IT (269925) 10008246 bf98 T handler_s : IT       LS  [profiler_unwind_capture+0x462]
+269925 clk R cpsr 01009813
+269926 clk IT (269926) 10008248 459b T handler_s : CMPLS    r11,r3  [profiler_unwind_capture+0x464]
+269926 clk R cpsr 81000013
+269927 clk IS (269927) 1000824a f20080a3 T handler_s : BHI      0x10008394  [profiler_unwind_capture+0x466]
+269928 clk IT (269928) 1000824e f1180f05 T handler_s : CMN      r8,#5  [profiler_unwind_capture+0x46a]
+269928 clk R cpsr 01000013
+269929 clk IT (269929) 10008252 bf9c T handler_s : ITT      LS  [profiler_unwind_capture+0x46e]
+269929 clk R cpsr 01009c13
+269930 clk IT (269930) 10008254 3b04 T handler_s : SUBLS    r3,#4  [profiler_unwind_capture+0x470]
+269930 clk R r3 00001ffc
+269930 clk R cpsr 01009813
+269931 clk IT (269931) 10008256 459b T handler_s : CMPLS    r11,r3  [profiler_unwind_capture+0x472]
+269931 clk R cpsr 81000013
+269932 clk IS (269932) 10008258 f200809c T handler_s : BHI      0x10008394  [profiler_unwind_capture+0x474]
+269933 clk IT (269933) 1000825c f8583b04 T handler_s : LDR      r3,[r8],#4  [profiler_unwind_capture+0x478]
+269933 clk MR4 30002080 00000000
+269933 clk R r3 00000000
+269933 clk R r8 30002084
+269934 clk IT (269934) 10008260 600b T handler_s : STR      r3,[r1,#0]  [profiler_unwind_capture+0x47c]
+269934 clk MW4 3007fec4 00000000
+269935 clk IT (269935) 10008262 3501 T handler_s : ADDS     r5,#1  [profiler_unwind_capture+0x47e]
+269935 clk R r5 00000008
+269935 clk R cpsr 01000013
+269936 clk IT (269936) 10008264 3104 T handler_s : ADDS     r1,#4  [profiler_unwind_capture+0x480]
+269936 clk R r1 3007fec8
+269936 clk R cpsr 01000013
+269937 clk IT (269937) 10008266 2d10 T handler_s : CMP      r5,#0x10  [profiler_unwind_capture+0x482]
+269937 clk R cpsr 81000013
+269938 clk IT (269938) 10008268 d1d6 T handler_s : BNE      0x10008218  [profiler_unwind_capture+0x484]
+269939 clk IT (269939) 10008218 fa2ef305 T handler_s : LSR      r3,lr,r5  [profiler_unwind_capture+0x434]
+269939 clk R r3 00000040
+269940 clk IT (269940) 1000821c 07db T handler_s : LSLS     r3,r3,#31  [profiler_unwind_capture+0x438]
+269940 clk R r3 00000000
+269940 clk R cpsr 41000013
+269941 clk IT (269941) 1000821e d020 T handler_s : BEQ      0x10008262  [profiler_unwind_capture+0x43a]
+269942 clk IT (269942) 10008262 3501 T handler_s : ADDS     r5,#1  [profiler_unwind_capture+0x47e]
+269942 clk R r5 00000009
+269942 clk R cpsr 01000013
+269943 clk IT (269943) 10008264 3104 T handler_s : ADDS     r1,#4  [profiler_unwind_capture+0x480]
+269943 clk R r1 3007fecc
+269943 clk R cpsr 01000013
+269944 clk IT (269944) 10008266 2d10 T handler_s : CMP      r5,#0x10  [profiler_unwind_capture+0x482]
+269944 clk R cpsr 81000013
+269945 clk IT (269945) 10008268 d1d6 T handler_s : BNE      0x10008218  [profiler_unwind_capture+0x484]
+269946 clk IT (269946) 10008218 fa2ef305 T handler_s : LSR      r3,lr,r5  [profiler_unwind_capture+0x434]
+269946 clk R r3 00000020
+269947 clk IT (269947) 1000821c 07db T handler_s : LSLS     r3,r3,#31  [profiler_unwind_capture+0x438]
+269947 clk R r3 00000000
+269947 clk R cpsr 41000013
+269948 clk IT (269948) 1000821e d020 T handler_s : BEQ      0x10008262  [profiler_unwind_capture+0x43a]
+269949 clk IT (269949) 10008262 3501 T handler_s : ADDS     r5,#1  [profiler_unwind_capture+0x47e]
+269949 clk R r5 0000000a
+269949 clk R cpsr 01000013
+269950 clk IT (269950) 10008264 3104 T handler_s : ADDS     r1,#4  [profiler_unwind_capture+0x480]
+269950 clk R r1 3007fed0
+269950 clk R cpsr 01000013
+269951 clk IT (269951) 10008266 2d10 T handler_s : CMP      r5,#0x10  [profiler_unwind_capture+0x482]
+269951 clk R cpsr 81000013
+269952 clk IT (269952) 10008268 d1d6 T handler_s : BNE      0x10008218  [profiler_unwind_capture+0x484]
+269953 clk IT (269953) 10008218 fa2ef305 T handler_s : LSR      r3,lr,r5  [profiler_unwind_capture+0x434]
+269953 clk R r3 00000010
+269954 clk IT (269954) 1000821c 07db T handler_s : LSLS     r3,r3,#31  [profiler_unwind_capture+0x438]
+269954 clk R r3 00000000
+269954 clk R cpsr 41000013
+269955 clk IT (269955) 1000821e d020 T handler_s : BEQ      0x10008262  [profiler_unwind_capture+0x43a]
+269956 clk IT (269956) 10008262 3501 T handler_s : ADDS     r5,#1  [profiler_unwind_capture+0x47e]
+269956 clk R r5 0000000b
+269956 clk R cpsr 01000013
+269957 clk IT (269957) 10008264 3104 T handler_s : ADDS     r1,#4  [profiler_unwind_capture+0x480]
+269957 clk R r1 3007fed4
+269957 clk R cpsr 01000013
+269958 clk IT (269958) 10008266 2d10 T handler_s : CMP      r5,#0x10  [profiler_unwind_capture+0x482]
+269958 clk R cpsr 81000013
+269959 clk IT (269959) 10008268 d1d6 T handler_s : BNE      0x10008218  [profiler_unwind_capture+0x484]
+269960 clk IT (269960) 10008218 fa2ef305 T handler_s : LSR      r3,lr,r5  [profiler_unwind_capture+0x434]
+269960 clk R r3 00000008
+269961 clk IT (269961) 1000821c 07db T handler_s : LSLS     r3,r3,#31  [profiler_unwind_capture+0x438]
+269961 clk R r3 00000000
+269961 clk R cpsr 41000013
+269962 clk IT (269962) 1000821e d020 T handler_s : BEQ      0x10008262  [profiler_unwind_capture+0x43a]
+269963 clk IT (269963) 10008262 3501 T handler_s : ADDS     r5,#1  [profiler_unwind_capture+0x47e]
+269963 clk R r5 0000000c
+269963 clk R cpsr 01000013
+269964 clk IT (269964) 10008264 3104 T handler_s : ADDS     r1,#4  [profiler_unwind_capture+0x480]
+269964 clk R r1 3007fed8
+269964 clk R cpsr 01000013
+269965 clk IT (269965) 10008266 2d10 T handler_s : CMP      r5,#0x10  [profiler_unwind_capture+0x482]
+269965 clk R cpsr 81000013
+269966 clk IT (269966) 10008268 d1d6 T handler_s : BNE      0x10008218  [profiler_unwind_capture+0x484]
+269967 clk IT (269967) 10008218 fa2ef305 T handler_s : LSR      r3,lr,r5  [profiler_unwind_capture+0x434]
+269967 clk R r3 00000004
+269968 clk IT (269968) 1000821c 07db T handler_s : LSLS     r3,r3,#31  [profiler_unwind_capture+0x438]
+269968 clk R r3 00000000
+269968 clk R cpsr 41000013
+269969 clk IT (269969) 1000821e d020 T handler_s : BEQ      0x10008262  [profiler_unwind_capture+0x43a]
+269970 clk IT (269970) 10008262 3501 T handler_s : ADDS     r5,#1  [profiler_unwind_capture+0x47e]
+269970 clk R r5 0000000d
+269970 clk R cpsr 01000013
+269971 clk IT (269971) 10008264 3104 T handler_s : ADDS     r1,#4  [profiler_unwind_capture+0x480]
+269971 clk R r1 3007fedc
+269971 clk R cpsr 01000013
+269972 clk IT (269972) 10008266 2d10 T handler_s : CMP      r5,#0x10  [profiler_unwind_capture+0x482]
+269972 clk R cpsr 81000013
+269973 clk IT (269973) 10008268 d1d6 T handler_s : BNE      0x10008218  [profiler_unwind_capture+0x484]
+269974 clk IT (269974) 10008218 fa2ef305 T handler_s : LSR      r3,lr,r5  [profiler_unwind_capture+0x434]
+269974 clk R r3 00000002
+269975 clk IT (269975) 1000821c 07db T handler_s : LSLS     r3,r3,#31  [profiler_unwind_capture+0x438]
+269975 clk R r3 00000000
+269975 clk R cpsr 61000013
+269976 clk IT (269976) 1000821e d020 T handler_s : BEQ      0x10008262  [profiler_unwind_capture+0x43a]
+269977 clk IT (269977) 10008262 3501 T handler_s : ADDS     r5,#1  [profiler_unwind_capture+0x47e]
+269977 clk R r5 0000000e
+269977 clk R cpsr 01000013
+269978 clk IT (269978) 10008264 3104 T handler_s : ADDS     r1,#4  [profiler_unwind_capture+0x480]
+269978 clk R r1 3007fee0
+269978 clk R cpsr 01000013
+269979 clk IT (269979) 10008266 2d10 T handler_s : CMP      r5,#0x10  [profiler_unwind_capture+0x482]
+269979 clk R cpsr 81000013
+269980 clk IT (269980) 10008268 d1d6 T handler_s : BNE      0x10008218  [profiler_unwind_capture+0x484]
+269981 clk IT (269981) 10008218 fa2ef305 T handler_s : LSR      r3,lr,r5  [profiler_unwind_capture+0x434]
+269981 clk R r3 00000001
+269982 clk IT (269982) 1000821c 07db T handler_s : LSLS     r3,r3,#31  [profiler_unwind_capture+0x438]
+269982 clk R r3 80000000
+269982 clk R cpsr 81000013
+269983 clk IS (269983) 1000821e d020 T handler_s : BEQ      0x10008262  [profiler_unwind_capture+0x43a]
+269984 clk IT (269984) 10008220 ea5f7388 T handler_s : LSLS     r3,r8,#30  [profiler_unwind_capture+0x43c]
+269984 clk R r3 00000000
+269984 clk R cpsr 61000013
+269985 clk IS (269985) 10008224 f04080c1 T handler_s : BNE      0x100083aa  [profiler_unwind_capture+0x440]
+269986 clk IT (269986) 10008228 6853 T handler_s : LDR      r3,[r2,#4]  [profiler_unwind_capture+0x444]
+269986 clk MR4 3007ff4c 00002000
+269986 clk R r3 00002000
+269987 clk IT (269987) 1000822a f44f7640 T handler_s : MOV.W    r6,#0x300  [profiler_unwind_capture+0x446]
+269987 clk R r6 00000300
+269988 clk IT (269988) 1000822e 2b04 T handler_s : CMP      r3,#4  [profiler_unwind_capture+0x44a]
+269988 clk R cpsr 21000013
+269989 clk IT (269989) 10008230 bf24 T handler_s : ITT      CS  [profiler_unwind_capture+0x44c]
+269989 clk R cpsr 21002413
+269990 clk IT (269990) 10008232 6814 T handler_s : LDRCS    r4,[r2,#0]  [profiler_unwind_capture+0x44e]
+269990 clk MR4 3007ff48 300000c0
+269990 clk R r4 300000c0
+269990 clk R cpsr 21002813
+269991 clk IT (269991) 10008234 ebb80b04 T handler_s : SUBSCS   r11,r8,r4  [profiler_unwind_capture+0x450]
+269991 clk R r11 00001fc4
+269991 clk R cpsr 21000013
+269992 clk IS (269992) 10008238 f0c080ac T handler_s : BCC      0x10008394  [profiler_unwind_capture+0x454]
+269993 clk IT (269993) 1000823c 2b00 T handler_s : CMP      r3,#0  [profiler_unwind_capture+0x458]
+269993 clk R cpsr 21000013
+269994 clk IS (269994) 1000823e f00080a9 T handler_s : BEQ      0x10008394  [profiler_unwind_capture+0x45a]
+269995 clk IT (269995) 10008242 425f T handler_s : RSBS     r7,r3,#0  [profiler_unwind_capture+0x45e]
+269995 clk R r7 ffffe000
+269995 clk R cpsr 81000013
+269996 clk IT (269996) 10008244 42bc T handler_s : CMP      r4,r7  [profiler_unwind_capture+0x460]
+269996 clk R cpsr 01000013
+269997 clk IT (269997) 10008246 bf98 T handler_s : IT       LS  [profiler_unwind_capture+0x462]
+269997 clk R cpsr 01009813
+269998 clk IT (269998) 10008248 459b T handler_s : CMPLS    r11,r3  [profiler_unwind_capture+0x464]
+269998 clk R cpsr 81000013
+269999 clk IS (269999) 1000824a f20080a3 T handler_s : BHI      0x10008394  [profiler_unwind_capture+0x466]
+270000 clk IT (270000) 1000824e f1180f05 T handler_s : CMN      r8,#5  [profiler_unwind_capture+0x46a]
+270000 clk R cpsr 01000013
+270001 clk IT (270001) 10008252 bf9c T handler_s : ITT      LS  [profiler_unwind_capture+0x46e]
+270001 clk R cpsr 01009c13
+270002 clk IT (270002) 10008254 3b04 T handler_s : SUBLS    r3,#4  [profiler_unwind_capture+0x470]
+270002 clk R r3 00001ffc
+270002 clk R cpsr 01009813
+270003 clk IT (270003) 10008256 459b T handler_s : CMPLS    r11,r3  [profiler_unwind_capture+0x472]
+270003 clk R cpsr 81000013
+270004 clk IS (270004) 10008258 f200809c T handler_s : BHI      0x10008394  [profiler_unwind_capture+0x474]
+270005 clk IT (270005) 1000825c f8583b04 T handler_s : LDR      r3,[r8],#4  [profiler_unwind_capture+0x478]
+270005 clk MR4 30002084 1000309f
+270005 clk R r3 1000309f
+270005 clk R r8 30002088
+270006 clk IT (270006) 10008260 600b T handler_s : STR      r3,[r1,#0]  [profiler_unwind_capture+0x47c]
+270006 clk MW4 3007fee0 1000309f
+270007 clk IT (270007) 10008262 3501 T handler_s : ADDS     r5,#1  [profiler_unwind_capture+0x47e]
+270007 clk R r5 0000000f
+270007 clk R cpsr 01000013
+270008 clk IT (270008) 10008264 3104 T handler_s : ADDS     r1,#4  [profiler_unwind_capture+0x480]
+270008 clk R r1 3007fee4
+270008 clk R cpsr 01000013
+270009 clk IT (270009) 10008266 2d10 T handler_s : CMP      r5,#0x10  [profiler_unwind_capture+0x482]
+270009 clk R cpsr 81000013
+270010 clk IT (270010) 10008268 d1d6 T handler_s : BNE      0x10008218  [profiler_unwind_capture+0x484]
+270011 clk IT (270011) 10008218 fa2ef305 T handler_s : LSR      r3,lr,r5  [profiler_unwind_capture+0x434]
+270011 clk R r3 00000000
+270012 clk IT (270012) 1000821c 07db T handler_s : LSLS     r3,r3,#31  [profiler_unwind_capture+0x438]
+270012 clk R r3 00000000
+270012 clk R cpsr 41000013
+270013 clk IT (270013) 1000821e d020 T handler_s : BEQ      0x10008262  [profiler_unwind_capture+0x43a]
+270014 clk IT (270014) 10008262 3501 T handler_s : ADDS     r5,#1  [profiler_unwind_capture+0x47e]
+270014 clk R r5 00000010
+270014 clk R cpsr 01000013
+270015 clk IT (270015) 10008264 3104 T handler_s : ADDS     r1,#4  [profiler_unwind_capture+0x480]
+270015 clk R r1 3007fee8
+270015 clk R cpsr 01000013
+270016 clk IT (270016) 10008266 2d10 T handler_s : CMP      r5,#0x10  [profiler_unwind_capture+0x482]
+270016 clk R cpsr 61000013
+270017 clk IS (270017) 10008268 d1d6 T handler_s : BNE      0x10008218  [profiler_unwind_capture+0x484]
+270018 clk IT (270018) 1000826a ea5f418e T handler_s : LSLS     r1,lr,#18  [profiler_unwind_capture+0x486]
+270018 clk R r1 02000000
+270018 clk R cpsr 21000013
+270019 clk IT (270019) 1000826e bf54 T handler_s : ITE      PL  [profiler_unwind_capture+0x48a]
+270019 clk R cpsr 21005413
+270020 clk IT (270020) 10008270 f8ca8034 T handler_s : STRPL    r8,[r10,#0x34]  [profiler_unwind_capture+0x48c]
+270020 clk MW4 3007fedc 30002088
+270020 clk R cpsr 21004813
+270021 clk IS (270021) 10008274 f8da8034 T handler_s : LDRMI    r8,[r10,#0x34]  [profiler_unwind_capture+0x490]
+270021 clk R cpsr 21000013
+270022 clk IT (270022) 10008278 ea5f7188 T handler_s : LSLS     r1,r8,#30  [profiler_unwind_capture+0x494]
+270022 clk R r1 00000000
+270022 clk R cpsr 41000013
+270023 clk IS (270023) 1000827c f0408095 T handler_s : BNE      0x100083aa  [profiler_unwind_capture+0x498]
+270024 clk IT (270024) 10008280 6811 T handler_s : LDR      r1,[r2,#0]  [profiler_unwind_capture+0x49c]
+270024 clk MR4 3007ff48 300000c0
+270024 clk R r1 300000c0
+270025 clk IT (270025) 10008282 f44f7640 T handler_s : MOV.W    r6,#0x300  [profiler_unwind_capture+0x49e]
+270025 clk R r6 00000300
+270026 clk IT (270026) 10008286 4588 T handler_s : CMP      r8,r1  [profiler_unwind_capture+0x4a2]
+270026 clk R cpsr 21000013
+270027 clk IS (270027) 10008288 f0c08084 T handler_s : BCC      0x10008394  [profiler_unwind_capture+0x4a4]
+270028 clk IT (270028) 1000828c 6853 T handler_s : LDR      r3,[r2,#4]  [profiler_unwind_capture+0x4a8]
+270028 clk MR4 3007ff4c 00002000
+270028 clk R r3 00002000
+270029 clk IT (270029) 1000828e 2b00 T handler_s : CMP      r3,#0  [profiler_unwind_capture+0x4aa]
+270029 clk R cpsr 21000013
+270030 clk IS (270030) 10008290 f0008080 T handler_s : BEQ      0x10008394  [profiler_unwind_capture+0x4ac]
+270031 clk IT (270031) 10008294 425c T handler_s : RSBS     r4,r3,#0  [profiler_unwind_capture+0x4b0]
+270031 clk R r4 ffffe000
+270031 clk R cpsr 81000013
+270032 clk IT (270032) 10008296 42a1 T handler_s : CMP      r1,r4  [profiler_unwind_capture+0x4b2]
+270032 clk R cpsr 01000013
+270033 clk IS (270033) 10008298 d87c T handler_s : BHI      0x10008394  [profiler_unwind_capture+0x4b4]
+270034 clk IT (270034) 1000829a eba80101 T handler_s : SUB      r1,r8,r1  [profiler_unwind_capture+0x4b6]
+270034 clk R r1 00001fc8
+270035 clk IT (270035) 1000829e 4299 T handler_s : CMP      r1,r3  [profiler_unwind_capture+0x4ba]
+270035 clk R cpsr 81000013
+270036 clk IS (270036) 100082a0 d878 T handler_s : BHI      0x10008394  [profiler_unwind_capture+0x4bc]
+270037 clk IT (270037) 100082a2 9f00 T handler_s : LDR      r7,[sp,#0]  [profiler_unwind_capture+0x4be]
+270037 clk MR4 3007fe48 00000001
+270037 clk R r7 00000001
+270038 clk IT (270038) 100082a4 ea5f410e T handler_s : LSLS     r1,lr,#16  [profiler_unwind_capture+0x4c0]
+270038 clk R r1 40800000
+270038 clk R cpsr 01000013
+270039 clk IT (270039) 100082a8 9b01 T handler_s : LDR      r3,[sp,#4]  [profiler_unwind_capture+0x4c4]
+270039 clk MR4 3007fe4c 00000000
+270039 clk R r3 00000000
+270040 clk IT (270040) 100082aa f04f0101 T handler_s : MOV.W    r1,#1  [profiler_unwind_capture+0x4c6]
+270040 clk R r1 00000001
+270041 clk IT (270041) 100082ae f1070701 T handler_s : ADD.W    r7,r7,#1  [profiler_unwind_capture+0x4ca]
+270041 clk R r7 00000002
+270042 clk IT (270042) 100082b2 ea538351 T handler_s : CSEL     r3,r3,r1,PL  [profiler_unwind_capture+0x4ce]
+270042 clk R r3 00000000
+270043 clk IT (270043) 100082b6 454f T handler_s : CMP      r7,r9  [profiler_unwind_capture+0x4d2]
+270043 clk R cpsr 81000013
+270044 clk IT (270044) 100082b8 f4ffaedb T handler_s : BCC      0x10008072  [profiler_unwind_capture+0x4d4]
+270045 clk IT (270045) 10008072 a907 T handler_s : ADD      r1,sp,#0x1c  [profiler_unwind_capture+0x28e]
+270045 clk R r1 3007fe64
+270046 clk IT (270046) 10008074 9301 T handler_s : STR      r3,[sp,#4]  [profiler_unwind_capture+0x290]
+270046 clk MW4 3007fe4c 00000000
+270047 clk IT (270047) 10008076 57c9 T handler_s : LDRSB    r1,[r1,r7]  [profiler_unwind_capture+0x292]
+270047 clk MR1 3007fe66 b0
+270047 clk R r1 ffffffb0
+270048 clk IT (270048) 10008078 2900 T handler_s : CMP      r1,#0  [profiler_unwind_capture+0x294]
+270048 clk R cpsr a1000013
+270049 clk IT (270049) 1000807a b2cc T handler_s : UXTB     r4,r1  [profiler_unwind_capture+0x296]
+270049 clk R r4 000000b0
+270050 clk IT (270050) 1000807c d40c T handler_s : BMI      0x10008098  [profiler_unwind_capture+0x298]
+270051 clk IT (270051) 10008098 2c8f T handler_s : CMP      r4,#0x8f  [profiler_unwind_capture+0x2b4]
+270051 clk R cpsr 21000013
+270052 clk IT (270052) 1000809a d813 T handler_s : BHI      0x100080c4  [profiler_unwind_capture+0x2b6]
+270053 clk IT (270053) 100080c4 2c9f T handler_s : CMP      r4,#0x9f  [profiler_unwind_capture+0x2e0]
+270053 clk R cpsr 21000013
+270054 clk IT (270054) 100080c6 d80c T handler_s : BHI      0x100080e2  [profiler_unwind_capture+0x2e2]
+270055 clk IT (270055) 100080e2 2caf T handler_s : CMP      r4,#0xaf  [profiler_unwind_capture+0x2fe]
+270055 clk R cpsr 21000013
+270056 clk IT (270056) 100080e4 d80a T handler_s : BHI      0x100080fc  [profiler_unwind_capture+0x300]
+270057 clk IT (270057) 100080fc 2cb1 T handler_s : CMP      r4,#0xb1  [profiler_unwind_capture+0x318]
+270057 clk R cpsr 81000013
+270058 clk IS (270058) 100080fe d05e T handler_s : BEQ      0x100081be  [profiler_unwind_capture+0x31a]
+270059 clk IT (270059) 10008100 2cb2 T handler_s : CMP      r4,#0xb2  [profiler_unwind_capture+0x31c]
+270059 clk R cpsr 81000013
+270060 clk IS (270060) 10008102 d023 T handler_s : BEQ      0x1000814c  [profiler_unwind_capture+0x31e]
+270061 clk IT (270061) 10008104 2cb0 T handler_s : CMP      r4,#0xb0  [profiler_unwind_capture+0x320]
+270061 clk R cpsr 61000013
+270062 clk IT (270062) 10008106 f00080e8 T handler_s : BEQ      0x100082da  [profiler_unwind_capture+0x322]
+270063 clk IT (270063) 100082da 9b01 T handler_s : LDR      r3,[sp,#4]  [profiler_unwind_capture+0x4f6]
+270063 clk MR4 3007fe4c 00000000
+270063 clk R r3 00000000
+270064 clk IT (270064) 100082dc 2b00 T handler_s : CMP      r3,#0  [profiler_unwind_capture+0x4f8]
+270064 clk R cpsr 61000013
+270065 clk IT (270065) 100082de 9b05 T handler_s : LDR      r3,[sp,#0x14]  [profiler_unwind_capture+0x4fa]
+270065 clk MR4 3007fe5c 30002080
+270065 clk R r3 30002080
+270066 clk IS (270066) 100082e0 d103 T handler_s : BNE      0x100082ea  [profiler_unwind_capture+0x4fc]
+270067 clk IT (270067) 100082e2 f8da1038 T handler_s : LDR      r1,[r10,#0x38]  [profiler_unwind_capture+0x4fe]
+270067 clk MR4 3007fee0 1000309f
+270067 clk R r1 1000309f
+270068 clk IT (270068) 100082e6 f8ca103c T handler_s : STR      r1,[r10,#0x3c]  [profiler_unwind_capture+0x502]
+270068 clk MW4 3007fee4 1000309f
+270069 clk IT (270069) 100082ea 4598 T handler_s : CMP      r8,r3  [profiler_unwind_capture+0x506]
+270069 clk R cpsr 21000013
+270070 clk IS (270070) 100082ec d367 T handler_s : BCC      0x100083be  [profiler_unwind_capture+0x508]
+270071 clk IT (270071) 100082ee f8da903c T handler_s : LDR      r9,[r10,#0x3c]  [profiler_unwind_capture+0x50a]
+270071 clk MR4 3007fee4 1000309f
+270071 clk R r9 1000309f
+270072 clk IT (270072) 100082f2 f2461140 T handler_s : MOV      r1,#0x6140  [profiler_unwind_capture+0x50e]
+270072 clk R r1 00006140
+270073 clk IT (270073) 100082f6 f8ddb008 T handler_s : LDR      r11,[sp,#8]  [profiler_unwind_capture+0x512]
+270073 clk MR4 3007fe50 00000001
+270073 clk R r11 00000001
+270074 clk IT (270074) 100082fa f1b90f00 T handler_s : CMP.W    r9,#0  [profiler_unwind_capture+0x516]
+270074 clk R cpsr 21000013
+270075 clk IT (270075) 100082fe f2c30102 T handler_s : MOVT     r1,#0x3002  [profiler_unwind_capture+0x51a]
+270075 clk R r1 30026140
+270076 clk IS (270076) 10008302 d061 T handler_s : BEQ      0x100083c8  [profiler_unwind_capture+0x51e]
+270077 clk IT (270077) 10008304 f1b90f01 T handler_s : CMP.W    r9,#1  [profiler_unwind_capture+0x520]
+270077 clk R cpsr 21000013
+270078 clk IT (270078) 10008308 f44f6680 T handler_s : MOV.W    r6,#0x400  [profiler_unwind_capture+0x524]
+270078 clk R r6 00000400
+270079 clk IT (270079) 1000830c bf18 T handler_s : IT       NE  [profiler_unwind_capture+0x528]
+270079 clk R cpsr 21001813
+270080 clk IT (270080) 1000830e f0190301 T handler_s : ANDSNE   r3,r9,#1  [profiler_unwind_capture+0x52a]
+270080 clk R r3 00000001
+270080 clk R cpsr 21000013
+270081 clk IS (270081) 10008312 d038 T handler_s : BEQ      0x10008386  [profiler_unwind_capture+0x52e]
+270082 clk IT (270082) 10008314 684d T handler_s : LDR      r5,[r1,#4]  [profiler_unwind_capture+0x530]
+270082 clk MR4 30026144 00000001
+270082 clk R r5 00000001
+270083 clk IT (270083) 10008316 b3b5 T handler_s : CBZ      r5,0x10008386  [profiler_unwind_capture+0x532]
+270084 clk IT (270084) 10008318 f0290e01 T handler_s : BIC      lr,r9,#1  [profiler_unwind_capture+0x534]
+270084 clk R r14 1000309e
+270085 clk IT (270085) 1000831c 9b06 T handler_s : LDR      r3,[sp,#0x18]  [profiler_unwind_capture+0x538]
+270085 clk MR4 3007fe60 300060e0
+270085 clk R r3 300060e0
+270086 clk IT (270086) 1000831e f1ae0602 T handler_s : SUB.W    r6,lr,#2  [profiler_unwind_capture+0x53a]
+270086 clk R r6 1000309c
+270087 clk IT (270087) 10008322 e003 T handler_s : B        0x1000832c  [profiler_unwind_capture+0x53e]
+270088 clk IT (270088) 1000832c 681f T handler_s : LDR      r7,[r3,#0]  [profiler_unwind_capture+0x548]
+270088 clk MR4 300060e0 00009872
+270088 clk R r7 00009872
+270089 clk IT (270089) 1000832e 2f00 T handler_s : CMP      r7,#0  [profiler_unwind_capture+0x54a]
+270089 clk R cpsr 21000013
+270090 clk IS (270090) 10008330 d0f8 T handler_s : BEQ      0x10008324  [profiler_unwind_capture+0x54c]
+270091 clk IT (270091) 10008332 f8534c04 T handler_s : LDR      r4,[r3,#-4]  [profiler_unwind_capture+0x54e]
+270091 clk MR4 300060dc 100007c0
+270091 clk R r4 100007c0
+270092 clk IT (270092) 10008336 4279 T handler_s : RSBS     r1,r7,#0  [profiler_unwind_capture+0x552]
+270092 clk R r1 ffff678e
+270092 clk R cpsr 81000013
+270093 clk IT (270093) 10008338 428c T handler_s : CMP      r4,r1  [profiler_unwind_capture+0x554]
+270093 clk R cpsr 01000013
+270094 clk IS (270094) 1000833a d8f3 T handler_s : BHI      0x10008324  [profiler_unwind_capture+0x556]
+270095 clk IT (270095) 1000833c 42a6 T handler_s : CMP      r6,r4  [profiler_unwind_capture+0x558]
+270095 clk R cpsr 21000013
+270096 clk IT (270096) 1000833e bf28 T handler_s : IT       CS  [profiler_unwind_capture+0x55a]
+270096 clk R cpsr 21002813
+270097 clk IT (270097) 10008340 2f02 T handler_s : CMPCS    r7,#2  [profiler_unwind_capture+0x55c]
+270097 clk R cpsr 21000013
+270098 clk IS (270098) 10008342 d3ef T handler_s : BCC      0x10008324  [profiler_unwind_capture+0x55e]
+270099 clk IT (270099) 10008344 1b31 T handler_s : SUBS     r1,r6,r4  [profiler_unwind_capture+0x560]
+270099 clk R r1 000028dc
+270099 clk R cpsr 21000013
+270100 clk IT (270100) 10008346 1ebc T handler_s : SUBS     r4,r7,#2  [profiler_unwind_capture+0x562]
+270100 clk R r4 00009870
+270100 clk R cpsr 21000013
+270101 clk IT (270101) 10008348 42a1 T handler_s : CMP      r1,r4  [profiler_unwind_capture+0x564]
+270101 clk R cpsr 81000013
+270102 clk IS (270102) 1000834a d8eb T handler_s : BHI      0x10008324  [profiler_unwind_capture+0x566]
+270103 clk IT (270103) 1000834c 9905 T handler_s : LDR      r1,[sp,#0x14]  [profiler_unwind_capture+0x568]
+270103 clk MR4 3007fe5c 30002080
+270103 clk R r1 30002080
+270104 clk IT (270104) 1000834e 4588 T handler_s : CMP      r8,r1  [profiler_unwind_capture+0x56a]
+270104 clk R cpsr 21000013
+270105 clk IT (270105) 10008350 d102 T handler_s : BNE      0x10008358  [profiler_unwind_capture+0x56c]
+270106 clk IT (270106) 10008358 f100011c T handler_s : ADD.W    r1,r0,#0x1c  [profiler_unwind_capture+0x574]
+270106 clk R r1 3007ff04
+270107 clk IT (270107) 1000835c f2461740 T handler_s : MOV      r7,#0x6140  [profiler_unwind_capture+0x578]
+270107 clk R r7 00006140
+270108 clk IT (270108) 10008360 f841902b T handler_s : STR      r9,[r1,r11,LSL #2]  [profiler_unwind_capture+0x57c]
+270108 clk MW4 3007ff08 1000309f
+270109 clk IT (270109) 10008364 f10b0b01 T handler_s : ADD.W    r11,r11,#1  [profiler_unwind_capture+0x580]
+270109 clk R r11 00000002
+
+# ... Repetitive unwinding omitted: 270110..273286 clk ...
+# The first 2 steps (functionF -> functionE -> functionD) are shown above.
+# The same lookup/decode/restore loop continues through:
+# functionD -> functionC -> functionB -> functionA -> run_once -> worker -> osThreadEntry.
+# Resume below at the store of the final recovered caller, osThreadEntry.
+# Its CANTUNWIND termination, record storage and exception return remain in full.
+
+273287 clk IT (273287) 10008360 f841902b T handler_s : STR      r9,[r1,r11,LSL #2]  [profiler_unwind_capture+0x57c]
+273287 clk MW4 3007ff20 1000993f
+273288 clk IT (273288) 10008364 f10b0b01 T handler_s : ADD.W    r11,r11,#1  [profiler_unwind_capture+0x580]
+273288 clk R r11 00000008
+273289 clk IT (273289) 10008368 f8dde00c T handler_s : LDR      lr,[sp,#0xc]  [profiler_unwind_capture+0x584]
+273289 clk MR4 3007fe54 1000a1c0
+273289 clk R r14 1000a1c0
+273290 clk IT (273290) 1000836c f44f66c0 T handler_s : MOV.W    r6,#0x600  [profiler_unwind_capture+0x588]
+273290 clk R r6 00000600
+273291 clk IT (273291) 10008370 9b06 T handler_s : LDR      r3,[sp,#0x18]  [profiler_unwind_capture+0x58c]
+273291 clk MR4 3007fe60 300060e0
+273291 clk R r3 300060e0
+273292 clk IT (273292) 10008372 2110 T handler_s : MOVS     r1,#0x10  [profiler_unwind_capture+0x58e]
+273292 clk R r1 00000010
+273292 clk R cpsr 21000013
+273293 clk IT (273293) 10008374 f1bb0f10 T handler_s : CMP.W    r11,#0x10  [profiler_unwind_capture+0x590]
+273293 clk R cpsr 81000013
+273294 clk IT (273294) 10008378 f2c30702 T handler_s : MOVT     r7,#0x3002  [profiler_unwind_capture+0x594]
+273294 clk R r7 30026140
+273295 clk IT (273295) 1000837c f47fad65 T handler_s : BNE      0x10007e4a  [profiler_unwind_capture+0x598]
+273296 clk IT (273296) 10007e4a f8da103c T handler_s : LDR      r1,[r10,#0x3c]  [profiler_unwind_capture+0x66]
+273296 clk MR4 3007fee4 1000993f
+273296 clk R r1 1000993f
+273297 clk IT (273297) 10007e4e f0210401 T handler_s : BIC      r4,r1,#1  [profiler_unwind_capture+0x6a]
+273297 clk R r4 1000993e
+273298 clk IT (273298) 10007e52 2901 T handler_s : CMP      r1,#1  [profiler_unwind_capture+0x6e]
+273298 clk R cpsr 21000013
+273299 clk IT (273299) 10007e54 4621 T handler_s : MOV      r1,r4  [profiler_unwind_capture+0x70]
+273299 clk R r1 1000993e
+273300 clk IT (273300) 10007e56 bf88 T handler_s : IT       HI  [profiler_unwind_capture+0x72]
+273300 clk R cpsr 21008813
+273301 clk IT (273301) 10007e58 3902 T handler_s : SUBHI    r1,#2  [profiler_unwind_capture+0x74]
+273301 clk R r1 1000993c
+273301 clk R cpsr 21000013
+273302 clk IT (273302) 10007e5a f8d78004 T handler_s : LDR      r8,[r7,#4]  [profiler_unwind_capture+0x76]
+273302 clk MR4 30026144 00000001
+273302 clk R r8 00000001
+273303 clk IT (273303) 10007e5e f1bb0f00 T handler_s : CMP.W    r11,#0  [profiler_unwind_capture+0x7a]
+273303 clk R cpsr 21000013
+273304 clk IT (273304) 10007e62 ea518914 T handler_s : CSEL     r9,r1,r4,NE  [profiler_unwind_capture+0x7e]
+273304 clk R r9 1000993c
+273305 clk IT (273305) 10007e66 f1b80f00 T handler_s : CMP.W    r8,#0  [profiler_unwind_capture+0x82]
+273305 clk R cpsr 21000013
+273306 clk IS (273306) 10007e6a f0008296 T handler_s : BEQ      0x1000839a  [profiler_unwind_capture+0x86]
+273307 clk IT (273307) 10007e6e f8da1034 T handler_s : LDR      r1,[r10,#0x34]  [profiler_unwind_capture+0x8a]
+273307 clk MR4 3007fedc 300020c0
+273307 clk R r1 300020c0
+273308 clk IT (273308) 10007e72 9404 T handler_s : STR      r4,[sp,#0x10]  [profiler_unwind_capture+0x8e]
+273308 clk MW4 3007fe58 1000993e
+273309 clk IT (273309) 10007e74 e9cd1305 T handler_s : STRD     r1,r3,[sp,#0x14]  [profiler_unwind_capture+0x90]
+273309 clk MW4 3007fe5c 300020c0
+273309 clk MW4 3007fe60 300060e0
+273310 clk IT (273310) 10007e78 4619 T handler_s : MOV      r1,r3  [profiler_unwind_capture+0x94]
+273310 clk R r1 300060e0
+273311 clk IT (273311) 10007e7a 4643 T handler_s : MOV      r3,r8  [profiler_unwind_capture+0x96]
+273311 clk R r3 00000001
+273312 clk IT (273312) 10007e7c e005 T handler_s : B        0x10007e8a  [profiler_unwind_capture+0x98]
+273313 clk IT (273313) 10007e8a 680d T handler_s : LDR      r5,[r1,#0]  [profiler_unwind_capture+0xa6]
+273313 clk MR4 300060e0 00009872
+273313 clk R r5 00009872
+273314 clk IT (273314) 10007e8c 2d00 T handler_s : CMP      r5,#0  [profiler_unwind_capture+0xa8]
+273314 clk R cpsr 21000013
+273315 clk IS (273315) 10007e8e d0f7 T handler_s : BEQ      0x10007e80  [profiler_unwind_capture+0xaa]
+273316 clk IT (273316) 10007e90 f8514c04 T handler_s : LDR      r4,[r1,#-4]  [profiler_unwind_capture+0xac]
+273316 clk MR4 300060dc 100007c0
+273316 clk R r4 100007c0
+273317 clk IT (273317) 10007e94 426e T handler_s : RSBS     r6,r5,#0  [profiler_unwind_capture+0xb0]
+273317 clk R r6 ffff678e
+273317 clk R cpsr 81000013
+273318 clk IT (273318) 10007e96 42b4 T handler_s : CMP      r4,r6  [profiler_unwind_capture+0xb2]
+273318 clk R cpsr 01000013
+273319 clk IS (273319) 10007e98 d8f2 T handler_s : BHI      0x10007e80  [profiler_unwind_capture+0xb4]
+273320 clk IT (273320) 10007e9a 45a1 T handler_s : CMP      r9,r4  [profiler_unwind_capture+0xb6]
+273320 clk R cpsr 21000013
+273321 clk IT (273321) 10007e9c bf28 T handler_s : IT       CS  [profiler_unwind_capture+0xb8]
+273321 clk R cpsr 21002813
+273322 clk IT (273322) 10007e9e 2d02 T handler_s : CMPCS    r5,#2  [profiler_unwind_capture+0xba]
+273322 clk R cpsr 21000013
+273323 clk IS (273323) 10007ea0 d3ee T handler_s : BCC      0x10007e80  [profiler_unwind_capture+0xbc]
+273324 clk IT (273324) 10007ea2 eba90604 T handler_s : SUB      r6,r9,r4  [profiler_unwind_capture+0xbe]
+273324 clk R r6 0000917c
+273325 clk IT (273325) 10007ea6 3d02 T handler_s : SUBS     r5,#2  [profiler_unwind_capture+0xc2]
+273325 clk R r5 00009870
+273325 clk R cpsr 21000013
+273326 clk IT (273326) 10007ea8 42ae T handler_s : CMP      r6,r5  [profiler_unwind_capture+0xc4]
+273326 clk R cpsr 81000013
+273327 clk IS (273327) 10007eaa d8e9 T handler_s : BHI      0x10007e80  [profiler_unwind_capture+0xc6]
+273328 clk IT (273328) 10007eac 68f9 T handler_s : LDR      r1,[r7,#0xc]  [profiler_unwind_capture+0xc8]
+273328 clk MR4 3002614c 000004d0
+273328 clk R r1 000004d0
+273329 clk IT (273329) 10007eae f8cdb008 T handler_s : STR      r11,[sp,#8]  [profiler_unwind_capture+0xca]
+273329 clk MW4 3007fe50 00000008
+273330 clk IT (273330) 10007eb2 08cb T handler_s : LSRS     r3,r1,#3  [profiler_unwind_capture+0xce]
+273330 clk R r3 0000009a
+273330 clk R cpsr 01000013
+273331 clk IS (273331) 10007eb4 f0008274 T handler_s : BEQ      0x100083a0  [profiler_unwind_capture+0xd0]
+273332 clk IT (273332) 10007eb8 2100 T handler_s : MOVS     r1,#0  [profiler_unwind_capture+0xd4]
+273332 clk R r1 00000000
+273332 clk R cpsr 41000013
+273333 clk IT (273333) 10007eba 1a5e T handler_s : SUBS     r6,r3,r1  [profiler_unwind_capture+0xd6]
+273333 clk R r6 0000009a
+273333 clk R cpsr 21000013
+273334 clk IT (273334) 10007ebc eb010656 T handler_s : ADD      r6,r1,r6,LSR #1  [profiler_unwind_capture+0xd8]
+273334 clk R r6 0000004d
+273335 clk IT (273335) 10007ec0 f85c5036 T handler_s : LDR      r5,[r12,r6,LSL #3]  [profiler_unwind_capture+0xdc]
+273335 clk MR4 1000a428 7fffe1e4
+273335 clk R r5 7fffe1e4
+273336 clk IT (273336) 10007ec4 eb0c04c6 T handler_s : ADD      r4,r12,r6,LSL #3  [profiler_unwind_capture+0xe0]
+273336 clk R r4 1000a428
+273337 clk IT (273337) 10007ec8 006f T handler_s : LSLS     r7,r5,#1  [profiler_unwind_capture+0xe4]
+273337 clk R r7 ffffc3c8
+273337 clk R cpsr 81000013
+273338 clk IT (273338) 10007eca f365071e T handler_s : BFI      r7,r5,#0,#31  [profiler_unwind_capture+0xe6]
+273338 clk R r7 ffffe1e4
+273339 clk IT (273339) 10007ece 4427 T handler_s : ADD      r7,r7,r4  [profiler_unwind_capture+0xea]
+273339 clk R r7 1000860c
+273340 clk IT (273340) 10007ed0 454f T handler_s : CMP      r7,r9  [profiler_unwind_capture+0xec]
+273340 clk R cpsr 81000013
+273341 clk IT (273341) 10007ed2 ea568383 T handler_s : CSEL     r3,r6,r3,HI  [profiler_unwind_capture+0xee]
+273341 clk R r3 0000009a
+273342 clk IT (273342) 10007ed6 ea519186 T handler_s : CSINC    r1,r1,r6,HI  [profiler_unwind_capture+0xf2]
+273342 clk R r1 0000004e
+273343 clk IT (273343) 10007eda 4299 T handler_s : CMP      r1,r3  [profiler_unwind_capture+0xf6]
+273343 clk R cpsr 81000013
+273344 clk IT (273344) 10007edc d3ed T handler_s : BCC      0x10007eba  [profiler_unwind_capture+0xf8]
+273345 clk IT (273345) 10007eba 1a5e T handler_s : SUBS     r6,r3,r1  [profiler_unwind_capture+0xd6]
+273345 clk R r6 0000004c
+273345 clk R cpsr 21000013
+273346 clk IT (273346) 10007ebc eb010656 T handler_s : ADD      r6,r1,r6,LSR #1  [profiler_unwind_capture+0xd8]
+273346 clk R r6 00000074
+273347 clk IT (273347) 10007ec0 f85c5036 T handler_s : LDR      r5,[r12,r6,LSL #3]  [profiler_unwind_capture+0xdc]
+273347 clk MR4 1000a560 7fffe528
+273347 clk R r5 7fffe528
+273348 clk IT (273348) 10007ec4 eb0c04c6 T handler_s : ADD      r4,r12,r6,LSL #3  [profiler_unwind_capture+0xe0]
+273348 clk R r4 1000a560
+273349 clk IT (273349) 10007ec8 006f T handler_s : LSLS     r7,r5,#1  [profiler_unwind_capture+0xe4]
+273349 clk R r7 ffffca50
+273349 clk R cpsr 81000013
+273350 clk IT (273350) 10007eca f365071e T handler_s : BFI      r7,r5,#0,#31  [profiler_unwind_capture+0xe6]
+273350 clk R r7 ffffe528
+273351 clk IT (273351) 10007ece 4427 T handler_s : ADD      r7,r7,r4  [profiler_unwind_capture+0xea]
+273351 clk R r7 10008a88
+273352 clk IT (273352) 10007ed0 454f T handler_s : CMP      r7,r9  [profiler_unwind_capture+0xec]
+273352 clk R cpsr 81000013
+273353 clk IT (273353) 10007ed2 ea568383 T handler_s : CSEL     r3,r6,r3,HI  [profiler_unwind_capture+0xee]
+273353 clk R r3 0000009a
+273354 clk IT (273354) 10007ed6 ea519186 T handler_s : CSINC    r1,r1,r6,HI  [profiler_unwind_capture+0xf2]
+273354 clk R r1 00000075
+273355 clk IT (273355) 10007eda 4299 T handler_s : CMP      r1,r3  [profiler_unwind_capture+0xf6]
+273355 clk R cpsr 81000013
+273356 clk IT (273356) 10007edc d3ed T handler_s : BCC      0x10007eba  [profiler_unwind_capture+0xf8]
+273357 clk IT (273357) 10007eba 1a5e T handler_s : SUBS     r6,r3,r1  [profiler_unwind_capture+0xd6]
+273357 clk R r6 00000025
+273357 clk R cpsr 21000013
+273358 clk IT (273358) 10007ebc eb010656 T handler_s : ADD      r6,r1,r6,LSR #1  [profiler_unwind_capture+0xd8]
+273358 clk R r6 00000087
+273359 clk IT (273359) 10007ec0 f85c5036 T handler_s : LDR      r5,[r12,r6,LSL #3]  [profiler_unwind_capture+0xdc]
+273359 clk MR4 1000a5f8 7ffff004
+273359 clk R r5 7ffff004
+273360 clk IT (273360) 10007ec4 eb0c04c6 T handler_s : ADD      r4,r12,r6,LSL #3  [profiler_unwind_capture+0xe0]
+273360 clk R r4 1000a5f8
+273361 clk IT (273361) 10007ec8 006f T handler_s : LSLS     r7,r5,#1  [profiler_unwind_capture+0xe4]
+273361 clk R r7 ffffe008
+273361 clk R cpsr 81000013
+273362 clk IT (273362) 10007eca f365071e T handler_s : BFI      r7,r5,#0,#31  [profiler_unwind_capture+0xe6]
+273362 clk R r7 fffff004
+273363 clk IT (273363) 10007ece 4427 T handler_s : ADD      r7,r7,r4  [profiler_unwind_capture+0xea]
+273363 clk R r7 100095fc
+273364 clk IT (273364) 10007ed0 454f T handler_s : CMP      r7,r9  [profiler_unwind_capture+0xec]
+273364 clk R cpsr 81000013
+273365 clk IT (273365) 10007ed2 ea568383 T handler_s : CSEL     r3,r6,r3,HI  [profiler_unwind_capture+0xee]
+273365 clk R r3 0000009a
+273366 clk IT (273366) 10007ed6 ea519186 T handler_s : CSINC    r1,r1,r6,HI  [profiler_unwind_capture+0xf2]
+273366 clk R r1 00000088
+273367 clk IT (273367) 10007eda 4299 T handler_s : CMP      r1,r3  [profiler_unwind_capture+0xf6]
+273367 clk R cpsr 81000013
+273368 clk IT (273368) 10007edc d3ed T handler_s : BCC      0x10007eba  [profiler_unwind_capture+0xf8]
+273369 clk IT (273369) 10007eba 1a5e T handler_s : SUBS     r6,r3,r1  [profiler_unwind_capture+0xd6]
+273369 clk R r6 00000012
+273369 clk R cpsr 21000013
+273370 clk IT (273370) 10007ebc eb010656 T handler_s : ADD      r6,r1,r6,LSR #1  [profiler_unwind_capture+0xd8]
+273370 clk R r6 00000091
+273371 clk IT (273371) 10007ec0 f85c5036 T handler_s : LDR      r5,[r12,r6,LSL #3]  [profiler_unwind_capture+0xdc]
+273371 clk MR4 1000a648 7ffff5b4
+273371 clk R r5 7ffff5b4
+273372 clk IT (273372) 10007ec4 eb0c04c6 T handler_s : ADD      r4,r12,r6,LSL #3  [profiler_unwind_capture+0xe0]
+273372 clk R r4 1000a648
+273373 clk IT (273373) 10007ec8 006f T handler_s : LSLS     r7,r5,#1  [profiler_unwind_capture+0xe4]
+273373 clk R r7 ffffeb68
+273373 clk R cpsr 81000013
+273374 clk IT (273374) 10007eca f365071e T handler_s : BFI      r7,r5,#0,#31  [profiler_unwind_capture+0xe6]
+273374 clk R r7 fffff5b4
+273375 clk IT (273375) 10007ece 4427 T handler_s : ADD      r7,r7,r4  [profiler_unwind_capture+0xea]
+273375 clk R r7 10009bfc
+273376 clk IT (273376) 10007ed0 454f T handler_s : CMP      r7,r9  [profiler_unwind_capture+0xec]
+273376 clk R cpsr 21000013
+273377 clk IT (273377) 10007ed2 ea568383 T handler_s : CSEL     r3,r6,r3,HI  [profiler_unwind_capture+0xee]
+273377 clk R r3 00000091
+273378 clk IT (273378) 10007ed6 ea519186 T handler_s : CSINC    r1,r1,r6,HI  [profiler_unwind_capture+0xf2]
+273378 clk R r1 00000088
+273379 clk IT (273379) 10007eda 4299 T handler_s : CMP      r1,r3  [profiler_unwind_capture+0xf6]
+273379 clk R cpsr 81000013
+273380 clk IT (273380) 10007edc d3ed T handler_s : BCC      0x10007eba  [profiler_unwind_capture+0xf8]
+273381 clk IT (273381) 10007eba 1a5e T handler_s : SUBS     r6,r3,r1  [profiler_unwind_capture+0xd6]
+273381 clk R r6 00000009
+273381 clk R cpsr 21000013
+273382 clk IT (273382) 10007ebc eb010656 T handler_s : ADD      r6,r1,r6,LSR #1  [profiler_unwind_capture+0xd8]
+273382 clk R r6 0000008c
+273383 clk IT (273383) 10007ec0 f85c5036 T handler_s : LDR      r5,[r12,r6,LSL #3]  [profiler_unwind_capture+0xdc]
+273383 clk MR4 1000a620 7ffff300
+273383 clk R r5 7ffff300
+273384 clk IT (273384) 10007ec4 eb0c04c6 T handler_s : ADD      r4,r12,r6,LSL #3  [profiler_unwind_capture+0xe0]
+273384 clk R r4 1000a620
+273385 clk IT (273385) 10007ec8 006f T handler_s : LSLS     r7,r5,#1  [profiler_unwind_capture+0xe4]
+273385 clk R r7 ffffe600
+273385 clk R cpsr 81000013
+273386 clk IT (273386) 10007eca f365071e T handler_s : BFI      r7,r5,#0,#31  [profiler_unwind_capture+0xe6]
+273386 clk R r7 fffff300
+273387 clk IT (273387) 10007ece 4427 T handler_s : ADD      r7,r7,r4  [profiler_unwind_capture+0xea]
+273387 clk R r7 10009920
+273388 clk IT (273388) 10007ed0 454f T handler_s : CMP      r7,r9  [profiler_unwind_capture+0xec]
+273388 clk R cpsr 81000013
+273389 clk IT (273389) 10007ed2 ea568383 T handler_s : CSEL     r3,r6,r3,HI  [profiler_unwind_capture+0xee]
+273389 clk R r3 00000091
+273390 clk IT (273390) 10007ed6 ea519186 T handler_s : CSINC    r1,r1,r6,HI  [profiler_unwind_capture+0xf2]
+273390 clk R r1 0000008d
+273391 clk IT (273391) 10007eda 4299 T handler_s : CMP      r1,r3  [profiler_unwind_capture+0xf6]
+273391 clk R cpsr 81000013
+273392 clk IT (273392) 10007edc d3ed T handler_s : BCC      0x10007eba  [profiler_unwind_capture+0xf8]
+273393 clk IT (273393) 10007eba 1a5e T handler_s : SUBS     r6,r3,r1  [profiler_unwind_capture+0xd6]
+273393 clk R r6 00000004
+273393 clk R cpsr 21000013
+273394 clk IT (273394) 10007ebc eb010656 T handler_s : ADD      r6,r1,r6,LSR #1  [profiler_unwind_capture+0xd8]
+273394 clk R r6 0000008f
+273395 clk IT (273395) 10007ec0 f85c5036 T handler_s : LDR      r5,[r12,r6,LSL #3]  [profiler_unwind_capture+0xdc]
+273395 clk MR4 1000a638 7ffff3a8
+273395 clk R r5 7ffff3a8
+273396 clk IT (273396) 10007ec4 eb0c04c6 T handler_s : ADD      r4,r12,r6,LSL #3  [profiler_unwind_capture+0xe0]
+273396 clk R r4 1000a638
+273397 clk IT (273397) 10007ec8 006f T handler_s : LSLS     r7,r5,#1  [profiler_unwind_capture+0xe4]
+273397 clk R r7 ffffe750
+273397 clk R cpsr 81000013
+273398 clk IT (273398) 10007eca f365071e T handler_s : BFI      r7,r5,#0,#31  [profiler_unwind_capture+0xe6]
+273398 clk R r7 fffff3a8
+273399 clk IT (273399) 10007ece 4427 T handler_s : ADD      r7,r7,r4  [profiler_unwind_capture+0xea]
+273399 clk R r7 100099e0
+273400 clk IT (273400) 10007ed0 454f T handler_s : CMP      r7,r9  [profiler_unwind_capture+0xec]
+273400 clk R cpsr 21000013
+273401 clk IT (273401) 10007ed2 ea568383 T handler_s : CSEL     r3,r6,r3,HI  [profiler_unwind_capture+0xee]
+273401 clk R r3 0000008f
+273402 clk IT (273402) 10007ed6 ea519186 T handler_s : CSINC    r1,r1,r6,HI  [profiler_unwind_capture+0xf2]
+273402 clk R r1 0000008d
+273403 clk IT (273403) 10007eda 4299 T handler_s : CMP      r1,r3  [profiler_unwind_capture+0xf6]
+273403 clk R cpsr 81000013
+273404 clk IT (273404) 10007edc d3ed T handler_s : BCC      0x10007eba  [profiler_unwind_capture+0xf8]
+273405 clk IT (273405) 10007eba 1a5e T handler_s : SUBS     r6,r3,r1  [profiler_unwind_capture+0xd6]
+273405 clk R r6 00000002
+273405 clk R cpsr 21000013
+273406 clk IT (273406) 10007ebc eb010656 T handler_s : ADD      r6,r1,r6,LSR #1  [profiler_unwind_capture+0xd8]
+273406 clk R r6 0000008e
+273407 clk IT (273407) 10007ec0 f85c5036 T handler_s : LDR      r5,[r12,r6,LSL #3]  [profiler_unwind_capture+0xdc]
+273407 clk MR4 1000a630 7ffff314
+273407 clk R r5 7ffff314
+273408 clk IT (273408) 10007ec4 eb0c04c6 T handler_s : ADD      r4,r12,r6,LSL #3  [profiler_unwind_capture+0xe0]
+273408 clk R r4 1000a630
+273409 clk IT (273409) 10007ec8 006f T handler_s : LSLS     r7,r5,#1  [profiler_unwind_capture+0xe4]
+273409 clk R r7 ffffe628
+273409 clk R cpsr 81000013
+273410 clk IT (273410) 10007eca f365071e T handler_s : BFI      r7,r5,#0,#31  [profiler_unwind_capture+0xe6]
+273410 clk R r7 fffff314
+273411 clk IT (273411) 10007ece 4427 T handler_s : ADD      r7,r7,r4  [profiler_unwind_capture+0xea]
+273411 clk R r7 10009944
+273412 clk IT (273412) 10007ed0 454f T handler_s : CMP      r7,r9  [profiler_unwind_capture+0xec]
+273412 clk R cpsr 21000013
+273413 clk IT (273413) 10007ed2 ea568383 T handler_s : CSEL     r3,r6,r3,HI  [profiler_unwind_capture+0xee]
+273413 clk R r3 0000008e
+273414 clk IT (273414) 10007ed6 ea519186 T handler_s : CSINC    r1,r1,r6,HI  [profiler_unwind_capture+0xf2]
+273414 clk R r1 0000008d
+273415 clk IT (273415) 10007eda 4299 T handler_s : CMP      r1,r3  [profiler_unwind_capture+0xf6]
+273415 clk R cpsr 81000013
+273416 clk IT (273416) 10007edc d3ed T handler_s : BCC      0x10007eba  [profiler_unwind_capture+0xf8]
+273417 clk IT (273417) 10007eba 1a5e T handler_s : SUBS     r6,r3,r1  [profiler_unwind_capture+0xd6]
+273417 clk R r6 00000001
+273417 clk R cpsr 21000013
+273418 clk IT (273418) 10007ebc eb010656 T handler_s : ADD      r6,r1,r6,LSR #1  [profiler_unwind_capture+0xd8]
+273418 clk R r6 0000008d
+273419 clk IT (273419) 10007ec0 f85c5036 T handler_s : LDR      r5,[r12,r6,LSL #3]  [profiler_unwind_capture+0xdc]
+273419 clk MR4 1000a628 7ffff314
+273419 clk R r5 7ffff314
+273420 clk IT (273420) 10007ec4 eb0c04c6 T handler_s : ADD      r4,r12,r6,LSL #3  [profiler_unwind_capture+0xe0]
+273420 clk R r4 1000a628
+273421 clk IT (273421) 10007ec8 006f T handler_s : LSLS     r7,r5,#1  [profiler_unwind_capture+0xe4]
+273421 clk R r7 ffffe628
+273421 clk R cpsr 81000013
+273422 clk IT (273422) 10007eca f365071e T handler_s : BFI      r7,r5,#0,#31  [profiler_unwind_capture+0xe6]
+273422 clk R r7 fffff314
+273423 clk IT (273423) 10007ece 4427 T handler_s : ADD      r7,r7,r4  [profiler_unwind_capture+0xea]
+273423 clk R r7 1000993c
+273424 clk IT (273424) 10007ed0 454f T handler_s : CMP      r7,r9  [profiler_unwind_capture+0xec]
+273424 clk R cpsr 61000013
+273425 clk IT (273425) 10007ed2 ea568383 T handler_s : CSEL     r3,r6,r3,HI  [profiler_unwind_capture+0xee]
+273425 clk R r3 0000008e
+273426 clk IT (273426) 10007ed6 ea519186 T handler_s : CSINC    r1,r1,r6,HI  [profiler_unwind_capture+0xf2]
+273426 clk R r1 0000008e
+273427 clk IT (273427) 10007eda 4299 T handler_s : CMP      r1,r3  [profiler_unwind_capture+0xf6]
+273427 clk R cpsr 61000013
+273428 clk IS (273428) 10007edc d3ed T handler_s : BCC      0x10007eba  [profiler_unwind_capture+0xf8]
+273429 clk IT (273429) 10007ede 2900 T handler_s : CMP      r1,#0  [profiler_unwind_capture+0xfa]
+273429 clk R cpsr 21000013
+273430 clk IS (273430) 10007ee0 f000825e T handler_s : BEQ      0x100083a0  [profiler_unwind_capture+0xfc]
+273431 clk IT (273431) 10007ee4 eb0c0bc1 T handler_s : ADD      r11,r12,r1,LSL #3  [profiler_unwind_capture+0x100]
+273431 clk R r11 1000a630
+273432 clk IT (273432) 10007ee8 f8cde00c T handler_s : STR      lr,[sp,#0xc]  [profiler_unwind_capture+0x104]
+273432 clk MW4 3007fe54 1000a1c0
+273433 clk IT (273433) 10007eec 4659 T handler_s : MOV      r1,r11  [profiler_unwind_capture+0x108]
+273433 clk R r1 1000a630
+273434 clk IT (273434) 10007eee f8513d08 T handler_s : LDR      r3,[r1,#-8]!  [profiler_unwind_capture+0x10a]
+273434 clk MR4 1000a628 7ffff314
+273434 clk R r1 1000a628
+273434 clk R r3 7ffff314
+273435 clk IT (273435) 10007ef2 f0234700 T handler_s : BIC      r7,r3,#0x80000000  [profiler_unwind_capture+0x10e]
+273435 clk R r7 7ffff314
+273436 clk IT (273436) 10007ef6 f0034380 T handler_s : AND      r3,r3,#0x40000000  [profiler_unwind_capture+0x112]
+273436 clk R r3 40000000
+273437 clk IT (273437) 10007efa 4439 T handler_s : ADD      r1,r1,r7  [profiler_unwind_capture+0x116]
+273437 clk R r1 9000993c
+273438 clk IT (273438) 10007efc eb010e43 T handler_s : ADD      lr,r1,r3,LSL #1  [profiler_unwind_capture+0x118]
+273438 clk R r14 1000993c
+273439 clk IT (273439) 10007f00 9b06 T handler_s : LDR      r3,[sp,#0x18]  [profiler_unwind_capture+0x11c]
+273439 clk MR4 3007fe60 300060e0
+273439 clk R r3 300060e0
+273440 clk IT (273440) 10007f02 2100 T handler_s : MOVS     r1,#0  [profiler_unwind_capture+0x11e]
+273440 clk R r1 00000000
+273440 clk R cpsr 61000013
+273441 clk IT (273441) 10007f04 e003 T handler_s : B        0x10007f0e  [profiler_unwind_capture+0x120]
+273442 clk IT (273442) 10007f0e 681c T handler_s : LDR      r4,[r3,#0]  [profiler_unwind_capture+0x12a]
+273442 clk MR4 300060e0 00009872
+273442 clk R r4 00009872
+273443 clk IT (273443) 10007f10 2c00 T handler_s : CMP      r4,#0  [profiler_unwind_capture+0x12c]
+273443 clk R cpsr 21000013
+273444 clk IS (273444) 10007f12 d0f8 T handler_s : BEQ      0x10007f06  [profiler_unwind_capture+0x12e]
+273445 clk IT (273445) 10007f14 f8535c04 T handler_s : LDR      r5,[r3,#-4]  [profiler_unwind_capture+0x130]
+273445 clk MR4 300060dc 100007c0
+273445 clk R r5 100007c0
+273446 clk IT (273446) 10007f18 4266 T handler_s : RSBS     r6,r4,#0  [profiler_unwind_capture+0x134]
+273446 clk R r6 ffff678e
+273446 clk R cpsr 81000013
+273447 clk IT (273447) 10007f1a 42b5 T handler_s : CMP      r5,r6  [profiler_unwind_capture+0x136]
+273447 clk R cpsr 01000013
+273448 clk IS (273448) 10007f1c d8f3 T handler_s : BHI      0x10007f06  [profiler_unwind_capture+0x138]
+273449 clk IT (273449) 10007f1e 45ae T handler_s : CMP      lr,r5  [profiler_unwind_capture+0x13a]
+273449 clk R cpsr 21000013
+273450 clk IT (273450) 10007f20 bf28 T handler_s : IT       CS  [profiler_unwind_capture+0x13c]
+273450 clk R cpsr 21002813
+273451 clk IT (273451) 10007f22 2c02 T handler_s : CMPCS    r4,#2  [profiler_unwind_capture+0x13e]
+273451 clk R cpsr 21000013
+273452 clk IS (273452) 10007f24 d3ef T handler_s : BCC      0x10007f06  [profiler_unwind_capture+0x140]
+273453 clk IT (273453) 10007f26 ebae0505 T handler_s : SUB      r5,lr,r5  [profiler_unwind_capture+0x142]
+273453 clk R r5 0000917c
+273454 clk IT (273454) 10007f2a 3c02 T handler_s : SUBS     r4,#2  [profiler_unwind_capture+0x146]
+273454 clk R r4 00009870
+273454 clk R cpsr 21000013
+273455 clk IT (273455) 10007f2c 42a5 T handler_s : CMP      r5,r4  [profiler_unwind_capture+0x148]
+273455 clk R cpsr 81000013
+273456 clk IS (273456) 10007f2e d8ea T handler_s : BHI      0x10007f06  [profiler_unwind_capture+0x14a]
+273457 clk IT (273457) 10007f30 f1010e01 T handler_s : ADD.W    lr,r1,#1  [profiler_unwind_capture+0x14c]
+273457 clk R r14 00000001
+273458 clk IT (273458) 10007f34 e001 T handler_s : B        0x10007f3a  [profiler_unwind_capture+0x150]
+273459 clk IT (273459) 10007f3a 9b06 T handler_s : LDR      r3,[sp,#0x18]  [profiler_unwind_capture+0x156]
+273459 clk MR4 3007fe60 300060e0
+273459 clk R r3 300060e0
+273460 clk IT (273460) 10007f3c 2500 T handler_s : MOVS     r5,#0  [profiler_unwind_capture+0x158]
+273460 clk R r5 00000000
+273460 clk R cpsr 41000013
+273461 clk IT (273461) 10007f3e e003 T handler_s : B        0x10007f48  [profiler_unwind_capture+0x15a]
+273462 clk IT (273462) 10007f48 681c T handler_s : LDR      r4,[r3,#0]  [profiler_unwind_capture+0x164]
+273462 clk MR4 300060e0 00009872
+273462 clk R r4 00009872
+273463 clk IT (273463) 10007f4a 2c00 T handler_s : CMP      r4,#0  [profiler_unwind_capture+0x166]
+273463 clk R cpsr 21000013
+273464 clk IS (273464) 10007f4c d0f8 T handler_s : BEQ      0x10007f40  [profiler_unwind_capture+0x168]
+273465 clk IT (273465) 10007f4e f8531c04 T handler_s : LDR      r1,[r3,#-4]  [profiler_unwind_capture+0x16a]
+273465 clk MR4 300060dc 100007c0
+273465 clk R r1 100007c0
+273466 clk IT (273466) 10007f52 4266 T handler_s : RSBS     r6,r4,#0  [profiler_unwind_capture+0x16e]
+273466 clk R r6 ffff678e
+273466 clk R cpsr 81000013
+273467 clk IT (273467) 10007f54 42b1 T handler_s : CMP      r1,r6  [profiler_unwind_capture+0x170]
+273467 clk R cpsr 01000013
+273468 clk IS (273468) 10007f56 d8f3 T handler_s : BHI      0x10007f40  [profiler_unwind_capture+0x172]
+273469 clk IT (273469) 10007f58 4589 T handler_s : CMP      r9,r1  [profiler_unwind_capture+0x174]
+273469 clk R cpsr 21000013
+273470 clk IT (273470) 10007f5a bf28 T handler_s : IT       CS  [profiler_unwind_capture+0x176]
+273470 clk R cpsr 21002813
+273471 clk IT (273471) 10007f5c 2c02 T handler_s : CMPCS    r4,#2  [profiler_unwind_capture+0x178]
+273471 clk R cpsr 21000013
+273472 clk IS (273472) 10007f5e d3ef T handler_s : BCC      0x10007f40  [profiler_unwind_capture+0x17a]
+273473 clk IT (273473) 10007f60 eba90101 T handler_s : SUB      r1,r9,r1  [profiler_unwind_capture+0x17c]
+273473 clk R r1 0000917c
+273474 clk IT (273474) 10007f64 3c02 T handler_s : SUBS     r4,#2  [profiler_unwind_capture+0x180]
+273474 clk R r4 00009870
+273474 clk R cpsr 21000013
+273475 clk IT (273475) 10007f66 42a1 T handler_s : CMP      r1,r4  [profiler_unwind_capture+0x182]
+273475 clk R cpsr 81000013
+273476 clk IS (273476) 10007f68 d8ea T handler_s : BHI      0x10007f40  [profiler_unwind_capture+0x184]
+273477 clk IT (273477) 10007f6a 1c69 T handler_s : ADDS     r1,r5,#1  [profiler_unwind_capture+0x186]
+273477 clk R r1 00000001
+273477 clk R cpsr 01000013
+273478 clk IT (273478) 10007f6c e000 T handler_s : B        0x10007f70  [profiler_unwind_capture+0x188]
+273479 clk IT (273479) 10007f70 458e T handler_s : CMP      lr,r1  [profiler_unwind_capture+0x18c]
+273479 clk R cpsr 61000013
+273480 clk IS (273480) 10007f72 f0408215 T handler_s : BNE      0x100083a0  [profiler_unwind_capture+0x18e]
+273481 clk IT (273481) 10007f76 f85b1d04 T handler_s : LDR      r1,[r11,#-4]!  [profiler_unwind_capture+0x192]
+273481 clk MR4 1000a62c 00000001
+273481 clk R r1 00000001
+273481 clk R r11 1000a62c
+273482 clk IT (273482) 10007f7a 2901 T handler_s : CMP      r1,#1  [profiler_unwind_capture+0x196]
+273482 clk R cpsr 61000013
+273483 clk IT (273483) 10007f7c f0008210 T handler_s : BEQ      0x100083a0  [profiler_unwind_capture+0x198]
+273484 clk IT (273484) 100083a0 f8ddb008 T handler_s : LDR      r11,[sp,#8]  [profiler_unwind_capture+0x5bc]
+273484 clk MR4 3007fe50 00000008
+273484 clk R r11 00000008
+273485 clk IT (273485) 100083a4 f44f7680 T handler_s : MOV.W    r6,#0x100  [profiler_unwind_capture+0x5c0]
+273485 clk R r6 00000100
+273486 clk IT (273486) 100083a8 e7ed T handler_s : B        0x10008386  [profiler_unwind_capture+0x5c4]
+273487 clk IT (273487) 10008386 f1bb0f10 T handler_s : CMP.W    r11,#0x10  [profiler_unwind_capture+0x5a2]
+273487 clk R cpsr 81000013
+273488 clk IT (273488) 1000838a bf08 T handler_s : IT       EQ  [profiler_unwind_capture+0x5a6]
+273488 clk R cpsr 81000813
+273489 clk IS (273489) 1000838c f44f66c0 T handler_s : MOV.WEQ  r6,#0x600  [profiler_unwind_capture+0x5a8]
+273489 clk R cpsr 81000013
+273490 clk IT (273490) 10008390 4659 T handler_s : MOV      r1,r11  [profiler_unwind_capture+0x5ac]
+273490 clk R r1 00000008
+273491 clk IT (273491) 10008392 e53e T handler_s : B        0x10007e12  [profiler_unwind_capture+0x5ae]
+273492 clk IT (273492) 10007e12 4331 T handler_s : ORRS     r1,r1,r6  [profiler_unwind_capture+0x2e]
+273492 clk R r1 00000108
+273492 clk R cpsr 01000013
+273493 clk IT (273493) 10007e14 6181 T handler_s : STR      r1,[r0,#0x18]  [profiler_unwind_capture+0x30]
+273493 clk MW4 3007ff00 00000108
+273494 clk IT (273494) 10007e16 b00f T handler_s : ADD      sp,sp,#0x3c  [profiler_unwind_capture+0x32]
+273494 clk R r13_main_s 3007fe84
+273494 clk R MSP_S 3007fe84
+273495 clk IT (273495) 10007e18 e8bd8ff0 T handler_s : POP      {r4-r11,pc}  [profiler_unwind_capture+0x34]
+273495 clk MR4 3007fe84 30002060
+273495 clk MR4 3007fe88 300060cc
+273495 clk MR4 3007fe8c 00000000
+273495 clk MR4 3007fe90 10000b14
+273495 clk MR4 3007fe94 00000000
+273495 clk MR4 3007fe98 3007ff70
+273495 clk MR4 3007fe9c 00000000
+273495 clk MR4 3007fea0 00000000
+273495 clk MR4 3007fea4 10007c87
+273495 clk R r4 30002060
+273495 clk R r5 300060cc
+273495 clk R r6 00000000
+273495 clk R r7 10000b14
+273495 clk R r8 00000000
+273495 clk R r9 3007ff70
+273495 clk R r10 00000000
+273495 clk R r11 00000000
+273495 clk R r13_main_s 3007fea8
+273495 clk R cpsr 01000013
+273495 clk R MSP_S 3007fea8
+273496 clk IT (273496) 10007c86 a810 T handler_s : ADD      r0,sp,#0x40  [statistical_sampling_tick+0x19e]
+273496 clk R r0 3007fee8
+273497 clk IT (273497) 10007c88 f7fffdae T handler_s : BL       0x100077e8  [statistical_sampling_tick+0x1a0]
+273497 clk R r14 10007c8d
+273498 clk IT (273498) 100077e8 e92d4ff0 T handler_s : PUSH     {r4-r11,lr}  [profiler_record+0x0]
+273498 clk MW4 3007fe84 30002060
+273498 clk MW4 3007fe88 300060cc
+273498 clk MW4 3007fe8c 00000000
+273498 clk MW4 3007fe90 10000b14
+273498 clk MW4 3007fe94 00000000
+273498 clk MW4 3007fe98 3007ff70
+273498 clk MW4 3007fe9c 00000000
+273498 clk MW4 3007fea0 00000000
+273498 clk MW4 3007fea4 10007c8d
+273498 clk R r13_main_s 3007fe84
+273498 clk R MSP_S 3007fe84
+273499 clk IT (273499) 100077ec b081 T handler_s : SUB      sp,sp,#4  [profiler_record+0x4]
+273499 clk R r13_main_s 3007fe80
+273499 clk R MSP_S 3007fe80
+273500 clk IT (273500) 100077ee f2461b20 T handler_s : MOV      r11,#0x6120  [profiler_record+0x6]
+273500 clk R r11 00006120
+273501 clk IT (273501) 100077f2 f2c30b02 T handler_s : MOVT     r11,#0x3002  [profiler_record+0xa]
+273501 clk R r11 30026120
+273502 clk IT (273502) 100077f6 f8db1000 T handler_s : LDR      r1,[r11,#0]  [profiler_record+0xe]
+273502 clk MR4 30026120 00000001
+273502 clk R r1 00000001
+273503 clk IT (273503) 100077fa 2900 T handler_s : CMP      r1,#0  [profiler_record+0x12]
+273503 clk R cpsr 21000013
+273504 clk IS (273504) 100077fc f0008081 T handler_s : BEQ      0x10007902  [profiler_record+0x14]
+273505 clk IT (273505) 10007800 f2461520 T handler_s : MOV      r5,#0x6120  [profiler_record+0x18]
+273505 clk R r5 00006120
+273506 clk IT (273506) 10007804 f2c30500 T handler_s : MOVT     r5,#0x3000  [profiler_record+0x1c]
+273506 clk R r5 30006120
+273507 clk IT (273507) 10007808 f8d58014 T handler_s : LDR      r8,[r5,#0x14]  [profiler_record+0x20]
+273507 clk MR4 30006134 00000000
+273507 clk R r8 00000000
+273508 clk IT (273508) 1000780c 68ab T handler_s : LDR      r3,[r5,#8]  [profiler_record+0x24]
+273508 clk MR4 30006128 0000001c
+273508 clk R r3 0000001c
+273509 clk IT (273509) 1000780e 6982 T handler_s : LDR      r2,[r0,#0x18]  [profiler_record+0x26]
+273509 clk MR4 3007ff00 00000108
+273509 clk R r2 00000108
+273510 clk IT (273510) 10007810 b2d1 T handler_s : UXTB     r1,r2  [profiler_record+0x28]
+273510 clk R r1 00000008
+273511 clk IT (273511) 10007812 2910 T handler_s : CMP      r1,#0x10  [profiler_record+0x2a]
+273511 clk R cpsr 81000013
+273512 clk IS (273512) 10007814 d875 T handler_s : BHI      0x10007902  [profiler_record+0x2c]
+273513 clk IT (273513) 10007816 eb030a81 T handler_s : ADD      r10,r3,r1,LSL #2  [profiler_record+0x2e]
+273513 clk R r10 0000003c
+273514 clk IT (273514) 1000781a 692e T handler_s : LDR      r6,[r5,#0x10]  [profiler_record+0x32]
+273514 clk MR4 30006130 00000000
+273514 clk R r6 00000000
+273515 clk IT (273515) 1000781c f64f7350 T handler_s : MOV      r3,#0xff50  [profiler_record+0x34]
+273515 clk R r3 0000ff50
+273516 clk IT (273516) 10007820 f2c00301 T handler_s : MOVT     r3,#1  [profiler_record+0x38]
+273516 clk R r3 0001ff50
+273517 clk IT (273517) 10007824 eba30906 T handler_s : SUB      r9,r3,r6  [profiler_record+0x3c]
+273517 clk R r9 0001ff50
+273518 clk IT (273518) 10007828 45d1 T handler_s : CMP      r9,r10  [profiler_record+0x40]
+273518 clk R cpsr 21000013
+273519 clk IS (273519) 1000782a d364 T handler_s : BCC      0x100078f6  [profiler_record+0x42]
+273520 clk IT (273520) 1000782c f0260303 T handler_s : BIC      r3,r6,#3  [profiler_record+0x44]
+273520 clk R r3 00000000
+273521 clk IT (273521) 10007830 6807 T handler_s : LDR      r7,[r0,#0]  [profiler_record+0x48]
+273521 clk MR4 3007fee8 000cd528
+273521 clk R r7 000cd528
+273522 clk IT (273522) 10007832 18ec T handler_s : ADDS     r4,r5,r3  [profiler_record+0x4a]
+273522 clk R r4 30006120
+273522 clk R cpsr 01000013
+273523 clk IT (273523) 10007834 f8447fb0 T handler_s : STR      r7,[r4,#0xb0]!  [profiler_record+0x4c]
+273523 clk MW4 300061d0 000cd528
+273523 clk R r4 300061d0
+273524 clk IT (273524) 10007838 6843 T handler_s : LDR      r3,[r0,#4]  [profiler_record+0x50]
+273524 clk MR4 3007feec 00000001
+273524 clk R r3 00000001
+273525 clk IT (273525) 1000783a 2900 T handler_s : CMP      r1,#0  [profiler_record+0x52]
+273525 clk R cpsr 21000013
+273526 clk IT (273526) 1000783c 6063 T handler_s : STR      r3,[r4,#4]  [profiler_record+0x54]
+273526 clk MW4 300061d4 00000001
+273527 clk IT (273527) 1000783e 6883 T handler_s : LDR      r3,[r0,#8]  [profiler_record+0x56]
+273527 clk MR4 3007fef0 10000b14
+273527 clk R r3 10000b14
+273528 clk IT (273528) 10007840 60a3 T handler_s : STR      r3,[r4,#8]  [profiler_record+0x58]
+273528 clk MW4 300061d8 10000b14
+273529 clk IT (273529) 10007842 68c3 T handler_s : LDR      r3,[r0,#0xc]  [profiler_record+0x5a]
+273529 clk MR4 3007fef4 10001187
+273529 clk R r3 10001187
+273530 clk IT (273530) 10007844 60e3 T handler_s : STR      r3,[r4,#0xc]  [profiler_record+0x5c]
+273530 clk MW4 300061dc 10001187
+273531 clk IT (273531) 10007846 6903 T handler_s : LDR      r3,[r0,#0x10]  [profiler_record+0x5e]
+273531 clk MR4 3007fef8 01000000
+273531 clk R r3 01000000
+273532 clk IT (273532) 10007848 6123 T handler_s : STR      r3,[r4,#0x10]  [profiler_record+0x60]
+273532 clk MW4 300061e0 01000000
+273533 clk IT (273533) 1000784a 6943 T handler_s : LDR      r3,[r0,#0x14]  [profiler_record+0x62]
+273533 clk MR4 3007fefc fffffffd
+273533 clk R r3 fffffffd
+273534 clk IT (273534) 1000784c 6163 T handler_s : STR      r3,[r4,#0x14]  [profiler_record+0x64]
+273534 clk MW4 300061e4 fffffffd
+273535 clk IT (273535) 1000784e 6e6b T handler_s : LDR      r3,[r5,#0x64]  [profiler_record+0x66]
+273535 clk MR4 30006184 00000000
+273535 clk R r3 00000000
+273536 clk IT (273536) 10007850 6987 T handler_s : LDR      r7,[r0,#0x18]  [profiler_record+0x68]
+273536 clk MR4 3007ff00 00000108
+273536 clk R r7 00000108
+273537 clk IT (273537) 10007852 eb040483 T handler_s : ADD      r4,r4,r3,LSL #2  [profiler_record+0x6a]
+273537 clk R r4 300061d0
+273538 clk IT (273538) 10007856 61a7 T handler_s : STR      r7,[r4,#0x18]  [profiler_record+0x6e]
+273538 clk MW4 300061e8 00000108
+273539 clk IS (273539) 10007858 d040 T handler_s : BEQ      0x100078dc  [profiler_record+0x70]
+273540 clk IT (273540) 1000785a 2904 T handler_s : CMP      r1,#4  [profiler_record+0x72]
+273540 clk R cpsr 21000013
+273541 clk IT (273541) 1000785c f0020c03 T handler_s : AND      r12,r2,#3  [profiler_record+0x74]
+273541 clk R r12 00000000
+273542 clk IT (273542) 10007860 d201 T handler_s : BCS      0x10007866  [profiler_record+0x78]
+273543 clk IT (273543) 10007866 f00207fc T handler_s : AND      r7,r2,#0xfc  [profiler_record+0x7e]
+273543 clk R r7 00000008
+273544 clk IT (273544) 1000786a 2201 T handler_s : MOVS     r2,#1  [profiler_record+0x82]
+273544 clk R r2 00000001
+273544 clk R cpsr 21000013
+273545 clk IT (273545) 1000786c f1a70e04 T handler_s : SUB.W    lr,r7,#4  [profiler_record+0x84]
+273545 clk R r14 00000004
+273546 clk IT (273546) 10007870 08b1 T handler_s : LSRS     r1,r6,#2  [profiler_record+0x88]
+273546 clk R r1 00000000
+273546 clk R cpsr 41000013
+273547 clk IT (273547) 10007872 eb020e9e T handler_s : ADD      lr,r2,lr,LSR #2  [profiler_record+0x8a]
+273547 clk R r14 00000002
+273548 clk IT (273548) 10007876 009a T handler_s : LSLS     r2,r3,#2  [profiler_record+0x8e]
+273548 clk R r2 00000000
+273548 clk R cpsr 41000013
+273549 clk IT (273549) 10007878 eb020181 T handler_s : ADD      r1,r2,r1,LSL #2  [profiler_record+0x90]
+273549 clk R r1 00000000
+273550 clk IT (273550) 1000787c f1000228 T handler_s : ADD.W    r2,r0,#0x28  [profiler_record+0x94]
+273550 clk R r2 3007ff10
+273551 clk IT (273551) 10007880 4429 T handler_s : ADD      r1,r1,r5  [profiler_record+0x98]
+273551 clk R r1 30006120
+273552 clk IT (273552) 10007882 31d8 T handler_s : ADDS     r1,r1,#0xd8  [profiler_record+0x9a]
+273552 clk R r1 300061f8
+273552 clk R cpsr 01000013
+273553 clk IT (273553) 10007884 f8523c0c T handler_s : LDR      r3,[r2,#-0xc]  [profiler_record+0x9c]
+273553 clk MR4 3007ff04 10001187
+273553 clk R r3 10001187
+273554 clk IT (273554) 10007888 f8413c0c T handler_s : STR      r3,[r1,#-0xc]  [profiler_record+0xa0]
+273554 clk MW4 300061ec 10001187
+273555 clk IT (273555) 1000788c f8523c08 T handler_s : LDR      r3,[r2,#-8]  [profiler_record+0xa4]
+273555 clk MR4 3007ff08 1000309f
+273555 clk R r3 1000309f
+273556 clk IT (273556) 10007890 f8413c08 T handler_s : STR      r3,[r1,#-8]  [profiler_record+0xa8]
+273556 clk MW4 300061f0 1000309f
+273557 clk IT (273557) 10007894 f8523c04 T handler_s : LDR      r3,[r2,#-4]  [profiler_record+0xac]
+273557 clk MR4 3007ff0c 1000323b
+273557 clk R r3 1000323b
+273558 clk IT (273558) 10007898 f8413c04 T handler_s : STR      r3,[r1,#-4]  [profiler_record+0xb0]
+273558 clk MW4 300061f4 1000323b
+273559 clk IT (273559) 1000789c f8523b10 T handler_s : LDR      r3,[r2],#0x10  [profiler_record+0xb4]
+273559 clk MR4 3007ff10 1000389f
+273559 clk R r2 3007ff20
+273559 clk R r3 1000389f
+273560 clk IT (273560) 100078a0 600b T handler_s : STR      r3,[r1,#0]  [profiler_record+0xb8]
+273560 clk MW4 300061f8 1000389f
+273561 clk IT (273561) 100078a2 3110 T handler_s : ADDS     r1,r1,#0x10  [profiler_record+0xba]
+273561 clk R r1 30006208
+273561 clk R cpsr 01000013
+273562 clk IT (273562) 100078a4 f00fc013 T handler_s : LE       lr,0x10007884  [profiler_record+0xbc]
+273562 clk R r14 00000001
+273562 clk R LO_BRANCH_INFO.JUMP_ADDR 10007884
+273562 clk R LO_BRANCH_INFO.END_ADDR 100078a4
+273563 clk IT (273563) 10007884 f8523c0c T handler_s : LDR      r3,[r2,#-0xc]  [profiler_record+0x9c]
+273563 clk MR4 3007ff14 10003bd3
+273563 clk R r3 10003bd3
+273564 clk IT (273564) 10007888 f8413c0c T handler_s : STR      r3,[r1,#-0xc]  [profiler_record+0xa0]
+273564 clk MW4 300061fc 10003bd3
+273565 clk IT (273565) 1000788c f8523c08 T handler_s : LDR      r3,[r2,#-8]  [profiler_record+0xa4]
+273565 clk MR4 3007ff18 10003d7b
+273565 clk R r3 10003d7b
+273566 clk IT (273566) 10007890 f8413c08 T handler_s : STR      r3,[r1,#-8]  [profiler_record+0xa8]
+273566 clk MW4 30006200 10003d7b
+273567 clk IT (273567) 10007894 f8523c04 T handler_s : LDR      r3,[r2,#-4]  [profiler_record+0xac]
+273567 clk MR4 3007ff1c 100009ed
+273567 clk R r3 100009ed
+273568 clk IT (273568) 10007898 f8413c04 T handler_s : STR      r3,[r1,#-4]  [profiler_record+0xb0]
+273568 clk MW4 30006204 100009ed
+273569 clk IT (273569) 1000789c f8523b10 T handler_s : LDR      r3,[r2],#0x10  [profiler_record+0xb4]
+273569 clk MR4 3007ff20 1000993f
+273569 clk R r2 3007ff30
+273569 clk R r3 1000993f
+273570 clk IT (273570) 100078a0 600b T handler_s : STR      r3,[r1,#0]  [profiler_record+0xb8]
+273570 clk MW4 30006208 1000993f
+273571 clk IT (273571) 100078a2 3110 T handler_s : ADDS     r1,r1,#0x10  [profiler_record+0xba]
+273571 clk R r1 30006218
+273571 clk R cpsr 01000013
+273572 clk IT (273572) 100078a4 f00fc013 T handler_s : LE       lr,0x10007884  [profiler_record+0xbc]
+273573 clk IT (273573) 100078a8 f1bc0f00 T handler_s : CMP.W    r12,#0  [profiler_record+0xc0]
+273573 clk R cpsr 61000013
+273574 clk IT (273574) 100078ac d016 T handler_s : BEQ      0x100078dc  [profiler_record+0xc4]
+273575 clk IT (273575) 100078dc f000f8c2 T handler_s : BL       0x10007a64  [profiler_record+0xf4]
+273575 clk R r14 100078e1
+273576 clk IT (273576) 10007a64 f3bf8f5f T handler_s : DMB  [profiler_port_barrier+0x0]
+273577 clk IT (273577) 10007a68 4770 T handler_s : BX       lr  [profiler_port_barrier+0x4]
+273578 clk IT (273578) 100078e0 eb06000a T handler_s : ADD.W    r0,r6,r10  [profiler_record+0xf8]
+273578 clk R r0 0000003c
+273579 clk IT (273579) 100078e4 6128 T handler_s : STR      r0,[r5,#0x10]  [profiler_record+0xfc]
+273579 clk MW4 30006130 0000003c
+273580 clk IT (273580) 100078e6 f1080001 T handler_s : ADD.W    r0,r8,#1  [profiler_record+0xfe]
+273580 clk R r0 00000001
+273581 clk IT (273581) 100078ea 6168 T handler_s : STR      r0,[r5,#0x14]  [profiler_record+0x102]
+273581 clk MW4 30006134 00000001
+273582 clk IT (273582) 100078ec 68a8 T handler_s : LDR      r0,[r5,#8]  [profiler_record+0x104]
+273582 clk MR4 30006128 0000001c
+273582 clk R r0 0000001c
+273583 clk IT (273583) 100078ee eba9010a T handler_s : SUB      r1,r9,r10  [profiler_record+0x106]
+273583 clk R r1 0001ff14
+273584 clk IT (273584) 100078f2 4281 T handler_s : CMP      r1,r0  [profiler_record+0x10a]
+273584 clk R cpsr 21000013
+273585 clk IT (273585) 100078f4 d205 T handler_s : BCS      0x10007902  [profiler_record+0x10c]
+273586 clk IT (273586) 10007902 b001 T handler_s : ADD      sp,sp,#4  [profiler_record+0x11a]
+273586 clk R r13_main_s 3007fe84
+273586 clk R MSP_S 3007fe84
+273587 clk IT (273587) 10007904 e8bd8ff0 T handler_s : POP      {r4-r11,pc}  [profiler_record+0x11c]
+273587 clk MR4 3007fe84 30002060
+273587 clk MR4 3007fe88 300060cc
+273587 clk MR4 3007fe8c 00000000
+273587 clk MR4 3007fe90 10000b14
+273587 clk MR4 3007fe94 00000000
+273587 clk MR4 3007fe98 3007ff70
+273587 clk MR4 3007fe9c 00000000
+273587 clk MR4 3007fea0 00000000
+273587 clk MR4 3007fea4 10007c8d
+273587 clk R r4 30002060
+273587 clk R r5 300060cc
+273587 clk R r6 00000000
+273587 clk R r7 10000b14
+273587 clk R r8 00000000
+273587 clk R r9 3007ff70
+273587 clk R r10 00000000
+273587 clk R r11 00000000
+273587 clk R r13_main_s 3007fea8
+273587 clk R cpsr 21000013
+273587 clk R MSP_S 3007fea8
+273588 clk IT (273588) 10007c8c b02a T handler_s : ADD      sp,sp,#0xa8  [statistical_sampling_tick+0x1a4]
+273588 clk R r13_main_s 3007ff50
+273588 clk R MSP_S 3007ff50
+273589 clk IT (273589) 10007c8e e8bd87f0 T handler_s : POP      {r4-r10,pc}  [statistical_sampling_tick+0x1a6]
+273589 clk MR4 3007ff50 00000000
+273589 clk MR4 3007ff54 00000000
+273589 clk MR4 3007ff58 00000000
+273589 clk MR4 3007ff5c 00000000
+273589 clk MR4 3007ff60 00000000
+273589 clk MR4 3007ff64 00000000
+273589 clk MR4 3007ff68 00000000
+273589 clk MR4 3007ff6c 100075eb
+273589 clk R r4 00000000
+273589 clk R r5 00000000
+273589 clk R r6 00000000
+273589 clk R r7 00000000
+273589 clk R r8 00000000
+273589 clk R r9 00000000
+273589 clk R r10 00000000
+273589 clk R r13_main_s 3007ff70
+273589 clk R cpsr 21000013
+273589 clk R MSP_S 3007ff70
+273590 clk IT (273590) 100075ea bcf0 T handler_s : POP      {r4-r7}  [TFM_TIMER0_IRQ_Handler+0x26]
+273590 clk MR4 3007ff70 00000000
+273590 clk MR4 3007ff74 00000000
+273590 clk MR4 3007ff78 00000000
+273590 clk MR4 3007ff7c 00000000
+273590 clk R r4 00000000
+273590 clk R r5 00000000
+273590 clk R r6 00000000
+273590 clk R r7 00000000
+273590 clk R r13_main_s 3007ff80
+273590 clk R cpsr 21000013
+273590 clk R MSP_S 3007ff80
+273591 clk IT (273591) 100075ec 46a0 T handler_s : MOV      r8,r4  [TFM_TIMER0_IRQ_Handler+0x28]
+273591 clk R r8 00000000
+273592 clk IT (273592) 100075ee 46a9 T handler_s : MOV      r9,r5  [TFM_TIMER0_IRQ_Handler+0x2a]
+273592 clk R r9 00000000
+273593 clk IT (273593) 100075f0 46b2 T handler_s : MOV      r10,r6  [TFM_TIMER0_IRQ_Handler+0x2c]
+273593 clk R r10 00000000
+273594 clk IT (273594) 100075f2 46bb T handler_s : MOV      r11,r7  [TFM_TIMER0_IRQ_Handler+0x2e]
+273594 clk R r11 00000000
+273595 clk IT (273595) 100075f4 bcf0 T handler_s : POP      {r4-r7}  [TFM_TIMER0_IRQ_Handler+0x30]
+273595 clk MR4 3007ff80 300060cc
+273595 clk MR4 3007ff84 00000001
+273595 clk MR4 3007ff88 300060c4
+273595 clk MR4 3007ff8c 00000000
+273595 clk R r4 300060cc
+273595 clk R r5 00000001
+273595 clk R r6 300060c4
+273595 clk R r7 00000000
+273595 clk R r13_main_s 3007ff90
+273595 clk R cpsr 21000013
+273595 clk R MSP_S 3007ff90
+273596 clk IT (273596) 100075f6 bc08 T handler_s : POP      {r3}  [TFM_TIMER0_IRQ_Handler+0x32]
+273596 clk MR4 3007ff90 fffffffd
+273596 clk R r3 fffffffd
+273596 clk R r13_main_s 3007ff94
+273596 clk R cpsr 21000013
+273596 clk R MSP_S 3007ff94
+273597 clk IT (273597) 100075f8 b001 T handler_s : ADD      sp,sp,#4  [TFM_TIMER0_IRQ_Handler+0x34]
+273597 clk R r13_main_s 3007ff98
+273597 clk R MSP_S 3007ff98
+273598 clk IT (273598) 100075fa 4718 T handler_s : BX       r3  [TFM_TIMER0_IRQ_Handler+0x36]
+273598 clk R LO_BRANCH_INFO.VALID 00000000
+273598 clk E 00000000 thread 00000019 CoreEvent_ModeChange
+273598 clk MR4 30002078 10000b14
+273598 clk MR4 3000207c 01000000
+273598 clk MR4 30002060 300060d4
+273598 clk MR4 30002064 000001c7
+273598 clk MR4 30002068 00000000
+273598 clk MR4 3000206c 00000000
+273598 clk MR4 30002070 00000000
+273598 clk MR4 30002074 10001187
+273598 clk R r0 300060d4
+273598 clk R r1 000001c7
+273598 clk R r2 00000000
+273598 clk R r3 00000000
+273598 clk R r12 00000000
+273598 clk R r14 10001187
+273598 clk R r13_process_s 30002080
+273598 clk R cpsr 01000000
+273598 clk R PSP_S 30002080
+273598 clk R FAULTMASK_S 00000000
+273598 clk R CONTROL_S 00000002
+273598 clk R NVIC_IABR0 00000000
+273598 clk R ICSR_S 00400000
+273598 clk R ICSR_NS 00400000
+273598 clk INFO_EXCEPTION_REASON: PHASE=DEACTIVATE REASONS=UNSPECIFIED PC=0xfffffffd VECTOR=EXT_INT3 FaultCause=NO_FSR_BIT SecurityState=S
+273599 clk IT (273599) 10000b14 f24600d4 T thread_s : MOV      r0,#0x60d4  [functionF+0x0]
+273599 clk R r0 000060d4
+273600 clk IT (273600) 10000b18 bf00 T thread_s : NOP  [functionF+0x4]
+273601 clk IT (273601) 10000b1a bf00 T thread_s : NOP  [functionF+0x6]
+273602 clk IT (273602) 10000b1c bf00 T thread_s : NOP  [functionF+0x8]
+273603 clk IT (273603) 10000b1e bf00 T thread_s : NOP  [functionF+0xa]
+273604 clk IT (273604) 10000b20 bf00 T thread_s : NOP  [functionF+0xc]
+273605 clk IT (273605) 10000b22 bf00 T thread_s : NOP  [functionF+0xe]
+273606 clk IT (273606) 10000b24 bf00 T thread_s : NOP  [functionF+0x10]
+273607 clk IT (273607) 10000b26 bf00 T thread_s : NOP  [functionF+0x12]
+273608 clk IT (273608) 10000b28 bf00 T thread_s : NOP  [functionF+0x14]
+273609 clk IT (273609) 10000b2a bf00 T thread_s : NOP  [functionF+0x16]
+273610 clk IT (273610) 10000b2c bf00 T thread_s : NOP  [functionF+0x18]
+273611 clk IT (273611) 10000b2e bf00 T thread_s : NOP  [functionF+0x1a]
+273612 clk IT (273612) 10000b30 bf00 T thread_s : NOP  [functionF+0x1c]
+273613 clk IT (273613) 10000b32 bf00 T thread_s : NOP  [functionF+0x1e]
+273614 clk IT (273614) 10000b34 bf00 T thread_s : NOP  [functionF+0x20]
+273615 clk IT (273615) 10000b36 bf00 T thread_s : NOP  [functionF+0x22]
+273616 clk IT (273616) 10000b38 bf00 T thread_s : NOP  [functionF+0x24]
+273617 clk IT (273617) 10000b3a bf00 T thread_s : NOP  [functionF+0x26]
+273618 clk IT (273618) 10000b3c bf00 T thread_s : NOP  [functionF+0x28]
+273619 clk IT (273619) 10000b3e bf00 T thread_s : NOP  [functionF+0x2a]
+273620 clk IT (273620) 10000b40 bf00 T thread_s : NOP  [functionF+0x2c]
+273621 clk IT (273621) 10000b42 bf00 T thread_s : NOP  [functionF+0x2e]
+273622 clk IT (273622) 10000b44 bf00 T thread_s : NOP  [functionF+0x30]
