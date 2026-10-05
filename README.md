@@ -219,25 +219,38 @@ sample counts, not call counts or per-function PMU totals.*
 
 ## Annotate hot instructions
 
-Show sampled PC hits beside grouped disassembly, similar to `perf annotate`:
+Show a ranked hotspot summary of functions, source lines and instruction PCs:
 
 ```sh
-python3 host/annotate_profiler_report.py --report report --elf firmware.elf --top 5
+python3 host/annotate_profiler_report.py --report report --elf firmware.elf --top 5 --source
 ```
 
-Groups contain 8 instructions by default; use `--group-instructions 4` to shrink
-or `1` for individual instructions. Zero-hit groups are hidden with an omission
-marker; use `--show-zero-hit-groups` for the full disassembly. Counts and percentages appear on group
-headings, relative to the function's samples. These are consecutive instruction
-groups, not branch-delimited basic blocks; sampling bias and interrupt latency
-still apply. PMU counts are not attributed to instructions.
+The default `--view hotspots` ranks self-PC samples across the selected functions.
+Source-line hits from different functions add together when they map to the same
+file and line. `--hotspot-limit 15` controls the number of source lines and PCs.
+Shares use all capture samples as the denominator; they are not measured instruction
+cycle costs. Sampling bias and interrupt latency still apply. PMU counts are not
+attributed to source lines or instructions.
+
+Use `--view groups` for the detailed disassembly. Functions and their instruction
+groups are shown in descending sample-share order; equal-hit groups retain address
+order. Groups contain 8 instructions by default; use `--group-instructions 4` to
+shrink or `1` for individual instructions. Zero-hit groups are hidden with an
+omission marker; use `--show-zero-hit-groups` for the full disassembly. Group
+percentages are relative to the function's samples. These are consecutive
+instruction groups, not branch-delimited basic blocks.
 
 Use `--function NAME` (or `0xADDRESS`) to select a function, and `--output annotation.txt`
 to save text. The tool probes `arm-none-eabi-objdump`, then `llvm-objdump` on `PATH`;
 use `--objdump /path/to/objdump` to override. The ELF must match the report's hash.
 Unmatched PCs are reported explicitly, without assigning them to nearby instructions.
+For Cortex-M55 MVE code, pass the architecture explicitly, for example GNU Arm
+`--objdump-arg=-m --objdump-arg=armv8.1-m.main` or LLVM
+`--objdump-arg=--mcpu=cortex-m55`. Without it, valid MVE opcodes can appear as
+coprocessor instructions such as `cdp` or `ldc`.
 
-Add `--source` for distinct source lines above each displayed group. This needs
+Add `--source` for a source-line ranking in the hotspot view or distinct source
+lines above each group in the detailed view. This needs
 ELF debug information (`-g`) and matching local sources. GNU Arm/LLVM `addr2line`
 is auto-detected; override with `--addr2line PATH`. For a relocated source tree,
 use `--source-map /original/project=/local/project` (repeatable). Missing lines

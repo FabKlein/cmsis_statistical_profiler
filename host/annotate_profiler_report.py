@@ -14,11 +14,11 @@
 #
 # ----------------------------------------------------------------------
 
-"""Show disassembly of sampled functions with hit counts per instruction group.
+"""Rank sampled functions, source lines and PCs, or show grouped disassembly.
 
-Read an existing decoded report and its exact ELF. Grouping improves readability
-of sparse samples; it does not measure individual instruction costs or remove
-periodic-sampling bias. No PMU counts are attributed to instructions.
+Read an existing decoded report and its exact ELF. PC sample shares do not
+measure individual instruction costs or remove periodic-sampling bias. No PMU
+counts are attributed to instructions.
 """
 
 import argparse
@@ -30,6 +30,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shlex
 import shutil
 import subprocess
 
@@ -84,36 +85,37 @@ def source_locations(tool, elf, instructions):
     return locations
 
 
+def source_label(filename, number, cache, source_maps):
+    """Read one mapped source line without guessing paths by basename."""
+    local = filename
+    for old, new in source_maps:
+        if filename == old or filename.startswith(old.rstrip("/") + "/"):
+            local = new.rstrip("/") + filename[len(old.rstrip("/")) :]
+            break
+    if local not in cache:
+        try:
+            cache[local] = Path(local).read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            cache[local] = None
+    contents = cache[local]
+    if contents is None:
+        text = "[source file unavailable]"
+    elif number > len(contents):
+        text = "[line unavailable; check source version]"
+    else:
+        text = contents[number - 1].strip()
+    return f"{filename}:{number}: {text}"
+
+
 def source_snippet(group, locations, cache, source_maps):
     """Show distinct mapped lines, without implying a contiguous source range."""
     mapped = list(dict.fromkeys(locations[pc] for pc, _ in group if pc in locations))
     if not mapped:
         return ["; Source: no line information for this group (debug information may be absent)."]
-    lines = []
-    for filename, number in mapped:
-        # Prefix replacement supports sources moved since compilation. Never
-        # guess by basename: unrelated source files can share the same name.
-        local = filename
-        for old, new in source_maps:
-            if filename == old or filename.startswith(old.rstrip("/") + "/"):
-                local = new.rstrip("/") + filename[len(old.rstrip("/")) :]
-                break
-        if local not in cache:
-            try:
-                cache[local] = (
-                    Path(local).read_text(encoding="utf-8", errors="replace").splitlines()
-                )
-            except OSError:
-                cache[local] = None
-        contents = cache[local]
-        if contents is None:
-            text = "[source file unavailable]"
-        elif number > len(contents):
-            text = "[line unavailable; check source version]"
-        else:
-            text = contents[number - 1].strip()
-        lines.append(f"; {filename}:{number}: {text}")
-    return lines
+    return [
+        f"; {source_label(filename, number, cache, source_maps)}"
+        for filename, number in mapped
+    ]
 
 
 def read_report(directory, elf):
@@ -176,11 +178,12 @@ def parse_disassembly(text, start, size):
     return instructions
 
 
-def disassemble(tool, elf, start, size):
+def disassemble(tool, elf, start, size, objdump_args=()):
     """Disassemble 1 selected function; never spawn a process per sample or instruction."""
     result = subprocess.run(
         [
             tool,
+            *objdump_args,
             "-d",
             "--no-show-raw-insn",
             f"--start-address={start}",
@@ -224,17 +227,20 @@ def render_function(
 
     # Count instructions, not bytes: Thumb code mixes 16-bit and 32-bit encodings.
     # Exact address matching avoids silently rounding corrupt PCs into a group.
-    # Filter after grouping: hiding cold groups must not shift hot group boundaries.
-    omitted = 0
+    # Form address-based groups first, then rank them by sample share. Equal-hit
+    # groups retain address order so repeated reports are deterministic.
+    groups = []
     for offset in range(0, len(instructions), group_size):
         group = instructions[offset : offset + group_size]
         group_hits = sum(hits.get(address, 0) for address, _ in group)
+        groups.append((group_hits, group))
+    groups.sort(key=lambda item: (-item[0], item[1][0][0]))
+
+    omitted = 0
+    for group_hits, group in groups:
         if not group_hits and not show_zero_hit_groups:
             omitted += 1
             continue
-        if omitted:
-            lines.append(f"... {omitted} zero-hit group(s) omitted ...")
-            omitted = 0
         percent = 100 * group_hits / count if count else 0
         lines.append(
             f"------- {group_hits} hits | {percent:.2f}% of function | "
@@ -248,6 +254,85 @@ def render_function(
     return "\n".join(lines)
 
 
+def render_hotspots(annotated, total, limit, source_cache, source_maps):
+    """Show global self-PC rankings, with each sample counted once per table."""
+    selected_hits = sum(sum(hits.values()) for _, _, _, hits, _ in annotated)
+    selected_percent = 100 * selected_hits / total if total else 0
+    lines = [
+        "HOTSPOTS (self PC samples)",
+        f"Selected functions: {selected_hits} of {total} samples "
+        f"({selected_percent:.2f}% of capture).",
+        "Percentages are sampled PC shares, not instruction cycle or PMU costs.",
+        "",
+        "FUNC  CAPTURE%  SAMPLES  SYMBOL",
+    ]
+    source_hits = Counter()
+    pc_rows = []
+    unmatched = unmapped = 0
+    source_enabled = bool(annotated) and annotated[0][4] is not None
+    for rank, (name, start, instructions, hits, locations) in enumerate(annotated, 1):
+        count = sum(hits.values())
+        lines.append(
+            f"F{rank:<3}  {100 * count / total if total else 0:7.2f}%  {count:7d}  "
+            f"{name} @ 0x{start:08x}"
+        )
+        decoded = dict(instructions)
+        for pc, samples in hits.items():
+            assembly = decoded.get(pc)
+            if assembly is None:
+                unmatched += samples
+                continue
+            pc_rows.append((samples, pc, rank, assembly))
+            if locations is not None:
+                if pc in locations:
+                    source_hits[locations[pc]] += samples
+                else:
+                    unmapped += samples
+
+    if source_enabled:
+        mapped = sum(source_hits.values())
+        lines.extend(
+            [
+                "",
+                f"SOURCE LINES (top {min(limit, len(source_hits))}; "
+                f"{mapped} of {selected_hits} selected samples mapped)",
+                "CAPTURE%  SAMPLES  LOCATION: SOURCE",
+            ]
+        )
+        basenames = Counter(Path(filename).name for filename in {file for file, _ in source_hits})
+        for (filename, number), samples in sorted(
+            source_hits.items(), key=lambda item: (-item[1], item[0])
+        )[:limit]:
+            full = source_label(filename, number, source_cache, source_maps)
+            prefix = f"{filename}:{number}: "
+            display = Path(filename).name if basenames[Path(filename).name] == 1 else filename
+            lines.append(
+                f"{100 * samples / total if total else 0:7.2f}%  {samples:7d}  "
+                f"{display}:{number}: {full[len(prefix):]}"
+            )
+        if unmapped:
+            lines.append(f"{unmapped} decoded samples have no source-line mapping.")
+
+    lines.extend(
+        [
+            "",
+            f"INSTRUCTION PCs (top {min(limit, len(pc_rows))}; F# refers to FUNCTIONS)",
+            "CAPTURE%  SAMPLES  FUNC  ADDRESS     INSTRUCTION",
+        ]
+    )
+    for samples, pc, rank, assembly in sorted(pc_rows, key=lambda row: (-row[0], row[1]))[:limit]:
+        capture_percent = 100 * samples / total if total else 0
+        lines.append(
+            f"{capture_percent:7.2f}%  {samples:7d}  F{rank:<3}  "
+            f"0x{pc:08x}  {assembly}"
+        )
+    if unmatched:
+        lines.append(
+            f"WARNING: {unmatched} selected samples do not match decoded instruction starts."
+        )
+    return "\n".join(lines)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--report", type=Path, required=True)
@@ -255,6 +340,25 @@ def main():
         "--elf", type=Path, required=True, help="Exact ELF used to decode the report"
     )
     parser.add_argument("--objdump", help="Executable path/name; default: probe GNU Arm then LLVM")
+    parser.add_argument(
+        "--view",
+        choices=("hotspots", "groups"),
+        default="hotspots",
+        help="Ranked summary (default) or the detailed instruction-group view",
+    )
+    parser.add_argument(
+        "--hotspot-limit",
+        type=int,
+        default=15,
+        help="Maximum source lines and instruction PCs in the hotspot view (default: 15)",
+    )
+    parser.add_argument(
+        "--objdump-arg",
+        action="append",
+        default=[],
+        metavar="ARG",
+        help="Pass an argument to objdump; repeat for target architecture options",
+    )
     parser.add_argument(
         "--group-instructions",
         type=int,
@@ -293,8 +397,8 @@ def main():
         "--output", type=Path, help="Write plain text to this file instead of stdout"
     )
     args = parser.parse_args()
-    if args.group_instructions < 1 or args.top < 0:
-        parser.error("--group-instructions must be positive and --top must be nonnegative")
+    if args.group_instructions < 1 or args.top < 0 or args.hotspot_limit < 1:
+        parser.error("--group-instructions and --hotspot-limit must be positive; --top must be nonnegative")
     source_maps = []
     for mapping in args.source_map:
         old, separator, new = mapping.partition("=")
@@ -321,38 +425,49 @@ def main():
                 )
         elif args.top:
             selected = selected[: args.top]
-        sections = [
-            f"PC sample hits; {total} samples, {unknown} outside ELF function ranges.",
-            f"Groups contain up to {args.group_instructions} consecutive instructions, starting at each function entry.\n"
-            "Percentages are within each function; groups are not branch-delimited basic blocks.\n"
-            "Sampling latency and periodic aliasing can bias hits; these are not instruction costs.",
-        ]
+        sections = [f"PC sample hits; {total} samples, {unknown} outside ELF function ranges."]
+        if args.view == "groups":
+            sections.append(
+                f"Groups contain up to {args.group_instructions} consecutive instructions, starting at each function entry.\n"
+                "Functions and their instruction groups are sorted by sample share; group percentages are within each function.\n"
+                "Groups are not branch-delimited basic blocks.\n"
+                "Sampling latency and periodic aliasing can bias hits; these are not instruction costs."
+            )
+        if args.objdump_arg:
+            sections.append(f"Objdump target arguments: {shlex.join(args.objdump_arg)}")
         if args.source:
             sections.append(
                 "Source lines come from compiler debug mappings; optimized code may reorder or inline them.\n"
                 "Use sources matching this ELF; local source contents are not verified."
             )
+        annotated = []
         for index in selected:
             start, size, name = functions[index]
-            instructions = disassemble(tool, args.elf, start, size)
+            instructions = disassemble(tool, args.elf, start, size, args.objdump_arg)
             locations = (
                 source_locations(source_tool, args.elf, instructions) if source_tool else None
             )
-            sections.append(
-                render_function(
-                    names.get(start, name),
-                    start,
-                    instructions,
-                    hits[index],
-                    total,
-                    args.group_instructions,
-                    args.show_zero_hit_groups,
-                    locations,
-                    source_cache,
-                    source_maps,
+            annotated.append((names.get(start, name), start, instructions, hits[index], locations))
+            if args.view == "groups":
+                sections.append(
+                    render_function(
+                        names.get(start, name),
+                        start,
+                        instructions,
+                        hits[index],
+                        total,
+                        args.group_instructions,
+                        args.show_zero_hit_groups,
+                        locations,
+                        source_cache,
+                        source_maps,
+                    )
                 )
+        if args.view == "hotspots" and annotated:
+            sections.append(
+                render_hotspots(annotated, total, args.hotspot_limit, source_cache, source_maps)
             )
-        if not selected:
+        if not annotated:
             sections.append("No sampled functions to annotate.")
         report = "\n\n".join(sections) + "\n"
         if args.output:

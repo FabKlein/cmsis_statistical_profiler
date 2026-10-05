@@ -97,14 +97,22 @@ class AnnotationTests(unittest.TestCase):
         self.assertNotIn("------- 0 hits", text)
         self.assertIn("3 hits | 75.00%", text)
         self.assertIn("00001004    nop\n00001006    nop", text)
-        self.assertIn("... 1 zero-hit group(s) omitted ...", text)
-        self.assertIn("... 2 zero-hit group(s) omitted ...", text)
+        self.assertIn("... 3 zero-hit group(s) omitted ...", text)
         self.assertNotIn("00001008", text)
         full = annotate.render_function("leaf", 0x1000, instructions, hits, 4, 2, True)
         self.assertEqual(full.count("------- 0 hits"), 3)
         self.assertNotIn("omitted", full)
         empty = annotate.render_function("leaf", 0x1000, instructions, Counter(), 0, 2)
         self.assertIn("... 5 zero-hit group(s) omitted ...", empty)
+
+    def test_groups_sorted_by_sample_share_with_address_tiebreak(self):
+        instructions = [(0x1000 + 2 * i, "nop") for i in range(8)]
+        hits = Counter({0x1000: 1, 0x1004: 3, 0x1008: 3, 0x100c: 2})
+        text = annotate.render_function("leaf", 0x1000, instructions, hits, 9, 2)
+        self.assertLess(text.index("00001004"), text.index("00001008"))
+        self.assertLess(text.index("00001008"), text.index("0000100c"))
+        self.assertLess(text.index("0000100c    nop"), text.index("00001000    nop"))
+        self.assertEqual(text.count("3 hits | 33.33%"), 2)
 
     def test_objdump_discovery_and_explicit_failure(self):
         with patch.object(
@@ -154,7 +162,16 @@ class AnnotationTests(unittest.TestCase):
                 str(binary),
                 "--objdump",
                 str(tool),
+                "--view",
+                "groups",
             ]
+            summary = subprocess.run(
+                command[:-2] + ["--top", "1"], capture_output=True, text=True
+            )
+            self.assertEqual(summary.returncode, 0, summary.stderr)
+            self.assertIn("HOTSPOTS (self PC samples)", summary.stdout)
+            self.assertIn("F1", summary.stdout)
+            self.assertNotIn("------- 3 hits", summary.stdout)
             for selection in (
                 ["--top", "1"],
                 ["--function", "leaf()"],
@@ -171,6 +188,7 @@ class AnnotationTests(unittest.TestCase):
                 self.assertNotIn("parent @", result.stdout)
             for args in (
                 ["--group-instructions", "0"],
+                ["--hotspot-limit", "0"],
                 ["--top", "-1"],
                 ["--function", "absent"],
             ):
@@ -275,6 +293,8 @@ class AnnotationTests(unittest.TestCase):
                 str(binary),
                 "--objdump",
                 str(dump),
+                "--view",
+                "groups",
                 "--top",
                 "1",
                 "--source",
@@ -292,3 +312,43 @@ class AnnotationTests(unittest.TestCase):
         for text in ("no disassembly", "1000: nop\n1000: bx lr"):
             with self.assertRaises(ValueError):
                 annotate.parse_disassembly(text, 0x1000, 16)
+
+    def test_disassembly_forwards_target_architecture(self):
+        with patch.object(
+            annotate.subprocess,
+            "run",
+            return_value=subprocess.CompletedProcess([], 0, stdout=GNU, stderr=""),
+        ) as run:
+            instructions = annotate.disassemble(
+                "objdump", Path("firmware.elf"), 0x1000, 16, ("-m", "armv8.1-m.main")
+            )
+            self.assertEqual(len(instructions), 4)
+            self.assertEqual(run.call_args.args[0][1:3], ["-m", "armv8.1-m.main"])
+
+    def test_hotspot_view_ranks_functions_source_lines_and_pcs(self):
+        annotated = [
+            (
+                "leaf",
+                0x1000,
+                [(0x1000, "nop"), (0x1002, "add r0, #1")],
+                Counter({0x1000: 2, 0x1002: 1}),
+                {0x1000: ("/src/kernel.c", 7), 0x1002: ("/src/kernel.c", 8)},
+            ),
+            (
+                "parent",
+                0x2000,
+                [(0x2000, "bx lr")],
+                Counter({0x2000: 4}),
+                {0x2000: ("/src/kernel.c", 7)},
+            ),
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            (Path(directory) / "kernel.c").write_text("\n" * 6 + "work();\nreturn;\n")
+            text = annotate.render_hotspots(
+                annotated, 10, 2, {}, (("/src", directory),)
+            )
+        self.assertIn("7 of 10 samples (70.00% of capture)", text)
+        self.assertLess(text.index("kernel.c:7: work();"), text.index("kernel.c:8: return;"))
+        self.assertIn("60.00%        6  kernel.c:7", text)
+        self.assertLess(text.index("0x00002000"), text.index("0x00001000  nop"))
+        self.assertIn("40.00%        4  F2", text)
