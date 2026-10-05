@@ -26,6 +26,12 @@ and provenance. Do not guess bounds or ownership. Report validation limits.
   before dumping the whole buffer with [export_profiler_buffer.gdb](tools/export_profiler_buffer.gdb);
   decode with [analyze_profiler_buffer.py](host/analyze_profiler_buffer.py) and the exact
   unstripped executable. Plot reports with [visualize_profiler_report.py](host/visualize_profiler_report.py).
+- Annotate decoded PC hotspots with [annotate_profiler_report.py](host/annotate_profiler_report.py):
+  `--report report --elf firmware.elf --top 5 --group-instructions 8`.
+  GNU Arm/LLVM objdump is auto-detected; `--objdump PATH` overrides. Groups count
+  instructions, not bytes or basic blocks; use the exact ELF and report unmatched PCs.
+  Add `--source` for debug-mapped source snippets; `--addr2line PATH` and
+  `--source-map OLD=NEW` support custom tools and relocated source trees.
 - Keep ISR code bounded and integer-only: no allocation, blocking, logging, FP or
   vector instructions. Preserve the original exception frame.
 - On Armv8-M, determine the interrupted frame security state from the captured

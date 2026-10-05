@@ -217,6 +217,33 @@ only if its behavior does not depend on C++ exception propagation.
 *Example flamegraph: F16 MobileNetV3 on STM32N6. Frame widths represent included
 sample counts, not call counts or per-function PMU totals.*
 
+## Annotate hot instructions
+
+Show sampled PC hits beside grouped disassembly, similar to `perf annotate`:
+
+```sh
+python3 host/annotate_profiler_report.py --report report --elf firmware.elf --top 5
+```
+
+Groups contain 8 instructions by default; use `--group-instructions 4` to shrink
+or `1` for individual instructions. Zero-hit groups are hidden with an omission
+marker; use `--show-zero-hit-groups` for the full disassembly. Counts and percentages appear on group
+headings, relative to the function's samples. These are consecutive instruction
+groups, not branch-delimited basic blocks; sampling bias and interrupt latency
+still apply. PMU counts are not attributed to instructions.
+
+Use `--function NAME` (or `0xADDRESS`) to select a function, and `--output annotation.txt`
+to save text. The tool probes `arm-none-eabi-objdump`, then `llvm-objdump` on `PATH`;
+use `--objdump /path/to/objdump` to override. The ELF must match the report's hash.
+Unmatched PCs are reported explicitly, without assigning them to nearby instructions.
+
+Add `--source` for distinct source lines above each displayed group. This needs
+ELF debug information (`-g`) and matching local sources. GNU Arm/LLVM `addr2line`
+is auto-detected; override with `--addr2line PATH`. For a relocated source tree,
+use `--source-map /original/project=/local/project` (repeatable). Missing lines
+or files are noted while disassembly remains available. Optimized source mappings
+can be reordered or inlined; they do not define group boundaries.
+
 ## Visualize reports: HTML and Perfetto
 
 [host/visualize_profiler_report.py](host/visualize_profiler_report.py) converts a decoded report
