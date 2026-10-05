@@ -200,6 +200,18 @@ The decoder exports `stacks.folded` and trace-status diagnostics; incomplete tra
 remain visible without diagnostic frames; unreliable chains are excluded with counts.
 Use `--stack-root osThreadEntry` to select the graph base. See [setup and limitations](docs/UNWINDING.md).
 
+Interpret `no_table` and `unsupported` at the point where unwinding **stopped**,
+not necessarily at the sampled PC. A partial chain that already reached the
+chosen `--stack-root` is useful even if C runtime startup above it has no
+recipe. Compare `root_reached_percent`, `unwind_status_counts` and the actual
+`callchain` values in `samples.csv`; raw status totals alone do not measure
+FlameGraph coverage. For C++ code, `-funwind-tables` may produce a generic
+personality recipe that this compact-EHABI walker cannot decode. Check required
+functions in the final ELF with
+`host/check_profiler_elf.py --elf firmware.axf --function NAME --require-unwind`; disabling
+exceptions for an affected source is an option
+only if its behavior does not depend on C++ exception propagation.
+
 ![F16 MobileNetV3 on STM32N6: sampled call stacks as a flamegraph](docs/images/stm32n6-mobilenetv3-f16-flamegraph.svg)
 
 *Example flamegraph: F16 MobileNetV3 on STM32N6. Frame widths represent included
