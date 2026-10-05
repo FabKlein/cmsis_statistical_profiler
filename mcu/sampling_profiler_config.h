@@ -85,6 +85,15 @@
 #ifndef PROFILER_SAMPLE_HZ
     #define PROFILER_SAMPLE_HZ 1000U
 #endif
+/* Optional independent companion-device sampler called once per acknowledged
+ * timer interrupt, before CPU frame validation. The application supplies the
+ * ISR-safe hook and owns its storage and lifecycle. */
+#ifndef PROFILER_AUX_SAMPLE_HOOK
+    #define PROFILER_AUX_SAMPLE_HOOK 0
+#endif
+#if PROFILER_AUX_SAMPLE_HOOK != 0 && PROFILER_AUX_SAMPLE_HOOK != 1
+    #error "PROFILER_AUX_SAMPLE_HOOK must be 0 or 1"
+#endif
 /* Ordinary BSS by default; an adapter may opt into a dedicated section. */
 #ifndef PROFILER_BUFFER_ATTRIBUTES
     #define PROFILER_BUFFER_ATTRIBUTES __attribute__((aligned(32)))

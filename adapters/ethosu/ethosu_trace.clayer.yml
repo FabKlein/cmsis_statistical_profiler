@@ -1,0 +1,20 @@
+# Copyright 2026 Arm Limited and/or its affiliates.
+# SPDX-License-Identifier: Apache-2.0
+
+layer:
+  type: ProfilerCompanion
+  description: Optional Ethos-U55/U65/U85 trace in a separate buffer
+  add-path:
+    - .
+  groups:
+    - group: Ethos-U statistical trace
+      misc:
+        - for-compiler: AC6
+          C:
+            - -fno-vectorize
+            - -fno-slp-vectorize
+        - for-compiler: GCC
+          C:
+            - -fno-tree-vectorize
+      files:
+        - file: ./ethosu_trace.c

@@ -361,6 +361,10 @@ __attribute__((used, noinline)) void statistical_sampling_tick(const uint32_t *f
 
     profiler_tick();
 
+#if PROFILER_AUX_SAMPLE_HOOK
+    profiler_aux_sample(timestamp, profiler_port_ticks());
+#endif
+
     /* Timer bookkeeping continues while capture is disabled or the buffer is
      * full; only the sample extraction/storage path is gated. */
     if (!PROFILER_SAMPLING_ENABLED || !statistical_sampling_gate)

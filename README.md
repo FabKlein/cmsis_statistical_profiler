@@ -52,6 +52,7 @@ board adapters do not select or probe those bounds.
 | Corstone-300 FVP / MPS3 FPGA | [Runnable example](examples/corstone300/README.md) |
 | STM32N6 | [TIM2 adapter](adapters/stm32n6/README.md) |
 | Alif E8 | [UTIMER adapter](adapters/alif_e8/README.md) |
+| Ethos-U55/U65/U85 | [Optional separate NPU trace](adapters/ethosu/README.md) |
 | NXP MIMXRT685 | [CTIMER4 adapter](adapters/nxp_rt685/README.md) |
 | Himax WE2 / HX6538 | [TIMER4 adapter and UART retrieval](adapters/himax_we2/README.md) |
 | Free SysTick | [Generic exclusive integration](integrations/systick/README.md) |

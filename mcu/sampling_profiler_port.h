@@ -127,6 +127,16 @@ void profiler_reject(enum ProfilerRejection reason);
  */
 void profiler_record(const struct ProfilerSample *sample);
 
+#if PROFILER_AUX_SAMPLE_HOOK
+/** @brief Application-owned companion sampler, called from the timer ISR.
+ * @note The timestamp and tick are from the same clock/interrupt as the CPU
+ * capture. The hook must be bounded, integer-only and safe in interrupt mode.
+ * It runs even when the interrupted CPU frame is rejected or CPU recording is
+ * gated off, so its own recording gate and capacity are independent.
+ */
+void profiler_aux_sample(uint32_t timestamp, uint32_t tick);
+#endif
+
 #ifdef __cplusplus
 }
 #endif
