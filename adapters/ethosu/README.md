@@ -83,7 +83,8 @@ The EUTR format stores little-endian 32-bit words (see `ethosu_trace.h`):
 ```text
 128-byte header
   + fixed stream table: MAX_STREAMS x 8 bytes (command address, byte length)
-  + records: timestamp, tick, STATUS, QREAD, stream_id, optional PMU[0..3]
+  + running: timestamp, tick, STATUS, QREAD,      stream_id,  optional PMU[0..3]
+  + idle:    timestamp, tick, STATUS, 0xffffffff, idle_count, optional PMU[0..3]
 ```
 
 The table consumes 128 bytes at the default 16-stream limit, inside the configured
@@ -91,7 +92,26 @@ buffer allocation. Each record costs 20..36 bytes. IDs are 1-based table indices
 unused descriptors are zero. This is the initial EUTR format (identifier 1);
 firmware and decoder use the same layout.
 
-`stream_id=0` means idle or unknown: capture began mid-inference, payload parsing
+Consecutive idle samples always share 1 record. STATUS bit 0 selects the meaning
+of word 4: stream ID when running, nonzero idle count otherwise. Every idle tick
+updates the last record with the latest timestamp, tick, STATUS and PMU values.
+A count of `UINT32_MAX` starts a new record on the next idle tick. An idle run
+can grow in the final buffer slot; capture becomes full when a new record is
+needed and cannot fit.
+
+The timer still samples at the configured rate. Intermediate idle snapshots are
+discarded, including PMU values; multiple counter wraps across a long idle run
+cannot be recovered from its final snapshot. A short inference entirely between
+sampling ticks can still be missed. Stop before exporting the mutable buffer.
+
+`header.count` counts stored records, not sampling ticks. The host keeps 1 CSV
+row per record, with `idle_count` (0 when running) and `sample_count` (1 when
+running, otherwise the idle count). Summary fields `total_samples`,
+`idle_samples` and `running_samples` count represented ticks; utilization and
+histogram percentages use those weights. For example, 80 idle ticks followed by
+20 running ticks use 21 records and report 20% running.
+
+For running records, `stream_id=0` means unknown: capture began mid-inference, payload parsing
 failed, the table filled, or submission changed during the register snapshot.
 Unknown running samples are counted in `unknown_stream_samples` and excluded
 from QREAD hotspots. `unregistered_streams` counts submissions that could not be

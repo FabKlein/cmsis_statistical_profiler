@@ -61,7 +61,8 @@ board adapters do not select or probe those bounds.
 
 The optional Ethos-U trace discovers command streams automatically and reports
 QREAD hotspots per stream. No application registration is required; command-stream
-contents must remain unchanged during capture.
+contents must remain unchanged during capture. Consecutive idle samples share
+1 record; reported utilization still counts every represented sampling tick.
 
 Select the common layer, 1 board and 1 board timer:
 

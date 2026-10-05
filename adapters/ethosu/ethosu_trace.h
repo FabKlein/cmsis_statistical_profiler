@@ -10,7 +10,7 @@
  * Description:  Ethos-U trace buffer format and lifecycle interface
  *
  * $Date:        5 October 2026
- * $Revision:    V.1.0.5
+ * $Revision:    V.1.0.6
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -77,6 +77,8 @@ struct EthosuTraceBuffer
 {
     struct EthosuTraceHeader header;
     struct EthosuTraceStream streams[PROFILER_ETHOSU_MAX_STREAMS];
+    /* timestamp, tick, STATUS, QREAD, stream_id (running) or idle_count (idle),
+     * then PMU words. Idle runs keep their latest snapshot; header.count counts records. */
     uint32_t records[(PROFILER_ETHOSU_TRACE_BUFFER_BYTES - ETHOSU_TRACE_RECORD_OFFSET) / 4U];
 };
 

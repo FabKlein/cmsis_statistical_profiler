@@ -10,7 +10,7 @@
  * Description:  Native Ethos-U stream discovery and capture regression
  *
  * $Date:        5 October 2026
- * $Revision:    V.1.0.2
+ * $Revision:    V.1.0.3
  *
  * Target :  Arm(R) M-Profile Architecture
  * -------------------------------------------------------------------- */
@@ -163,8 +163,19 @@ int main(int argc, char **argv)
     assert(ethosu_trace_samples.header.unregistered_streams == 3U);
     status = 0U;
     uint32_t capacity = sizeof(ethosu_trace_samples.records) / ethosu_trace_samples.header.record_bytes;
+    sample(1U);
+    const uint32_t stride = ethosu_trace_samples.header.record_bytes / 4U;
+    /* Force count saturation to exercise split records without billions of ticks. */
     while (ethosu_trace_samples.header.count < capacity)
-        sample(0U);
+    {
+        ethosu_trace_samples.records[(ethosu_trace_samples.header.count - 1U) * stride + 4U] = UINT32_MAX;
+        sample(1U);
+    }
+    /* An idle run can still grow in the last slot; the next running sample cannot fit. */
+    profiler_aux_sample(0, 0);
+    assert(!trace_ethosu_full());
+    assert(ethosu_trace_samples.records[(capacity - 1U) * stride + 4U] == 2U);
+    status = 1U;
     profiler_aux_sample(0, 0);
     assert(trace_ethosu_full());
     assert(!trace_ethosu_bind(&other_driver));
@@ -184,6 +195,7 @@ int main(int argc, char **argv)
     assert(trace_ethosu_bind(&driver));
 
     /* Restart resets IDs and diagnostics, rather than retaining stale metadata. */
+    status = 0U;
     assert(trace_ethosu_start());
     assert(ethosu_trace_samples.header.stream_count == 0U);
     assert(ethosu_trace_samples.header.unknown_stream_samples == 0U);
@@ -195,5 +207,34 @@ int main(int argc, char **argv)
 #if !PROFILER_ETHOSU_DRIVER_CALLBACK
     assert(application_notifications == 8U);
 #endif
+    /* 80 idle ticks occupy 1 record; retain the final tick and PMU snapshot. */
+    status = 0U;
+    assert(trace_ethosu_start());
+    assert(ethosu_trace_samples.header.pmu_count == PROFILER_ETHOSU_PMU_COUNT);
+    for (uint32_t i = 0; i < 80U; ++i)
+    {
+        ++ticks;
+        profiler_aux_sample(profiler_port_timestamp(), ticks);
+    }
+    assert(ethosu_trace_samples.header.count == 1U);
+    assert(ethosu_trace_samples.records[0] == profiler_port_timestamp());
+    assert(ethosu_trace_samples.records[1] == ticks);
+    assert(ethosu_trace_samples.records[3] == ETHOSU_TRACE_NO_QREAD);
+    assert(ethosu_trace_samples.records[4] == 80U);
+    for (uint32_t i = 0; i < ethosu_trace_samples.header.pmu_count; ++i)
+        assert(ethosu_trace_samples.records[ETHOSU_TRACE_BASE_WORDS + i] == ticks + i);
+
+    /* Running records, including invalid QREAD, must not merge with idle runs. */
+    status = 1U;
+    qread = 3U;
+    sample(0U);
+    assert(ethosu_trace_samples.header.invalid_qread == 1U);
+    status = 0U;
+    sample(1U);
+    profiler_aux_sample(0, 0);
+    assert(ethosu_trace_samples.header.count == 3U);
+    assert(ethosu_trace_samples.records[2U * stride + 4U] == 2U);
+    trace_ethosu_stop(1, 1);
+    assert(power_references == 0);
     return 0;
 }

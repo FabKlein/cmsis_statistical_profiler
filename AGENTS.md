@@ -36,6 +36,9 @@ and provenance. Do not guess bounds or ownership. Report validation limits.
   command streams in the inference callback; records reference a bounded stream table.
   Keep decoder/firmware formats synchronized and histogram by `(stream_id, QREAD)`;
   unknown stream IDs must not be merged into hotspots. No application registration.
+  Consecutive idle ticks share 1 EUTR record: word 4 is idle_count when STATUS
+  running=0, otherwise stream_id. Weight host statistics by represented ticks;
+  idle runs retain only their latest timestamp/tick/PMU snapshot.
   Use the `trace_ethosu_*` API. Existing driver callbacks must forward once to
   `trace_ethosu_inference_begin`; set `PROFILER_ETHOSU_DRIVER_CALLBACK=0` project-wide.
   Ethos-U PMU collection requires exclusive ownership until stop returns, even

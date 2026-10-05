@@ -8,7 +8,7 @@
 # Description:  Validate and export Ethos-U statistical captures
 #
 # $Date:        5 October 2026
-# $Revision:    V.1.0.5
+# $Revision:    V.1.0.6
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -139,8 +139,16 @@ def decode(data):
         )
         record = dict(zip(("timestamp", "tick", "status", "qread", "stream_id"), values[:5]))
         record["running"] = int(bool(record["status"] & 1))
+        # Word 4 is a stream ID while running, or a nonzero idle-run count.
+        # Keep compressed rows: expanding a long run could exhaust host memory.
+        record["idle_count"] = 0 if record["running"] else record["stream_id"]
+        if not record["running"]:
+            record["stream_id"] = 0
+            if not record["idle_count"]:
+                raise ValueError(f"record {index}: idle count must be nonzero")
+        record["sample_count"] = 1 if record["running"] else record["idle_count"]
         stream_id = record["stream_id"]
-        if stream_id > stream_count or (not record["running"] and stream_id):
+        if stream_id > stream_count:
             raise ValueError(f"record {index}: invalid stream ID")
         unknown_stream_samples += int(record["running"] and not stream_id)
         if record["qread"] == NO_QREAD:
@@ -162,9 +170,13 @@ def decode(data):
     summary["format"] = "EUTR"
     summary["streams"] = streams
     summary["running_samples"] = sum(record["running"] for record in records)
+    summary["idle_samples"] = sum(record["idle_count"] for record in records)
+    summary["total_samples"] = summary["running_samples"] + summary["idle_samples"]
     summary["qread_samples"] = sum(record["qread"] != "" for record in records)
     summary["running_percent"] = (
-        round(100 * summary["running_samples"] / len(records), 2) if records else 0.0
+        round(100 * summary["running_samples"] / summary["total_samples"], 2)
+        if summary["total_samples"]
+        else 0.0
     )
     return summary, records
 
@@ -177,13 +189,14 @@ def qread_histogram(records):
         if record["running"] and record["stream_id"] and record["qread"] != ""
     )
     running_samples = sum(record["running"] for record in records)
+    total_samples = sum(record["sample_count"] for record in records)
     return [
         {
             "stream_id": stream_id,
             "qread_bytes": offset,
             "samples": count,
             "percent_of_running_samples": round(100 * count / running_samples, 2),
-            "percent_of_all_samples": round(100 * count / len(records), 2),
+            "percent_of_all_samples": round(100 * count / total_samples, 2),
         }
         for (stream_id, offset), count in sorted(
             counts.items(), key=lambda item: (-item[1], item[0])
@@ -204,9 +217,16 @@ def main():
         parser.exit(1, f"Error: {error}\n")
     args.output.mkdir(parents=True, exist_ok=True)
     (args.output / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
-    fields = ["timestamp", "tick", "status", "running", "stream_id", "qread"] + [
-        f"pmu{i}" for i in range(summary["pmu_count"])
-    ]
+    fields = [
+        "timestamp",
+        "tick",
+        "status",
+        "running",
+        "stream_id",
+        "idle_count",
+        "sample_count",
+        "qread",
+    ] + [f"pmu{i}" for i in range(summary["pmu_count"])]
     with (args.output / "samples.csv").open("w", newline="") as stream:
         writer = csv.DictWriter(stream, fieldnames=fields)
         writer.writeheader()
@@ -229,7 +249,10 @@ def main():
         )
         writer.writeheader()
         writer.writerows(histogram)
-    print(f"{summary['count']} samples, {summary['running_percent']}% NPU running")
+    print(
+        f"{summary['count']} records, {summary['total_samples']} samples, "
+        f"{summary['running_percent']}% NPU running"
+    )
     print(f"{len(histogram)} stream/QREAD pairs; hottest offsets (% of running samples):")
     if summary["unknown_stream_samples"]:
         print(

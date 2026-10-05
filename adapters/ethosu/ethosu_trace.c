@@ -10,7 +10,7 @@
  * Description:  Ethos-U statistical sampling companion adapter
  *
  * $Date:        5 October 2026
- * $Revision:    V.1.0.3
+ * $Revision:    V.1.0.4
  *
  * Target :  Arm(R) M-Profile Architecture
  *
@@ -170,7 +170,28 @@ void profiler_aux_sample(uint32_t timestamp, uint32_t tick)
     volatile struct EthosuTraceHeader *header = &ethosu_trace_samples.header;
     const uint32_t stride = header->record_bytes / 4U;
     const uint32_t capacity = sizeof(ethosu_trace_samples.records) / 4U;
-    const uint32_t index = header->count * stride;
+    uint32_t index = header->count * stride;
+    uint32_t submission = header->streams_seen;
+    uint32_t stream_id = current_stream_id;
+    uint32_t status = ETHOSU_PMU_Get_STATUS(trace_driver);
+    uint32_t qread = ETHOSU_TRACE_NO_QREAD;
+    uint32_t idle_count = 1U;
+    int append = 1;
+
+    /* Reuse the last idle record, even in the final buffer slot. Preserve the
+     * latest snapshot and count represented sampling ticks, not stored records.
+     * Split a saturated run rather than allowing its count to wrap to zero. */
+    if (!(status & 1U) && header->count)
+    {
+        volatile uint32_t *previous = &ethosu_trace_samples.records[index - stride];
+        if (!(previous[2] & 1U) && previous[4] != UINT32_MAX)
+        {
+            index -= stride;
+            idle_count = previous[4] + 1U;
+            append = 0;
+        }
+    }
+
     if (index > capacity || stride > capacity - index)
     {
         header->full = 1U;
@@ -179,10 +200,6 @@ void profiler_aux_sample(uint32_t timestamp, uint32_t tick)
         return;
     }
 
-    uint32_t submission = header->streams_seen;
-    uint32_t stream_id = current_stream_id;
-    uint32_t status = ETHOSU_PMU_Get_STATUS(trace_driver);
-    uint32_t qread = ETHOSU_TRACE_NO_QREAD;
     if ((status & 1U) != 0U)
     {
         qread = ETHOSU_PMU_Get_QREAD(trace_driver);
@@ -207,11 +224,12 @@ void profiler_aux_sample(uint32_t timestamp, uint32_t tick)
     record[1] = tick;
     record[2] = status;
     record[3] = qread;
-    record[4] = stream_id;
+    record[4] = (status & 1U) ? stream_id : idle_count;
     for (uint32_t i = 0; i < header->pmu_count; ++i)
         record[ETHOSU_TRACE_BASE_WORDS + i] = ETHOSU_PMU_Get_EVCNTR(trace_driver, i);
     profiler_port_barrier();
-    header->count++;
+    if (append)
+        header->count++;
 }
 
 /* Called from the driver inference-begin callback immediately before submitting a

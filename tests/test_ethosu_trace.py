@@ -8,7 +8,7 @@
 # Description:  Ethos-U capture decoder regression tests
 #
 # $Date:        5 October 2026
-# $Revision:    V.1.0.3
+# $Revision:    V.1.0.4
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -38,10 +38,7 @@ def trace(device=55, pmu_count=0, count=None, samples=None, streams=None):
         samples = [(123, 10, 1, 16)]
     if streams is None:
         streams = [(0x1000, 64)]
-    samples = [
-        (*sample, int(bool(sample[2] & 1))) if len(sample) == 4 else sample
-        for sample in samples
-    ]
+    samples = [(*sample, 1) if len(sample) == 4 else sample for sample in samples]
     payload = b"".join(
         struct.pack(f"<{5 + pmu_count}I", *sample, *range(pmu_count))
         for sample in samples
@@ -145,7 +142,7 @@ class EthosuTraceTest(unittest.TestCase):
             (1, 1, 0, 16, 0),
             (1, 1, 1, 68, 1),
             (1, 1, 1, 16, 3),
-            (1, 1, 0, MODULE.NO_QREAD, 1),
+            (1, 1, 0, MODULE.NO_QREAD, 0),
         ]:
             with self.subTest(sample=sample), self.assertRaises(ValueError):
                 MODULE.decode(trace(samples=[sample]))
@@ -206,6 +203,35 @@ class EthosuTraceTest(unittest.TestCase):
         )
         self.assertEqual(summary["unknown_stream_samples"], 1)
         self.assertEqual(len(summary["streams"]), 2)
+
+    def test_idle_runs_weight_percentages_without_expansion(self):
+        samples = [(80, 80, 0, MODULE.NO_QREAD, 80)]
+        samples += [(81 + i, 81 + i, 1, 16, 1) for i in range(20)]
+        summary, records = MODULE.decode(trace(samples=samples, pmu_count=4))
+        self.assertEqual(summary["count"], 21)
+        self.assertEqual(summary["total_samples"], 100)
+        self.assertEqual(summary["idle_samples"], 80)
+        self.assertEqual(summary["running_percent"], 20.0)
+        self.assertEqual(records[0]["idle_count"], 80)
+        self.assertEqual(records[0]["sample_count"], 80)
+        self.assertEqual(records[0]["stream_id"], 0)
+        self.assertEqual(records[1]["idle_count"], 0)
+        histogram = MODULE.qread_histogram(records)
+        self.assertEqual(histogram[0]["percent_of_all_samples"], 20.0)
+        self.assertEqual(histogram[0]["percent_of_running_samples"], 100.0)
+        # Saturated counts and a following split stay compact on the host.
+        summary, records = MODULE.decode(
+            trace(
+                samples=[
+                    (1, 1, 0, MODULE.NO_QREAD, 0xFFFFFFFF),
+                    (2, 2, 0, MODULE.NO_QREAD, 1),
+                ]
+            )
+        )
+        self.assertEqual(len(records), 2)
+        self.assertEqual(summary["total_samples"], 1 << 32)
+        self.assertEqual(summary["running_percent"], 0.0)
+        self.assertEqual(MODULE.qread_histogram(records), [])
 
     def test_rejects_reserved_words_and_misaligned_allocation(self):
         data = bytearray(trace())
