@@ -1,6 +1,21 @@
-/* Copyright 2026 Arm Limited and/or its affiliates.
+/*
+ * SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ *
  * SPDX-License-Identifier: Apache-2.0
  */
+
+/* ----------------------------------------------------------------------
+ * Project:      CMSIS Statistical Profiler
+ * Title:        ethosu_trace.c
+ * Description:  Ethos-U statistical sampling companion adapter
+ *
+ * $Date:        5 October 2026
+ * $Revision:    V.1.0.3
+ *
+ * Target :  Arm(R) M-Profile Architecture
+ *
+ * -------------------------------------------------------------------- */
+
 #include "ethosu_trace.h"
 
 #if PROFILER_ETHOSU_TRACE
@@ -11,7 +26,11 @@
     #include <string.h>
 
 _Static_assert(sizeof(struct EthosuTraceHeader) == ETHOSU_TRACE_HEADER_BYTES, "Ethos-U trace header");
-_Static_assert(PROFILER_ETHOSU_TRACE_BUFFER_BYTES > ETHOSU_TRACE_HEADER_BYTES + 32U,
+_Static_assert(sizeof(struct EthosuTraceStream) == 8U, "Ethos-U stream descriptor");
+_Static_assert(PROFILER_ETHOSU_MAX_STREAMS > 0 && PROFILER_ETHOSU_MAX_STREAMS <= 64,
+               "Ethos-U stream capacity must be 1..64");
+_Static_assert(PROFILER_ETHOSU_TRACE_BUFFER_BYTES >=
+                   ETHOSU_TRACE_RECORD_OFFSET + 4U * (ETHOSU_TRACE_BASE_WORDS + PROFILER_ETHOSU_PMU_COUNT),
                "Ethos-U trace allocation is too small");
 _Static_assert((PROFILER_ETHOSU_TRACE_BUFFER_BYTES & 31U) == 0U, "Ethos-U trace allocation alignment");
 _Static_assert(PROFILER_ETHOSU_PMU_COUNT >= 0 && PROFILER_ETHOSU_PMU_COUNT <= 4, "Ethos-U PMU count must be 0..4");
@@ -25,6 +44,7 @@ volatile struct EthosuTraceBuffer ethosu_trace_samples;
 static struct ethosu_driver *trace_driver;
 static volatile uint32_t trace_gate;
 static uint32_t trace_started;
+static volatile uint32_t current_stream_id;
     #if PROFILER_ETHOSU_PMU_COUNT
 static const enum ethosu_pmu_event_type configured_events[PROFILER_ETHOSU_PMU_COUNT] = {
         #if PROFILER_ETHOSU_PMU_COUNT > 0
@@ -42,17 +62,27 @@ static const enum ethosu_pmu_event_type configured_events[PROFILER_ETHOSU_PMU_CO
 };
     #endif
 
-void ethosu_trace_bind(struct ethosu_driver *driver) { trace_driver = driver; }
+int trace_ethosu_bind(struct ethosu_driver *driver)
+{
+    /* A full buffer still owns power/PMU resources until explicitly stopped. */
+    if (trace_started)
+        return 0;
 
-int ethosu_trace_start(void)
+    trace_driver = driver;
+    return 1;
+}
+
+int trace_ethosu_start(void)
 {
     trace_gate = 0U;
     if (trace_started)
     {
-        ethosu_trace_stop(0U, 0U);
+        trace_ethosu_stop(0U, 0U);
     }
     memset((void *)&ethosu_trace_samples, 0, sizeof(ethosu_trace_samples));
     volatile struct EthosuTraceHeader *header = &ethosu_trace_samples.header;
+    current_stream_id = 0U;
+    header->stream_capacity = PROFILER_ETHOSU_MAX_STREAMS;
     header->magic = ETHOSU_TRACE_MAGIC;
     header->version = ETHOSU_TRACE_VERSION;
     header->header_bytes = ETHOSU_TRACE_HEADER_BYTES;
@@ -104,7 +134,7 @@ int ethosu_trace_start(void)
     return 1;
 }
 
-void ethosu_trace_stop(uint32_t iterations, uint32_t validation_passed)
+void trace_ethosu_stop(uint32_t iterations, uint32_t validation_passed)
 {
     trace_gate = 0U;
     profiler_port_barrier();
@@ -128,7 +158,7 @@ void ethosu_trace_stop(uint32_t iterations, uint32_t validation_passed)
     trace_started = 0U;
 }
 
-int ethosu_trace_full(void) { return ethosu_trace_samples.header.full != 0U; }
+int trace_ethosu_full(void) { return ethosu_trace_samples.header.full != 0U; }
 
 /* Only this ISR writes records. STATUS bit 0 is the running state. QREAD is an
  * offset in bytes, not an address; QSIZE cannot be read while running. The
@@ -149,42 +179,58 @@ void profiler_aux_sample(uint32_t timestamp, uint32_t tick)
         return;
     }
 
+    uint32_t submission = header->streams_seen;
+    uint32_t stream_id = current_stream_id;
     uint32_t status = ETHOSU_PMU_Get_STATUS(trace_driver);
     uint32_t qread = ETHOSU_TRACE_NO_QREAD;
     if ((status & 1U) != 0U)
     {
         qread = ETHOSU_PMU_Get_QREAD(trace_driver);
-        uint32_t bytes = header->stream_bytes;
+        /* If a higher-priority submission interrupted these reads, do not
+         * attribute a potentially mixed snapshot to either command stream. */
+        if (submission != header->streams_seen)
+            stream_id = 0U;
+        uint32_t bytes = stream_id ? ethosu_trace_samples.streams[stream_id - 1U].stream_bytes : 0U;
         if ((bytes != 0U && qread > bytes) || (qread & 3U) != 0U)
         {
             qread = ETHOSU_TRACE_NO_QREAD;
             ++header->invalid_qread;
         }
     }
+    else
+        stream_id = 0U;
+    if ((status & 1U) && !stream_id)
+        ++header->unknown_stream_samples;
+
     volatile uint32_t *record = &ethosu_trace_samples.records[index];
     record[0] = timestamp;
     record[1] = tick;
     record[2] = status;
     record[3] = qread;
+    record[4] = stream_id;
     for (uint32_t i = 0; i < header->pmu_count; ++i)
-        record[4U + i] = ETHOSU_PMU_Get_EVCNTR(trace_driver, i);
+        record[ETHOSU_TRACE_BASE_WORDS + i] = ETHOSU_PMU_Get_EVCNTR(trace_driver, i);
     profiler_port_barrier();
     header->count++;
 }
 
-/* The public driver calls this weak callback immediately before submitting a
+/* Called from the driver inference-begin callback immediately before submitting a
  * Vela command stream. Its COP1 payload carries the length in 32-bit words.
- * Unknown/malformed payloads leave stream_bytes=0; raw aligned QREAD remains
- * available, without an inferred upper bound. */
-void ethosu_inference_begin(struct ethosu_driver *drv, void *user_arg)
+ * Discover immutable command streams automatically: no application registration.
+ * ID 0 means unknown (unparseable payload, table full, or capture began mid-job).
+ * Only this callback writes the table; publish the ID after its descriptor. */
+void trace_ethosu_inference_begin(struct ethosu_driver *drv, void *user_arg)
 {
     (void)user_arg;
     if (!trace_gate || drv != trace_driver)
         return;
+    current_stream_id = 0U;
+    ++ethosu_trace_samples.header.streams_seen;
     const uint8_t *data = (const uint8_t *)drv->job.custom_data_ptr;
-    uint32_t size = (uint32_t)drv->job.custom_data_size;
+    uint32_t size = drv->job.custom_data_size > 0 ? (uint32_t)drv->job.custom_data_size : 0U;
     uint32_t stream_bytes = 0U;
-    if (data && size >= 8U && data[0] == 'C' && data[1] == 'O' && data[2] == 'P' && data[3] == '1')
+    uint32_t command_address = 0U;
+    if (data && size >= 8U && !(size & 3U) && data[0] == 'C' && data[1] == 'O' && data[2] == 'P' && data[3] == '1')
     {
         uint32_t offset = 4U;
         while (offset <= size - 4U)
@@ -203,13 +249,42 @@ void ethosu_inference_begin(struct ethosu_driver *drv, void *user_arg)
             if (action == 2U)
             {
                 stream_bytes = (words - 1U) * 4U;
+                command_address = (uint32_t)(uintptr_t)(data + offset + 4U);
                 break;
             }
             offset += words * 4U;
         }
     }
-    ethosu_trace_samples.header.stream_bytes = stream_bytes;
-    ++ethosu_trace_samples.header.streams_seen;
-    profiler_port_barrier();
+    volatile struct EthosuTraceHeader *header = &ethosu_trace_samples.header;
+    if (stream_bytes && !(command_address & 3U))
+    {
+        for (uint32_t i = 0; i < header->stream_count; ++i)
+        {
+            if (ethosu_trace_samples.streams[i].command_address == command_address &&
+                ethosu_trace_samples.streams[i].stream_bytes == stream_bytes)
+            {
+                profiler_port_barrier();
+                current_stream_id = i + 1U;
+                return;
+            }
+        }
+        if (header->stream_count < PROFILER_ETHOSU_MAX_STREAMS)
+        {
+            uint32_t index = header->stream_count;
+            ethosu_trace_samples.streams[index].command_address = command_address;
+            ethosu_trace_samples.streams[index].stream_bytes = stream_bytes;
+            header->stream_count = index + 1U;
+            profiler_port_barrier();
+            current_stream_id = index + 1U;
+            return;
+        }
+    }
+    ++header->unregistered_streams;
 }
+
+    #if PROFILER_ETHOSU_DRIVER_CALLBACK
+/* The driver ABI fixes this name. Disable this wrapper when the application
+ * already owns the callback and forwards to trace_ethosu_inference_begin(). */
+void ethosu_inference_begin(struct ethosu_driver *drv, void *user_arg) { trace_ethosu_inference_begin(drv, user_arg); }
+    #endif
 #endif

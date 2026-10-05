@@ -5,10 +5,10 @@
 # ----------------------------------------------------------------------
 # Project:      CMSIS Statistical Profiler
 # Title:        annotate_profiler_report.py
-# Description:  Annotate instruction groups with sampled PC hit percentages
+# Description:  Rank sampled hotspots and annotate instruction groups
 #
 # $Date:        5 October 2026
-# $Revision:    V.1.0.2
+# $Revision:    V.1.0.4
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -22,17 +22,17 @@ counts are attributed to instructions.
 """
 
 import argparse
-from bisect import bisect_right
-from collections import Counter, defaultdict
 import csv
 import hashlib
 import json
 import os
-from pathlib import Path
 import re
 import shlex
 import shutil
 import subprocess
+from bisect import bisect_right
+from collections import Counter, defaultdict
+from pathlib import Path
 
 from analyze_profiler_buffer import elf_functions
 
@@ -65,6 +65,7 @@ def source_locations(tool, elf, instructions):
     result = subprocess.run(
         [tool, "-e", str(elf.resolve())],
         input="".join(f"0x{address:x}\n" for address, _ in instructions),
+        check=False,
         capture_output=True,
         text=True,
         timeout=30,
@@ -113,8 +114,7 @@ def source_snippet(group, locations, cache, source_maps):
     if not mapped:
         return ["; Source: no line information for this group (debug information may be absent)."]
     return [
-        f"; {source_label(filename, number, cache, source_maps)}"
-        for filename, number in mapped
+        f"; {source_label(filename, number, cache, source_maps)}" for filename, number in mapped
     ]
 
 
@@ -190,6 +190,7 @@ def disassemble(tool, elf, start, size, objdump_args=()):
             f"--stop-address={start + size}",
             str(elf.resolve()),
         ],
+        check=False,
         capture_output=True,
         text=True,
         timeout=30,
@@ -260,8 +261,10 @@ def render_hotspots(annotated, total, limit, source_cache, source_maps):
     selected_percent = 100 * selected_hits / total if total else 0
     lines = [
         "HOTSPOTS (self PC samples)",
-        f"Selected functions: {selected_hits} of {total} samples "
-        f"({selected_percent:.2f}% of capture).",
+        (
+            f"Selected functions: {selected_hits} of {total} samples "
+            f"({selected_percent:.2f}% of capture)."
+        ),
         "Percentages are sampled PC shares, not instruction cycle or PMU costs.",
         "",
         "FUNC  CAPTURE%  SAMPLES  SYMBOL",
@@ -294,8 +297,10 @@ def render_hotspots(annotated, total, limit, source_cache, source_maps):
         lines.extend(
             [
                 "",
-                f"SOURCE LINES (top {min(limit, len(source_hits))}; "
-                f"{mapped} of {selected_hits} selected samples mapped)",
+                (
+                    f"SOURCE LINES (top {min(limit, len(source_hits))}; "
+                    f"{mapped} of {selected_hits} selected samples mapped)"
+                ),
                 "CAPTURE%  SAMPLES  LOCATION: SOURCE",
             ]
         )
@@ -308,7 +313,7 @@ def render_hotspots(annotated, total, limit, source_cache, source_maps):
             display = Path(filename).name if basenames[Path(filename).name] == 1 else filename
             lines.append(
                 f"{100 * samples / total if total else 0:7.2f}%  {samples:7d}  "
-                f"{display}:{number}: {full[len(prefix):]}"
+                f"{display}:{number}: {full[len(prefix) :]}"
             )
         if unmapped:
             lines.append(f"{unmapped} decoded samples have no source-line mapping.")
@@ -322,10 +327,7 @@ def render_hotspots(annotated, total, limit, source_cache, source_maps):
     )
     for samples, pc, rank, assembly in sorted(pc_rows, key=lambda row: (-row[0], row[1]))[:limit]:
         capture_percent = 100 * samples / total if total else 0
-        lines.append(
-            f"{capture_percent:7.2f}%  {samples:7d}  F{rank:<3}  "
-            f"0x{pc:08x}  {assembly}"
-        )
+        lines.append(f"{capture_percent:7.2f}%  {samples:7d}  F{rank:<3}  0x{pc:08x}  {assembly}")
     if unmatched:
         lines.append(
             f"WARNING: {unmatched} selected samples do not match decoded instruction starts."
@@ -398,7 +400,9 @@ def main():
     )
     args = parser.parse_args()
     if args.group_instructions < 1 or args.top < 0 or args.hotspot_limit < 1:
-        parser.error("--group-instructions and --hotspot-limit must be positive; --top must be nonnegative")
+        parser.error(
+            "--group-instructions and --hotspot-limit must be positive; --top must be nonnegative"
+        )
     source_maps = []
     for mapping in args.source_map:
         old, separator, new = mapping.partition("=")

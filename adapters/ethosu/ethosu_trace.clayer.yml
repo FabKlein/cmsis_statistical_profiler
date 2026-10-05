@@ -1,5 +1,18 @@
-# Copyright 2026 Arm Limited and/or its affiliates.
+# SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+#
 # SPDX-License-Identifier: Apache-2.0
+
+# ----------------------------------------------------------------------
+# Project:      CMSIS Statistical Profiler
+# Title:        ethosu_trace.clayer.yml
+# Description:  Optional Ethos-U statistical trace layer
+#
+# $Date:        5 October 2026
+# $Revision:    V.1.0.1
+#
+# Target :  Arm(R) M-Profile Architecture
+#
+# ----------------------------------------------------------------------
 
 layer:
   type: ProfilerCompanion
@@ -8,8 +21,13 @@ layer:
     - .
   groups:
     - group: Ethos-U statistical trace
+      # Sampling runs in the timer ISR; avoid compiler-generated FP/MVE work.
       misc:
         - for-compiler: AC6
+          C:
+            - -fno-vectorize
+            - -fno-slp-vectorize
+        - for-compiler: CLANG
           C:
             - -fno-vectorize
             - -fno-slp-vectorize

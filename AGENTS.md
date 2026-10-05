@@ -32,6 +32,15 @@ and provenance. Do not guess bounds or ownership. Report validation limits.
   instructions, not bytes or basic blocks; use the exact ELF and report unmatched PCs.
   Add `--source` for debug-mapped source snippets; `--addr2line PATH` and
   `--source-map OLD=NEW` support custom tools and relocated source trees.
+- Ethos-U uses a separate [EUTR buffer](adapters/ethosu/README.md). Discover immutable
+  command streams in the inference callback; records reference a bounded stream table.
+  Keep decoder/firmware formats synchronized and histogram by `(stream_id, QREAD)`;
+  unknown stream IDs must not be merged into hotspots. No application registration.
+  Use the `trace_ethosu_*` API. Existing driver callbacks must forward once to
+  `trace_ethosu_inference_begin`; set `PROFILER_ETHOSU_DRIVER_CALLBACK=0` project-wide.
+  Ethos-U PMU collection requires exclusive ownership until stop returns, even
+  after buffer full. Use `PROFILER_ETHOSU_PMU_COUNT=0` if the application owns it;
+  later PMU reconfiguration is not detected.
 - Keep ISR code bounded and integer-only: no allocation, blocking, logging, FP or
   vector instructions. Preserve the original exception frame.
 - On Armv8-M, determine the interrupted frame security state from the captured

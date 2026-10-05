@@ -59,6 +59,10 @@ board adapters do not select or probe those bounds.
 | CMSIS-RTOS2 | [RTX](examples/corstone300_rtos2/CALL_TREE.md) / [FreeRTOS](examples/corstone300_freertos/README.md) dual-thread Toolbox/FVP tests, [integration illustration](examples/corstone300_rtos2/README.md) |
 | New board | [Adapter template](adapters/template/README.md) |
 
+The optional Ethos-U trace discovers command streams automatically and reports
+QREAD hotspots per stream. No application registration is required; command-stream
+contents must remain unchanged during capture.
+
 Select the common layer, 1 board and 1 board timer:
 
 ```yaml

@@ -9,8 +9,8 @@
  * Title:        sampling_profiler_port.h
  * Description:  Internal capture core and platform backend interface
  *
- * $Date:        30 September 2026
- * $Revision:    V.1.0.2
+ * $Date:        5 October 2026
+ * $Revision:    V.1.0.3
  *
  * Target :  Arm(R) M-Profile Architecture
  *

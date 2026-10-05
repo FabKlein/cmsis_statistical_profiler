@@ -8,7 +8,7 @@
 # Description:  Instruction-group annotation regression tests
 #
 # $Date:        5 October 2026
-# $Revision:    V.1.0.2
+# $Revision:    V.1.0.3
 #
 # Target :  Arm(R) M-Profile Architecture
 # ----------------------------------------------------------------------

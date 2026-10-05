@@ -9,8 +9,8 @@
  * Title:        profiler_backend.c
  * Description:  Cortex-M timestamping, frame validation and sampling backend
  *
- * $Date:        2 October 2026
- * $Revision:    V.1.0.11
+ * $Date:        5 October 2026
+ * $Revision:    V.1.0.12
  *
  * Target :  Arm(R) M-Profile Architecture
  *
