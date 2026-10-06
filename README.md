@@ -63,6 +63,8 @@ The optional Ethos-U trace discovers command streams automatically and reports
 QREAD hotspots per stream. No application registration is required; command-stream
 contents must remain unchanged during capture. Consecutive idle samples share
 1 record; reported utilization still counts every represented sampling tick.
+For multiple capture/export/resume cycles and Vela operator attribution, see
+[Repeated Cortex-M and Ethos-U profiling](docs/REPEATED_CAPTURES.md).
 
 Select the common layer, 1 board and 1 board timer:
 
@@ -114,8 +116,10 @@ project or configuration header ([staged integration](docs/INTEGRATION.md)). A
 64 KiB buffer holds 2,723
 samples without PMU, 2,042 with 2 events or 1,634 with 4 events, without backtraces. Currently, recording
 stops when the buffer is full; existing records are not overwritten. Circular
-buffering and a repeated capture/export/resume workflow are planned: capture until
-full, stop and finalize, export the buffer through the debugger, then resume capture.
+buffering is not implemented. An application can implement a repeated
+capture/export/resume workflow as described in the
+[runbook](docs/REPEATED_CAPTURES.md): stop and finalize both buffers, export and
+decode them while halted, then reinitialize for the next capture.
 See [configuration](docs/CONFIGURATION.md) for clocks, bounds and build options.
 
 ## Capture and decode

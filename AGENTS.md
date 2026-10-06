@@ -10,6 +10,21 @@ Keep settings in the application. Run [ELF preflight](host/check_profiler_elf.py
 before capture; [package reports](host/create_profiler_report.py) with exact inputs
 and provenance. Do not guess bounds or ownership. Report validation limits.
 
+For repeated Cortex-M and Ethos-U captures, follow the
+[repeated-capture runbook](docs/REPEATED_CAPTURES.md). Stop after both buffers
+are finalized and before either is reused; verify `complete=1`, `active=0`
+in each header. Preserve one full allocation per processor and capture, with
+chunk addresses and lengths checked before zero-padding only the unused tail.
+Decode each capture with the matching profiler revision and exact ELF/AXF,
+then combine decoded reports with [aggregate_profiler_captures.py](host/aggregate_profiler_captures.py).
+Never concatenate raw captures or count debugger pauses as sample time.
+For NPU attribution, build a map from a matching Vela debug database and
+command listing with [build_vela_qread_map.py](host/build_vela_qread_map.py),
+then require [align_vela_qread.py](host/align_vela_qread.py) to verify the
+exact PTE stream before using operator labels. TOSA alone cannot label QREAD;
+operator sample counts are sampled command positions, while `est_cycles` is
+Vela's estimate.
+
 - Keep a 3 layers SW structure: capture/storage, Cortex-M backend, timer integration.
   Vendor dependencies belong in adapters, not the capture core. The generic
   SysTick integration needs no board adapter when the application supplies the
