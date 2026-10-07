@@ -65,6 +65,28 @@ contents must remain unchanged during capture. Consecutive idle samples share
 1 record; reported utilization still counts every represented sampling tick.
 For multiple capture/export/resume cycles and Vela operator attribution, see
 [Repeated Cortex-M and Ethos-U profiling](docs/REPEATED_CAPTURES.md).
+For a matching PTE and Vela debug database, the
+[Ethos-U operator report guide](docs/ETHOSU_OPERATOR_REPORTS.md) covers
+command-stream unwrapping, exact-byte validation, and operator SVG charts.
+The [offline HTML report index](host/generate_report_index.py) collects whichever
+aggregate charts, timelines, tables, and annotations were generated for a run.
+An optional per-run `platform.json` adds processor names, core roles, nominal
+clocks, and explicit idle function or PC ranges for sampled Cortex-M non-idle
+share. See the [report-index step](docs/REPEATED_CAPTURES.md#5-build-an-offline-report-index).
+For repeated captures, [combine_perfetto_captures.py](host/combine_perfetto_captures.py)
+builds one pause-free Cortex-M timeline with capture boundaries; see the
+[report-index step](docs/REPEATED_CAPTURES.md#5-build-an-offline-report-index).
+For captures with synchronized MCU and Ethos-U ticks,
+[fold_mcu_by_ethosu.py](host/fold_mcu_by_ethosu.py) builds an MCU activity
+profile aligned to NPU running starts, with CPU PMU counters when present.
+[fold_ethosu_by_inference.py](host/fold_ethosu_by_inference.py) folds Ethos-U
+running activity and optional PMU counters over complete inference periods.
+[plot_joint_mcu_ethosu.py](host/plot_joint_mcu_ethosu.py) places the two folds
+on one shared phase axis when both processors were captured.
+[generate_aggregate_mcu_report.py](host/generate_aggregate_mcu_report.py)
+creates combined CPU hotspots and optional Brendan Gregg flamegraphs;
+[summarize_tosa_operators.py](host/summarize_tosa_operators.py) groups
+PTE-verified queue operations by TOSA type.
 
 Select the common layer, 1 board and 1 board timer:
 
