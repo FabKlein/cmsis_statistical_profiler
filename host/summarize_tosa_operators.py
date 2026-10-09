@@ -12,7 +12,7 @@ from pathlib import Path
 
 def summarize(root):
     alignment = json.loads((root / "vela_alignment.json").read_text())
-    if not alignment["command_stream_exact_match"]:
+    if not alignment["listing_matches_pte"]:
         raise ValueError("Vela debug package does not match the PTE command stream")
     with (root / "ethosu_operator_samples.csv").open(newline="") as stream:
         rows = list(csv.DictReader(stream))

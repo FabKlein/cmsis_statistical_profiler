@@ -120,7 +120,8 @@ explicitly with `--output-dir`. There is no fixed capture count in this host
 tool. It accepts CPU-only, Ethos-U-only, and combined captures. The same
 processors and PMU event IDs must be present in every capture. It checks
 finalization, matching ELF hash when there is a CPU report, sample rate,
-buffer formats, Ethos-U stream descriptors when present, and decoded totals.
+timestamp/timer clocks, NPU device type, buffer formats, CSV schemas,
+Ethos-U stream descriptors when present, and decoded totals.
 It writes `captures.csv` and `summary.json` plus processor-specific combined
 sample and histogram files for the processors that were captured.
 
@@ -131,6 +132,12 @@ time. The current aggregator requires the same stream IDs, CPU-visible
 addresses, and lengths in every capture before merging QREAD bins. When those
 descriptors differ, analyze the streams separately or extend the aggregator
 with an explicit stream equivalence check.
+
+Empty finalized captures are supported: sample CSV headers are preserved, totals
+are zero and percentages use 0 when no samples exist. An empty NPU capture with
+no discovered streams does not constrain stream matching for other captures.
+The aggregate summary saves the shared `capture_configuration`; PMU start/stop
+values and per-capture diagnostic flags may differ.
 
 | Capture configuration | Aggregate and optional views |
 | --- | --- |
@@ -171,7 +178,7 @@ model build:
 | Vela debug database, including `queue`, `perf`, source, and shape tables | Locate and describe scheduled NPU operations |
 | Decoded register command listing from the firmware PTE | Provide the exact command words and compute-kick offsets |
 | `qread_ops.csv` derived from the database and listing | Give each kick a QREAD interval and operator metadata |
-| The exact firmware PTE | Prove the debug artifacts correspond to the deployed stream |
+| The exact firmware PTE | Compare supplied listing bytes; deployment identity remains caller supplied |
 
 When producing a new debug database, compile the retained TOSA with the
 **same** Vela settings used for the firmware and enable `--enable-debug-db`.
@@ -220,11 +227,25 @@ python3 host/align_vela_qread.py \
 
 The aligner reconstructs every command word from the listing and requires a
 byte-for-byte match at the stated PTE file offset. It checks that the map's
-compute kicks match the listing and Vela queue. When the aggregated
-`summary.json` is beside the histogram, it also checks the captured stream
-length. A mismatch means the operator labels must not be applied to
+compute kicks match the listing and Vela queue, then regenerates map rows to
+check labels, shapes, cycle estimates and other metadata against the supplied
+database. The aggregated `summary.json`
+must be beside the histogram: it supplies the running-tick denominator and
+captured stream length. A mismatch means the operator labels must not be applied to
 that capture. The current implementation accepts one histogram stream ID per
 invocation; analyze multiple distinct streams separately.
+
+**Verification scope:** `listing_matches_pte=true` proves only that the supplied
+listing matches the supplied PTE. Map metadata is checked against the supplied
+Vela database, but the database's association with that model build and the
+capture's association with that PTE remain caller supplied. Matching stream
+lengths and kick offsets do not establish identity.
+
+`vela_alignment.json` records `capture_pte_identity_verified=false` and SHA-256
+hashes of the PTE, listing, database, map, histogram and aggregate summary.
+These identify the inputs for reproducibility; they do not prove that the
+artifacts belong together. Automatic capture identity would require a captured
+stream hash and a manifest linking outputs from the Vela build.
 
 The outputs are `ethosu_operator_samples.csv`,
 `ethosu_unmatched_qread.csv`, and `vela_alignment.json`. A sampled QREAD in
@@ -233,6 +254,15 @@ may contain DMA and register setup for the next operation, and samples before
 the first kick remain unmatched. These counts are **sampled command-position
 attribution**, not direct measurements of individual register commands or
 operator execution time. `est_cycles` is Vela's separate static estimate.
+
+
+Operator `percent_of_running_samples` uses all aggregate running ticks, including
+unknown streams and invalid QREAD samples excluded from the histogram. For
+example, 20 attributed samples out of 100 running ticks report 20%, not 100%.
+The alignment summary separates `histogram_samples`, `excluded_samples` (running
+ticks absent from the histogram), and `unmatched_samples` (histogram entries
+outside operator intervals). No running percentage is inferred without the
+aggregate summary.
 
 Group exact-PTE-aligned queue rows by TOSA operation with
 `python3 host/summarize_tosa_operators.py --run-dir "$RUN_DIR"`.

@@ -40,6 +40,12 @@ class AggregateVariantTests(unittest.TestCase):
                         "timing_valid": True,
                         "header": {
                             "sample_hz": 1000,
+                            "timestamp_hz": 1000000,
+                            "timer_hz": 1000000,
+                            "timer_period": 1000,
+                            "version": 2,
+                            "features": int(bool(cpu_events)),
+                            "unwind_max_depth": 0,
                             "buffer_bytes": 128,
                             "record_base_bytes": 24,
                             "complete": 1,
@@ -52,6 +58,10 @@ class AggregateVariantTests(unittest.TestCase):
                             "pmu": {
                                 "count": len(cpu_events),
                                 "events": list(cpu_events),
+                                "requested": len(cpu_events),
+                                "status": "active" if cpu_events else "disabled",
+                                "counter_bits": 32 if cpu_events else 0,
+                                "scope": "init_to_stop_all_execution",
                             },
                         },
                     }
@@ -69,6 +79,11 @@ class AggregateVariantTests(unittest.TestCase):
                 json.dumps(
                     {
                         "sample_hz": 1000,
+                        "timestamp_hz": 1000000,
+                        "device_type": 55,
+                        "version": 1,
+                        "pmu_status": 1 if ethos_events else 0,
+                        **{f"pmu_event{i}": 0 for i in range(4)},
                         "buffer_bytes": 128,
                         "record_bytes": 24,
                         "format": "EUTR",
@@ -104,7 +119,16 @@ class AggregateVariantTests(unittest.TestCase):
                 ],
             )
             write_csv(
-                report / "samples.csv", [{"tick": 1, "sample_count": 1, "qread": 4}]
+                report / "samples.csv",
+                [
+                    {
+                        "tick": 1,
+                        "sample_count": 1,
+                        "qread": 4,
+                        "running": 1,
+                        "stream_id": 1,
+                    }
+                ],
             )
             write_csv(
                 report / "qread_histogram.csv",

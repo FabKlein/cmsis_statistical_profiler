@@ -1,15 +1,30 @@
-#!/usr/bin/env python3
-"""Verify a Vela debug package against a PTE and annotate a QREAD histogram."""
+# SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# ----------------------------------------------------------------------
+# Project:      CMSIS Statistical Profiler
+# Title:        align_vela_qread.py
+# Description:  Match command listings and report sampled operator positions
+#
+# $Date:        6 October 2026
+# $Revision:    V.1.0.2
+#
+# Target :  Arm(R) M-Profile Architecture
+# ----------------------------------------------------------------------
+
+"""Check supplied Vela artifacts and annotate QREAD; capture provenance is caller supplied."""
 
 import argparse
 import bisect
 import csv
 import hashlib
-import io
 import json
 import re
 import struct
 from pathlib import Path
+
+from build_vela_qread_map import build_map
 
 
 def read_csv(path):
@@ -44,13 +59,6 @@ def command_stream(listing):
     return base, struct.pack(f"<{len(words)}I", *words), kicks
 
 
-def queue_offsets(xml):
-    match = re.search(r'<table name="queue">\s*<!\[CDATA\[(.*?)\]\]>', xml, re.S)
-    if not match:
-        raise ValueError("Vela debug database has no queue table")
-    return sorted(int(row["offset"]) for row in csv.DictReader(io.StringIO(match.group(1).strip())))
-
-
 def align(pte_path, debug_dir, histogram_path, output_dir):
     pte = pte_path.read_bytes()
     base, stream, kicks = command_stream((debug_dir / "cmdstream_listing.txt").read_text())
@@ -73,8 +81,29 @@ def align(pte_path, debug_dir, histogram_path, output_dir):
     for row, start in zip(ops, starts):
         if row["npu_op"] != kicks[start]:
             raise ValueError(f"operator kind differs at {start:#x}")
-    if starts != queue_offsets((debug_dir / "out_debug.xml").read_text()):
-        raise ValueError("operator map offsets differ from Vela debug queue offsets")
+    # Rebuild the canonical rows from the supplied database, not just its kick
+    # offsets: a stale map can have matching boundaries but different labels.
+    columns, expected = build_map(
+        debug_dir / "out_debug.xml", debug_dir / "cmdstream_listing.txt", base
+    )
+    if len(ops) != len(expected):
+        raise ValueError("operator map row count differs from the supplied Vela database")
+    for index, (row, reference) in enumerate(zip(ops, expected)):
+        if set(row) != set(columns):
+            raise ValueError(f"operator map row {index}: columns differ from the generated map")
+        for field in columns:
+            actual = (
+                int(row[field], 16) if field in ("kick_offset", "next_kick_offset") else row[field]
+            )
+            wanted = (
+                int(reference[field], 16)
+                if field in ("kick_offset", "next_kick_offset")
+                else str(reference[field])
+            )
+            if actual != wanted:
+                raise ValueError(
+                    f"operator map row {index}: {field} differs from the supplied Vela artifacts"
+                )
 
     histogram = read_csv(histogram_path)
     counts = [0] * len(ops)
@@ -84,6 +113,8 @@ def align(pte_path, debug_dir, histogram_path, output_dir):
     for row in histogram:
         qread = int(row["qread_bytes"])
         samples = int(row["samples"])
+        if samples < 0:
+            raise ValueError("histogram sample counts must be nonnegative")
         stream_ids.add(row["stream_id"])
         total += samples
         index = bisect.bisect_right(starts, qread) - 1
@@ -101,14 +132,39 @@ def align(pte_path, debug_dir, histogram_path, output_dir):
     if len(stream_ids) != 1:
         raise ValueError(f"expected one stream ID in histogram, got {sorted(stream_ids)}")
     summary_path = histogram_path.parent / "summary.json"
-    if summary_path.exists():
-        descriptors = json.loads(summary_path.read_text()).get("stream_identity", [])
-        if (
-            len(descriptors) != 1
-            or str(descriptors[0]["stream_id"]) not in stream_ids
-            or int(descriptors[0]["stream_bytes"]) != len(stream)
-        ):
-            raise ValueError("histogram stream descriptor does not match the Vela command stream")
+    # Histogram rows exclude unknown streams and invalid QREAD. Their sum
+    # cannot supply the denominator for a percentage of all running samples.
+    if not summary_path.is_file():
+        raise ValueError(
+            "aggregate summary.json is required beside the histogram for running totals"
+        )
+    summary = json.loads(summary_path.read_text())
+    running_samples = summary.get("ethosu_running_ticks")
+    if type(running_samples) is not int or running_samples < 0:
+        raise ValueError("aggregate summary must contain nonnegative integer ethosu_running_ticks")
+    if total > running_samples:
+        raise ValueError("histogram sample total exceeds aggregate running ticks")
+    descriptors = summary.get("stream_identity", [])
+    if (
+        len(descriptors) != 1
+        or str(descriptors[0]["stream_id"]) not in stream_ids
+        or int(descriptors[0]["stream_bytes"]) != len(stream)
+    ):
+        raise ValueError("histogram stream descriptor does not match the Vela command stream")
+
+    # These hashes identify supplied files, not firmware/model identity on the
+    # device. No stream hash is embedded in the capture for comparison.
+    input_hashes = {
+        name: hashlib.sha256(path.read_bytes()).hexdigest()
+        for name, path in {
+            "listing": debug_dir / "cmdstream_listing.txt",
+            "debug_database": debug_dir / "out_debug.xml",
+            "operator_map": debug_dir / "qread_ops.csv",
+            "histogram": histogram_path,
+            "aggregate_summary": summary_path,
+        }.items()
+    }
+    input_hashes["pte"] = hashlib.sha256(pte).hexdigest()
 
     output_dir.mkdir(parents=True, exist_ok=True)
     with (output_dir / "ethosu_operator_samples.csv").open("w", newline="") as target:
@@ -120,7 +176,9 @@ def align(pte_path, debug_dir, histogram_path, output_dir):
                 {
                     **row,
                     "samples": count,
-                    "percent_of_running_samples": round(100 * count / total, 2) if total else 0,
+                    "percent_of_running_samples": round(100 * count / running_samples, 2)
+                    if running_samples
+                    else 0,
                 }
             )
     with (output_dir / "ethosu_unmatched_qread.csv").open("w", newline="") as target:
@@ -135,10 +193,20 @@ def align(pte_path, debug_dir, histogram_path, output_dir):
         "command_stream_file_offset": base,
         "command_stream_bytes": len(stream),
         "command_stream_sha256": hashlib.sha256(stream).hexdigest(),
-        "command_stream_exact_match": True,
+        "listing_matches_pte": True,
+        "map_matches_supplied_debug_database": True,
+        "capture_pte_identity_verified": False,
+        "input_sha256": input_hashes,
+        "provenance_note": (
+            "The supplied listing matches the supplied PTE. The caller supplies the "
+            "capture-to-PTE association and the database-to-model-build association; "
+            "matching offsets, lengths and file hashes do not prove those associations."
+        ),
         "debug_queue_operations": len(ops),
         "histogram_stream_ids": sorted(stream_ids),
-        "running_samples": total,
+        "running_samples": running_samples,
+        "histogram_samples": total,
+        "excluded_samples": running_samples - total,
         "assigned_samples": sum(counts),
         "unmatched_samples": sum(row["samples"] for row in unmatched),
         "operators_with_samples": sum(bool(count) for count in counts),

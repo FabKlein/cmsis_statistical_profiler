@@ -61,11 +61,15 @@ python3 host/align_vela_qread.py \
   --output-dir "$RUN_DIR"
 ```
 
-For a single decoded capture, use its `ethosu_report/qread_histogram.csv`
-instead of the aggregate histogram. The aligner writes
+For a single decoded capture, aggregate that capture first to provide the
+histogram and required aggregate `summary.json` together. The aligner writes
 `ethosu_operator_samples.csv`, `ethosu_unmatched_qread.csv`, and
-`vela_alignment.json`. Proceed only when `command_stream_exact_match` is
-true. The aligner also requires exactly one stream ID in the histogram;
+`vela_alignment.json`. Proceed only when `listing_matches_pte` is
+true. This verifies supplied listing bytes against the supplied PTE, not the
+capture's firmware identity. Capture-to-PTE and database-to-model-build
+associations remain caller supplied; see the
+[verification scope](REPEATED_CAPTURES.md#4-match-tosavela-operations-to-qread).
+The aligner also requires exactly one stream ID in the histogram;
 separate different streams before attribution.
 
 ## 3. Render the operator charts

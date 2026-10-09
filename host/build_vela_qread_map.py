@@ -1,4 +1,18 @@
-#!/usr/bin/env python3
+# SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# ----------------------------------------------------------------------
+# Project:      CMSIS Statistical Profiler
+# Title:        build_vela_qread_map.py
+# Description:  Build canonical operator metadata from supplied Vela artifacts
+#
+# $Date:        6 October 2026
+# $Revision:    V.1.0.1
+#
+# Target :  Arm(R) M-Profile Architecture
+# ----------------------------------------------------------------------
+
 """Join a Vela debug database and PTE command listing into QREAD intervals."""
 
 import argparse
@@ -12,7 +26,9 @@ def tables_from_debug_db(path):
     xml = path.read_text()
     return {
         name: list(csv.DictReader(io.StringIO(body.strip())))
-        for name, body in re.findall(r'<table name="(\w+)">\s*<!\[CDATA\[(.*?)\]\]>', xml, re.S)
+        for name, body in re.findall(
+            r'<table name="(\w+)">\s*<!\[CDATA\[(.*?)\]\]>', xml, re.DOTALL
+        )
     }
 
 
@@ -78,10 +94,10 @@ def build_map(debug_db, listing, base):
         s = shape[scheduled]
         original = source.get(p["source_id"], {}).get("operator", "")
 
-        def hwc(kind):
+        def hwc(kind, shape):
             return (
-                "x".join(s[f"{kind}_shape_{axis}"] for axis in "hwc")
-                if s[f"{kind}_shape_c"] != "0"
+                "x".join(shape[f"{kind}_shape_{axis}"] for axis in "hwc")
+                if shape[f"{kind}_shape_c"] != "0"
                 else ""
             )
 
@@ -95,9 +111,9 @@ def build_map(debug_db, listing, base):
                 "vela_op": p["operator"],
                 "tosa_op": original,
                 "name": p["name"],
-                "ifm_hwc": hwc("ifm"),
-                "ifm2_hwc": hwc("ifm2"),
-                "ofm_hwc": hwc("ofm"),
+                "ifm_hwc": hwc("ifm", s),
+                "ifm2_hwc": hwc("ifm2", s),
+                "ofm_hwc": hwc("ofm", s),
                 "est_cycles": cycles,
                 "est_cycles_pct": f"{100 * cycles / total_cycles:.2f}" if total_cycles else "0.00",
                 "macs": p["mac_count"],

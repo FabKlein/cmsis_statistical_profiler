@@ -1,3 +1,18 @@
+# SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# ----------------------------------------------------------------------
+# Project:      CMSIS Statistical Profiler
+# Title:        aggregate_profiler_captures.py
+# Description:  Aggregate finalized CPU and Ethos-U capture reports
+#
+# $Date:        9 October 2026
+# $Revision:    V.1.0.3
+#
+# Target :  Arm(R) M-Profile Architecture
+# ----------------------------------------------------------------------
+
 """Aggregate finalized Cortex-M and Ethos-U profiler reports across captures.
 
 The debugger pauses between captures are not represented as sample time. Stream
@@ -16,6 +31,54 @@ from pathlib import Path
 def read_csv(path):
     with path.open(newline="") as source:
         return list(csv.DictReader(source))
+
+
+def read_sample_table(path):
+    """Keep the schema even for a finalized capture with no sample rows."""
+    with path.open(newline="") as source:
+        reader = csv.DictReader(source)
+        columns = reader.fieldnames
+        if not columns or len(set(columns)) != len(columns) or "capture" in columns:
+            raise ValueError(f"{path}: missing, duplicate or reserved sample columns")
+        rows = list(reader)
+        if any(None in row or any(value is None for value in row.values()) for row in rows):
+            raise ValueError(f"{path}: sample row does not match CSV header")
+        return ["capture", *columns], rows
+
+
+def capture_configuration(cpu, npu):
+    """Compare interpretation metadata, excluding per-capture counter values."""
+    pmu = cpu["pmu"] if cpu else None
+    return {
+        "cpu_pmu": {
+            key: pmu[key]
+            for key in ("count", "requested", "events", "status", "counter_bits", "scope")
+        }
+        if cpu
+        else None,
+        "ethosu_pmu": {
+            key: npu[key]
+            for key in (
+                "pmu_count",
+                "pmu_status",
+                "pmu_event0",
+                "pmu_event1",
+                "pmu_event2",
+                "pmu_event3",
+            )
+        }
+        if npu
+        else None,
+        "ethosu_device_type": npu["device_type"] if npu else None,
+        "cpu_clock": {key: cpu[key] for key in ("timestamp_hz", "timer_hz", "timer_period")}
+        if cpu
+        else None,
+        "ethosu_timestamp_hz": npu["timestamp_hz"] if npu else None,
+        "cpu_format": {key: cpu[key] for key in ("version", "features", "unwind_max_depth")}
+        if cpu
+        else None,
+        "ethosu_version": npu["version"] if npu else None,
+    }
 
 
 def write_csv(path, columns, rows):
@@ -70,6 +133,10 @@ def aggregate(captures, output):
     pmu_counts = None
     buffer_layout = None
     components = None
+    configuration = None
+    cpu_columns = npu_columns = None
+    if not captures:
+        raise ValueError("no captures to aggregate")
 
     for index, directory in enumerate(captures):
         cpu_path = directory / "cortex_m_report/summary.json"
@@ -112,16 +179,27 @@ def aggregate(captures, output):
             else None,
             (npu["buffer_bytes"], npu["record_bytes"], npu["format"]) if npu else None,
         )
-        if stream_identity is None:
-            stream_identity = identity
+        current_configuration = capture_configuration(ch, npu)
+        if index == 0:
             elf_sha256 = cpu["elf_sha256"] if cpu else None
             sample_hz = rate
             pmu_counts = pmu
             buffer_layout = layout
-        if identity != stream_identity:
-            raise ValueError(
-                f"{directory}: stream IDs/descriptors differ; cannot merge QREAD offsets"
-            )
+            configuration = current_configuration
+        # Empty NPU captures without submissions contribute no stream identity.
+        if npu and (identity or npu["count"]):
+            if stream_identity is None:
+                stream_identity = identity
+            elif identity != stream_identity:
+                raise ValueError(
+                    f"{directory}: stream IDs/descriptors differ; cannot merge QREAD offsets"
+                )
+        for key, value in current_configuration.items():
+            if value != configuration[key]:
+                label = "PMU" if key in ("cpu_pmu", "ethosu_pmu") else key
+                raise ValueError(f"{directory}: {label} configuration differs between captures")
+        if ch and npu and npu["timestamp_hz"] != ch["timestamp_hz"]:
+            raise ValueError(f"{directory}: CPU and Ethos-U timestamp frequencies differ")
         if cpu and cpu["elf_sha256"] != elf_sha256:
             raise ValueError(f"{directory}: CPU reports use different firmware ELFs")
         if rate != sample_hz or (npu and npu["sample_hz"] != rate):
@@ -168,18 +246,25 @@ def aggregate(captures, output):
             )
         capture_rows.append(row)
         if cpu:
-            for sample in read_csv(directory / "cortex_m_report/samples.csv"):
-                cpu_rows.append({"capture": index, **sample})
+            columns, rows = read_sample_table(directory / "cortex_m_report/samples.csv")
+            if cpu_columns is not None and columns != cpu_columns:
+                raise ValueError(f"{directory}: Cortex-M sample columns differ between captures")
+            cpu_columns = columns
+            cpu_rows.extend({"capture": index, **row} for row in rows)
             for function in read_csv(directory / "cortex_m_report/functions.csv"):
                 functions[(function["address"], function["function"])] += int(function["hits"])
         if npu:
-            for sample in read_csv(directory / "ethosu_report/samples.csv"):
-                npu_rows.append({"capture": index, **sample})
+            columns, rows = read_sample_table(directory / "ethosu_report/samples.csv")
+            if npu_columns is not None and columns != npu_columns:
+                raise ValueError(f"{directory}: Ethos-U sample columns differ between captures")
+            npu_columns = columns
+            npu_rows.extend({"capture": index, **row} for row in rows)
             for sample in read_csv(directory / "ethosu_report/qread_histogram.csv"):
                 qreads[(sample["stream_id"], int(sample["qread_bytes"]))] += int(sample["samples"])
 
     totals = {
         "captures": len(captures),
+        "capture_configuration": configuration,
         "sample_hz": sample_hz,
         "all_validation_passed": all(
             (not components[0] or row["cpu_validation_passed"])
@@ -219,7 +304,7 @@ def aggregate(captures, output):
                 "ethosu_submissions": sum(row["ethosu_submissions"] for row in capture_rows),
                 "stream_identity": [
                     {"stream_id": sid, "command_address": address, "stream_bytes": int(size)}
-                    for sid, address, size in stream_identity
+                    for sid, address, size in (stream_identity or ())
                 ],
             }
         )
@@ -227,11 +312,14 @@ def aggregate(captures, output):
             raise ValueError("Ethos-U record rows do not match the header counts")
         if sum(int(row["sample_count"]) for row in npu_rows) != totals["ethosu_ticks"]:
             raise ValueError("Ethos-U compressed record weights do not match represented ticks")
-        if sum(qreads.values()) != sum(
-            json.loads((directory / "ethosu_report/summary.json").read_text())["qread_samples"]
-            for directory in captures
-        ):
-            raise ValueError("QREAD histogram totals do not match decoded QREAD samples")
+        # Unknown streams retain valid QREAD and running time, but are not hotspots.
+        histogram_samples = sum(
+            1
+            for row in npu_rows
+            if int(row["running"]) and int(row["stream_id"]) and row["qread"] != ""
+        )
+        if sum(qreads.values()) != histogram_samples:
+            raise ValueError("QREAD histogram totals do not match eligible decoded samples")
         totals["ethosu_running_percent"] = (
             round(100 * totals["ethosu_running_ticks"] / totals["ethosu_ticks"], 2)
             if totals["ethosu_ticks"]
@@ -243,7 +331,7 @@ def aggregate(captures, output):
     if components[0]:
         write_csv(
             output / "cortex_m_samples.csv",
-            list(cpu_rows[0]) if cpu_rows else ["capture"],
+            cpu_columns,
             cpu_rows,
         )
         write_csv(
@@ -264,9 +352,7 @@ def aggregate(captures, output):
             ),
         )
     if components[1]:
-        write_csv(
-            output / "ethosu_samples.csv", list(npu_rows[0]) if npu_rows else ["capture"], npu_rows
-        )
+        write_csv(output / "ethosu_samples.csv", npu_columns, npu_rows)
         write_csv(
             output / "ethosu_qread_histogram.csv",
             ["stream_id", "qread_bytes", "qread_hex", "samples", "percent_of_running_samples"],

@@ -185,7 +185,7 @@ class EthosuOperatorReportTests(unittest.TestCase):
             alignment.write_text(
                 json.dumps(
                     {
-                        "command_stream_exact_match": True,
+                        "listing_matches_pte": True,
                         "running_samples": 100,
                         "assigned_samples": 7,
                         "debug_queue_operations": 2,

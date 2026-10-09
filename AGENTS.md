@@ -26,8 +26,10 @@ flamegraph renderer. Use
 exact PTE/Vela alignment has passed.
 For NPU attribution, build a map from a matching Vela debug database and
 command listing with [build_vela_qread_map.py](host/build_vela_qread_map.py),
-then require [align_vela_qread.py](host/align_vela_qread.py) to verify the
-exact PTE stream before using operator labels. TOSA alone cannot label QREAD;
+then use [align_vela_qread.py](host/align_vela_qread.py) to check listing bytes
+against the supplied PTE and map metadata against the supplied database.
+Capture-to-PTE and database-to-model-build associations remain caller supplied;
+recorded input hashes identify files, not deployed firmware. TOSA alone cannot label QREAD;
 operator sample counts are sampled command positions, while `est_cycles` is
 Vela's estimate.
 For every completed profiling report, keep the human Markdown summary and

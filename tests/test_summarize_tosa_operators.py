@@ -22,7 +22,7 @@ class TosaSummaryTests(unittest.TestCase):
             (root / "vela_alignment.json").write_text(
                 json.dumps(
                     {
-                        "command_stream_exact_match": True,
+                        "listing_matches_pte": True,
                         "debug_queue_operations": 2,
                         "assigned_samples": 3,
                         "running_samples": 4,
@@ -56,7 +56,7 @@ class TosaSummaryTests(unittest.TestCase):
             self.assertEqual(rows[0]["est_cycles"], 22)
             self.assertEqual(rows[0]["percent_of_running_samples"], 75)
             alignment = json.loads((root / "vela_alignment.json").read_text())
-            alignment["command_stream_exact_match"] = False
+            alignment["listing_matches_pte"] = False
             (root / "vela_alignment.json").write_text(json.dumps(alignment))
             with self.assertRaisesRegex(ValueError, "does not match"):
                 tosa.summarize(root)

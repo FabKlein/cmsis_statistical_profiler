@@ -410,7 +410,7 @@ def main():
     if args.top < 1:
         parser.error("--top must be positive")
     alignment = json.loads(args.alignment.read_text())
-    if alignment.get("command_stream_exact_match") is not True:
+    if alignment.get("listing_matches_pte") is not True:
         parser.error("Vela command stream has not been verified against the PTE")
     running = int(alignment["running_samples"])
     if running <= 0:
