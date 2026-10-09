@@ -8,7 +8,7 @@
 # Description:  Aggregate finalized CPU and Ethos-U capture reports
 #
 # $Date:        9 October 2026
-# $Revision:    V.1.0.3
+# $Revision:    V.1.0.4
 #
 # Target :  Arm(R) M-Profile Architecture
 # ----------------------------------------------------------------------
@@ -23,6 +23,7 @@ histograms can be added together.
 import argparse
 import csv
 import json
+import os
 import re
 from collections import Counter
 from pathlib import Path
@@ -215,7 +216,12 @@ def aggregate(captures, output):
         if npu and npu["total_samples"] != npu["running_samples"] + npu["idle_samples"]:
             raise ValueError(f"{directory}: Ethos-U tick totals disagree")
 
-        row = {"capture": index, "capture_dir": directory.name}
+        # Manifests are resolved from their output directory, which may be a
+        # sibling of the captures or elsewhere entirely. Basenames lose this link.
+        row = {
+            "capture": index,
+            "capture_dir": os.path.relpath(directory.resolve(), output.resolve()),
+        }
         if cpu:
             row.update(
                 {

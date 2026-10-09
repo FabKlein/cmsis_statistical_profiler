@@ -1,5 +1,17 @@
 # SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+#
 # SPDX-License-Identifier: Apache-2.0
+
+# ----------------------------------------------------------------------
+# Project:      CMSIS Statistical Profiler
+# Title:        test_ethosu_operator_reports.py
+# Description:  Capture report regression checks
+#
+# $Date:        9 October 2026
+# $Revision:    V.1.0.2
+#
+# Target :  Arm(R) M-Profile Architecture
+# ----------------------------------------------------------------------
 
 """Regression checks for PTE unwrapping and portable operator charts."""
 
@@ -20,7 +32,10 @@ import unwrap_ethosu_pte as unwrap
 
 
 class EthosuOperatorReportTests(unittest.TestCase):
-    def test_median_offset_uses_complete_inference_ticks(self):
+    def test_timing_skips_unknown_stream_and_missing_qread(self):
+        self.test_median_offset_uses_complete_inference_ticks(excluded=True)
+
+    def test_median_offset_uses_complete_inference_ticks(self, excluded=False):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             (root / "summary.json").write_text(
@@ -28,7 +43,7 @@ class EthosuOperatorReportTests(unittest.TestCase):
                     {
                         "sample_hz": 1000,
                         "captures": 1,
-                        "ethosu_running_ticks": 6,
+                        "ethosu_running_ticks": 8 if excluded else 6,
                         "all_validation_passed": True,
                     }
                 )
@@ -44,7 +59,7 @@ class EthosuOperatorReportTests(unittest.TestCase):
                 )
                 writer.writeheader()
                 writer.writerow(
-                    {"capture": "capture_00", "start_tick": 10, "last_running_tick": 13}
+                    {"capture": 0, "start_tick": 10, "last_running_tick": 13}
                 )
             with (root / "ethosu_samples.csv").open("w", newline="") as target:
                 writer = csv.DictWriter(
@@ -77,6 +92,27 @@ class EthosuOperatorReportTests(unittest.TestCase):
                             "qread": qread,
                         }
                     )
+                if excluded:
+                    writer.writerow(
+                        {
+                            "capture": 0,
+                            "tick": 21,
+                            "running": 1,
+                            "stream_id": 0,
+                            "sample_count": 1,
+                            "qread": 16,
+                        }
+                    )
+                    writer.writerow(
+                        {
+                            "capture": 0,
+                            "tick": 22,
+                            "running": 1,
+                            "stream_id": 1,
+                            "sample_count": 1,
+                            "qread": "",
+                        }
+                    )
             rows = [
                 {
                     "op": 0,
@@ -95,7 +131,10 @@ class EthosuOperatorReportTests(unittest.TestCase):
                     "samples": 2,
                 },
             ]
-            alignment = {"histogram_stream_ids": ["1"], "running_samples": 6}
+            alignment = {
+                "histogram_stream_ids": ["1"],
+                "running_samples": 8 if excluded else 6,
+            }
             timing = operators.add_sampled_offsets(rows, alignment, root)
             self.assertEqual(timing[0]["timed_samples"], 3)
             self.assertEqual(timing[0]["median_offset_ms"], 1.0)

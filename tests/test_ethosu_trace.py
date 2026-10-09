@@ -7,8 +7,8 @@
 # Title:        test_ethosu_trace.py
 # Description:  Ethos-U capture decoder regression tests
 #
-# $Date:        5 October 2026
-# $Revision:    V.1.0.4
+# $Date:        9 October 2026
+# $Revision:    V.1.0.5
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -22,6 +22,7 @@ import csv
 import importlib.util
 from pathlib import Path
 import struct
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -30,7 +31,8 @@ from unittest import mock
 SCRIPT = Path(__file__).resolve().parents[1] / "host" / "analyze_ethosu_trace.py"
 SPEC = importlib.util.spec_from_file_location("analyze_ethosu_trace", SCRIPT)
 MODULE = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(MODULE)
+with mock.patch.object(sys, "path", [str(SCRIPT.parent), *sys.path]):
+    SPEC.loader.exec_module(MODULE)
 
 
 def trace(device=55, pmu_count=0, count=None, samples=None, streams=None):
@@ -82,6 +84,19 @@ def change_header(data, **fields):
 
 
 class EthosuTraceTest(unittest.TestCase):
+    def test_decoder_exposes_shared_event_metadata(self):
+        from ethosu_pmu_events import DRIVER_VERSION, describe_events
+
+        for device, event in ((55, 5), (65, 5), (85, 4), (85, 170), (55, 99)):
+            with self.subTest(device=device, event=event):
+                summary, _ = MODULE.decode(
+                    change_header(trace(device, pmu_count=1), pmu_event0=event)
+                )
+                self.assertEqual(
+                    summary["pmu_events"], describe_events(device, [event])
+                )
+                self.assertEqual(summary["pmu_catalog_driver_version"], DRIVER_VERSION)
+
     def test_variants_and_records(self):
         for device in (55, 65, 85):
             for pmu_count in range(5):

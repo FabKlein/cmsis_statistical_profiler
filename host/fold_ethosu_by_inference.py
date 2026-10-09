@@ -1,7 +1,68 @@
 # SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+#
 # SPDX-License-Identifier: Apache-2.0
 
+# ----------------------------------------------------------------------
+# Project:      CMSIS Statistical Profiler
+# Title:        fold_ethosu_by_inference.py
+# Description:  Fold sampled NPU activity and PMU intervals over repeated periods
+#
+# $Date:        9 October 2026
+# $Revision:    V.1.0.4
+#
+# Target :  Arm(R) M-Profile Architecture
+# ----------------------------------------------------------------------
+
 """Fold Ethos-U running ticks and optional PMU events over complete periods."""
+
+# Architecture: align repeated sampled bursts at phase 0, then summarize each
+# phase across periods. This is statistical folding, not a driver invocation log.
+#
+#   <run>/summary.json + captures.csv
+#               |
+#               v
+#   each capture's ethosu_report/{summary.json,samples.csv}
+#               |
+#               +-- validate completion, record weights, device and PMU setup
+#               +-- running_groups(): find bursts separated by sampled idle
+#               +-- keep interior start-to-next-start periods
+#               |     -> windows + optional per-period PMU totals
+#               +-- move each period's first running tick to phase 0
+#               |     -> phase activity, QREAD medians and optional PMU statistics
+#               v
+#   CSV/JSON results                  SVG/PNG views
+#   ethosu_inference_windows.csv      ethosu_activity_folded.*
+#   ethosu_folded.csv                 ethosu_pmu_folded.* (optional)
+#   folded_summary.json
+#   inference_pmu.csv / folded_pmu.csv (optional)
+#
+# Selection and alignment, separately within each capture:
+#
+#   idle | burst A | idle | burst B | idle | burst C | idle | burst D
+#          exclude         [--- period B ---) [--- period C ---) exclude
+#                          ^ phase 0          ^ phase 0
+#
+# The first and last bursts are conservatively excluded, even when they appear
+# complete. The following burst supplies the end of each retained period.
+# An "inference" in these outputs means an observed running burst. Back-to-back
+# submissions without sampled idle merge into one burst; short bursts can be
+# missed completely. This tool does not separate models by stream ID, so callers
+# must select a workload whose periods are meaningful to compare.
+#
+# Three quantities have different meanings:
+#   Activity: fraction of eligible periods still running at a given phase.
+#   QREAD: median known-stream command position among running observations.
+#   PMU: cumulative-counter differences over preceding sampling intervals,
+#        including the idle part of a period. These are not per-operator counts.
+#
+# Idle compression retains only the final snapshot of an idle run. We know its
+# represented ticks, but cannot reconstruct when PMU increments occurred inside
+# it. Their accumulated delta is placed at the first idle phase; subsequent
+# idle-phase zeros are a storage convention, not measurements of zero activity.
+#
+# fold() performs analysis without plotting dependencies or output writes.
+# Plotters consume its results; main() writes artifacts and handles the CLI.
+# Memory grows with retained periods, phase lengths and QREAD observations.
 
 import argparse
 import csv
@@ -12,21 +73,25 @@ from collections import defaultdict
 from pathlib import Path
 
 from combine_perfetto_captures import capture_rows
+from ethosu_pmu_events import DRIVER_VERSION, SUPPORTED_DEVICES, describe_events
 
-KNOWN_EVENTS = {
-    5: ("npu_active", "NPU active"),
-    6: ("mac_active", "MAC active"),
-    13: ("ib_stall", "MAC input-buffer stall"),
-    41: ("axi_read_request_stall", "AXI0 read-request stall"),
-}
+# Optional ratios select semantic event names from the shared catalog.
+# They do not constrain the arbitrary event combinations accepted by the fold.
+RATIOS = (
+    ("mac_active", "mac_pct_active"),
+    ("mac_stalled_by_ib", "ib_pct_active"),
+    ("axi0_rd_tran_req_stalled", "axi_pct_active"),
+)
 
 
 def read_csv(path):
+    """Read decoded rows; numeric conversion remains explicit at each use."""
     with path.open(newline="") as source:
         return list(csv.DictReader(source))
 
 
 def write_csv(path, rows):
+    """Write a nonempty result table using the first row's column order."""
     with path.open("w", newline="") as target:
         writer = csv.DictWriter(target, fieldnames=list(rows[0]))
         writer.writeheader()
@@ -34,6 +99,7 @@ def write_csv(path, rows):
 
 
 def percentile(values, percent):
+    """Interpolate a percentile of observed periods, not a confidence bound."""
     ordered = sorted(values)
     position = (len(ordered) - 1) * percent / 100
     lower, upper = math.floor(position), math.ceil(position)
@@ -41,6 +107,13 @@ def percentile(values, percent):
 
 
 def running_groups(records):
+    """Return record indices for each uninterrupted sequence of running ticks.
+
+    Idle rows may represent many ticks; a single idle row still separates bursts.
+    Running rows represent individual ticks. Gaps within a burst are rejected
+    rather than filled with invented activity. Tick rollover is not unwrapped
+    by this grouping routine.
+    """
     groups = []
     current = []
     for index, record in enumerate(records):
@@ -57,7 +130,15 @@ def running_groups(records):
     return groups
 
 
-def fold(root):
+def fold(root, npu_clock_hz=None):
+    """Return summary, windows, activity phases, PMU windows and PMU phases.
+
+    Captures are processed independently: debugger pauses and counter resets
+    between captures never enter the phase axis or PMU subtraction.
+    The optional NPU clock is caller supplied and must stay constant.
+    """
+    if npu_clock_hz is not None and (not math.isfinite(npu_clock_hz) or npu_clock_hz <= 0):
+        raise ValueError("NPU clock frequency must be finite and positive")
     aggregate = json.loads((root / "summary.json").read_text())
     captures = capture_rows(root)
     if aggregate.get("captures") != len(captures) or not aggregate.get("all_validation_passed"):
@@ -67,6 +148,11 @@ def fold(root):
         raise ValueError("invalid sample rate")
     event_ids = None
     timestamp_hz = None
+    device_type = None
+    event_metadata = []
+    event_index_by_key = {}
+    # Keep individual observations until reduction. Each phase can have a
+    # different population because shorter periods end before longer ones.
     windows = []
     pmu_windows = []
     phase_running = defaultdict(list)
@@ -79,6 +165,8 @@ def fold(root):
         directory = root / item["capture_dir"] / "ethosu_report"
         summary = json.loads((directory / "summary.json").read_text())
         records = read_csv(directory / "samples.csv")
+        # The aggregate manifest locates reports; recheck each source so a stale
+        # or incomplete report cannot silently contribute to the averages.
         if any(
             summary.get(key) != value
             for key, value in (("active", 0), ("complete", 1), ("validation_passed", 1))
@@ -88,11 +176,25 @@ def fold(root):
             raise ValueError(f"capture {capture_index}: record count or sample rate differs")
         if sum(int(row["sample_count"]) for row in records) != summary["total_samples"]:
             raise ValueError(f"capture {capture_index}: compressed tick count differs")
+        # No-PMU captures still produce activity and QREAD folds. When PMU is
+        # present, counter order, symbolic event IDs and device must agree.
         count = int(summary["pmu_count"])
         active = summary["pmu_status"] == 1
         if active != (count > 0):
             raise ValueError(f"capture {capture_index}: invalid Ethos-U PMU metadata")
         events = tuple(int(summary[f"pmu_event{i}"]) for i in range(count))
+        device = int(summary["device_type"])
+        if device not in SUPPORTED_DEVICES:
+            raise ValueError(f"unsupported Ethos-U device type: {device}")
+        if device_type is not None and device != device_type:
+            raise ValueError("Ethos-U device type changed between captures")
+        device_type = device
+        event_metadata = describe_events(device, events)
+        # Repeated selections keep separate output columns. Use the first
+        # matching counter when deriving an optional semantic ratio.
+        event_index_by_key = {}
+        for i, event in enumerate(event_metadata):
+            event_index_by_key.setdefault(event["semantic_key"], i)
         if event_ids is None:
             event_ids = events
             timestamp_hz = int(summary["timestamp_hz"])
@@ -100,14 +202,18 @@ def fold(root):
             raise ValueError(f"capture {capture_index}: PMU events or timestamp clock changed")
         groups = running_groups(records)
         running_intervals += len(groups)
-        # The first and last groups can touch a capture edge. Each retained
-        # group needs an idle record before it and a following running start.
+        # At least 3 bursts are needed to retain 1 period. The preceding idle
+        # snapshot also supplies the baseline for the first PMU delta.
+        # Groups are selected by index, not by a claim that every edge group is
+        # actually partial; partial_intervals_excluded counts these exclusions.
         for group_index in range(1, len(groups) - 1):
             group = groups[group_index]
             first, last = group[0], group[-1]
             next_first = groups[group_index + 1][0]
             if first == 0 or last + 1 >= next_first:
                 raise ValueError(f"capture {capture_index}: missing idle record around inference")
+            # Period = start of this burst to start of the next, including idle.
+            # The next running sample is an endpoint, not part of this window.
             start_tick = int(records[first]["tick"])
             last_tick = int(records[last]["tick"])
             next_tick = int(records[next_first]["tick"])
@@ -116,16 +222,29 @@ def fold(root):
                 raise ValueError(f"capture {capture_index}: invalid inference period")
             period_ticks.append(period)
             window = {
-                "capture": item["capture_dir"],
+                # Join other aggregate tables by manifest index, never by a
+                # directory name or path that changes when the output moves.
+                "capture": capture_index,
                 "inference": group_index,
                 "start_tick": start_tick,
                 "last_running_tick": last_tick,
                 "next_start_tick": next_tick,
                 "period_ticks": period,
-                "start_qread_bytes": int(records[first]["qread"]),
+                "start_qread_bytes": int(records[first]["qread"])
+                if int(records[first]["stream_id"]) and records[first]["qread"] != ""
+                else "",
                 "running_samples": len(group),
             }
             windows.append(window)
+            # Example: running ticks 6,7; compressed idle ends at 9; next start 10.
+            #
+            #   phase                  0       1       2       3
+            #   represented tick       6       7       8       9
+            #   activity               1       1       0       0
+            #   PMU delta endpoints  5->6    6->7    7->9       0
+            #
+            # This preserves interval totals, but idle PMU phase placement is
+            # approximate. Multiple idle rows, e.g. split runs, share that bin.
             per_phase = [[0] * count for _ in range(period)]
             for index in range(first, next_first):
                 record = records[index]
@@ -136,38 +255,43 @@ def fold(root):
                 if running:
                     if int(record["sample_count"]) != 1:
                         raise ValueError(f"capture {capture_index}: compressed running sample")
-                    phase_qreads[phase].append(int(record["qread"]))
+                    # Unknown streams/invalid QREAD still contribute running time
+                    # and PMU intervals, but cannot describe a command position.
+                    if int(record["stream_id"]) and record["qread"] != "":
+                        phase_qreads[phase].append(int(record["qread"]))
                 if count:
+                    # Modulo subtraction handles a 32-bit rollover, assuming
+                    # fewer than 2^32 events between retained snapshots. Multiple
+                    # wraps or external resets cannot be recovered here.
                     previous = records[index - 1]
                     for event_index in range(count):
                         delta = (
                             int(record[f"pmu{event_index}"]) - int(previous[f"pmu{event_index}"])
                         ) & 0xFFFFFFFF
                         per_phase[phase][event_index] += delta
+            # Populate activity for every represented phase, including ticks
+            # hidden by idle compression. Later phases of shorter periods are
+            # absent, not treated as idle observations.
             for phase in range(period):
                 phase_running[phase].append(int(phase <= last_tick - start_tick))
                 if count:
                     phase_pmu[phase].append(per_phase[phase])
             if count:
                 totals = [sum(values[index] for values in per_phase) for index in range(count)]
+                # Generic *_cycles columns retain the existing output naming;
+                # for arbitrary events their values are event counts, not cycles.
                 pmu_window = {
                     **window,
                     **{f"pmu{i}_cycles": total for i, total in enumerate(totals)},
                 }
-                for event_index, code in enumerate(events):
-                    pmu_window[
-                        f"{KNOWN_EVENTS.get(code, (f'pmu{event_index}_event_{code:04x}', ''))[0]}_cycles"
-                    ] = totals[event_index]
-                active_index = events.index(5) if 5 in events else None
+                for event_index, event in enumerate(event_metadata):
+                    pmu_window[f"{event['key']}_cycles"] = totals[event_index]
+                active_index = event_index_by_key.get("npu_active")
                 if active_index is not None:
-                    for event_id, key in (
-                        (6, "mac_pct_active"),
-                        (13, "ib_pct_active"),
-                        (41, "axi_pct_active"),
-                    ):
-                        if event_id in events:
-                            pmu_window[key] = (
-                                100 * totals[events.index(event_id)] / totals[active_index]
+                    for key, field in RATIOS:
+                        if key in event_index_by_key:
+                            pmu_window[field] = (
+                                100 * totals[event_index_by_key[key]] / totals[active_index]
                                 if totals[active_index]
                                 else ""
                             )
@@ -175,12 +299,11 @@ def fold(root):
 
     if not windows:
         raise ValueError("no complete Ethos-U inference periods")
-    names = [
-        KNOWN_EVENTS.get(code, (f"pmu{i}_event_{code:04x}", f"PMU {i} event 0x{code:04X}"))
-        for i, code in enumerate(event_ids)
-    ]
+    names = [(event["key"], event["label"]) for event in event_metadata]
     phases = []
     pmu_phases = []
+    # Reduce only the periods that reach each phase. QREAD has a narrower
+    # population: known streams with valid positions while running.
     for phase in sorted(phase_running):
         running = phase_running[phase]
         row = {
@@ -198,6 +321,9 @@ def fold(root):
             for index, (key, _) in enumerate(names):
                 values = [record[index] for record in phase_pmu[phase]]
                 pmu_row[f"{key}_mean_cycles"] = statistics.mean(values)
+                # Approximate normal 95% interval for the mean. Repeated periods
+                # may be correlated; this is not a bound on profiling error.
+                # A single observation uses width 0, not proof of certainty.
                 pmu_row[f"{key}_ci95_cycles"] = (
                     1.96 * statistics.stdev(values) / math.sqrt(len(values))
                     if len(values) > 1
@@ -212,46 +338,46 @@ def fold(root):
         "sample_hz": sample_hz,
         "timestamp_hz": timestamp_hz,
         "pmu_count": len(event_ids),
-        "pmu_events": [
-            {"event_id": code, "key": key, "label": label}
-            for code, (key, label) in zip(event_ids, names)
-        ],
+        "pmu_events": event_metadata,
+        "pmu_catalog_driver_version": DRIVER_VERSION,
         "median_start_period_ms": statistics.median(period_ticks) * 1000 / sample_hz,
         "start_period_ms_p05": percentile(period_ticks, 5) * 1000 / sample_hz,
         "start_period_ms_p95": percentile(period_ticks, 95) * 1000 / sample_hz,
-        "start_qread_bytes": sorted({row["start_qread_bytes"] for row in windows}),
+        "start_qread_bytes": sorted(
+            {row["start_qread_bytes"] for row in windows if row["start_qread_bytes"] != ""}
+        ),
     }
-    event_index_by_id = {code: i for i, code in enumerate(event_ids)}
-    if 5 in event_index_by_id:
-        i = event_index_by_id[5]
-        summary["mean_npu_active_ms_per_inference"] = (
-            statistics.mean(row[f"pmu{i}_cycles"] for row in pmu_windows) * 1000 / timestamp_hz
-        )
-    if 6 in event_index_by_id:
-        i = event_index_by_id[6]
+    summary["device_type"] = device_type
+    summary["npu_clock_hz"] = npu_clock_hz
+    # Timestamp frequency describes the CPU timebase, not the NPU cycle clock.
+    # Only an explicitly supplied, constant NPU frequency permits this conversion.
+    if "npu_active" in event_index_by_key:
+        i = event_index_by_key["npu_active"]
+        cycles = statistics.mean(row[f"pmu{i}_cycles"] for row in pmu_windows)
+        summary["mean_npu_active_cycles_per_inference"] = cycles
+        if npu_clock_hz is not None:
+            summary["mean_npu_active_ms_per_inference"] = cycles * 1000 / npu_clock_hz
+        active_total = sum(row[f"pmu{i}_cycles"] for row in pmu_windows)
+        # Ratio of summed counts weights periods by their active cycles.
+        # It intentionally differs from the mean of per-period percentages.
+        if active_total:
+            for key, field in RATIOS:
+                if key in event_index_by_key:
+                    index = event_index_by_key[key]
+                    summary[field] = (
+                        100 * sum(row[f"pmu{index}_cycles"] for row in pmu_windows) / active_total
+                    )
+    if "mac_active" in event_index_by_key:
+        i = event_index_by_key["mac_active"]
         summary["mean_mac_active_cycles_per_inference"] = statistics.mean(
             row[f"pmu{i}_cycles"] for row in pmu_windows
         )
-    if 5 in event_index_by_id:
-        active_total = sum(row[f"pmu{event_index_by_id[5]}_cycles"] for row in pmu_windows)
-        if active_total:
-            for event_id, field in (
-                (6, "mac_pct_active"),
-                (13, "ib_pct_active"),
-                (41, "axi_pct_active"),
-            ):
-                if event_id in event_index_by_id:
-                    summary[field] = (
-                        100
-                        * sum(
-                            row[f"pmu{event_index_by_id[event_id]}_cycles"] for row in pmu_windows
-                        )
-                        / active_total
-                    )
     return summary, windows, phases, pmu_windows, pmu_phases
 
 
 def plot_activity(destination, summary, phases):
+    """Render the share of eligible periods running at each sampled phase."""
+    # Agg supports headless hosts; analysis remains usable without Matplotlib.
     import matplotlib
 
     matplotlib.use("Agg")
@@ -275,13 +401,21 @@ def plot_activity(destination, summary, phases):
 
 
 def plot_pmu(destination, summary, phases):
+    """Plot event means and approximate confidence bands from the PMU fold."""
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
     events = summary["pmu_events"]
-    known_four = [event["event_id"] for event in events] == [5, 6, 13, 41]
+    # Pair the familiar activity/stall series for a compact view. Other event
+    # selections get 1 panel per event, without guessing equivalent semantics.
+    known_four = [event["key"] for event in events] == [
+        "npu_active",
+        "mac_active",
+        "mac_stalled_by_ib",
+        "axi0_rd_tran_req_stalled",
+    ]
     panels = 2 if known_four else len(events)
     fig, axes = plt.subplots(panels, 1, figsize=(11, 3.3 * panels + 1), sharex=True, squeeze=False)
     axes = axes[:, 0]
@@ -290,6 +424,7 @@ def plot_pmu(destination, summary, phases):
     for index, event in enumerate(events):
         axis = axes[index // 2] if known_four else axes[index]
         key = event["key"]
+        # Divide by 1000 only for the "k events" display scale, not milliseconds.
         mean = [row[f"{key}_mean_cycles"] / 1000 for row in phases]
         ci = [row[f"{key}_ci95_cycles"] / 1000 for row in phases]
         color = colors[index]
@@ -317,14 +452,22 @@ def plot_pmu(destination, summary, phases):
 
 
 def main():
+    """Analyze first, then write tables and render the optional PMU charts."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-dir", required=True, type=Path)
     parser.add_argument("--output-dir", type=Path, help="defaults to run directory")
+    parser.add_argument(
+        "--npu-clock-hz",
+        type=float,
+        help="Constant NPU cycle clock; enables active-time conversion to ms",
+    )
     args = parser.parse_args()
     root = args.run_dir.resolve()
     destination = (args.output_dir or root).resolve()
     try:
-        summary, windows, phases, pmu_windows, pmu_phases = fold(root)
+        # Invalid analysis inputs fail before output is created. Rendering is
+        # later, so a plotting failure may still leave useful CSV/JSON artifacts.
+        summary, windows, phases, pmu_windows, pmu_phases = fold(root, args.npu_clock_hz)
         destination.mkdir(parents=True, exist_ok=True)
         write_csv(destination / "ethosu_inference_windows.csv", windows)
         write_csv(destination / "ethosu_folded.csv", phases)
@@ -335,6 +478,8 @@ def main():
             write_csv(destination / "folded_pmu.csv", pmu_phases)
             plot_pmu(destination, summary, pmu_phases)
         else:
+            # Avoid displaying stale PMU plots when reusing an output directory
+            # for a capture configuration that no longer collects counters.
             for name in (
                 "inference_pmu.csv",
                 "folded_pmu.csv",

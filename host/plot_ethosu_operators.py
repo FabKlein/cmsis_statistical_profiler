@@ -1,7 +1,54 @@
 # SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+#
 # SPDX-License-Identifier: Apache-2.0
 
+# ----------------------------------------------------------------------
+# Project:      CMSIS Statistical Profiler
+# Title:        plot_ethosu_operators.py
+# Description:  Validated Ethos-U operator charts and optional sampled phase estimates
+#
+# $Date:        9 October 2026
+# $Revision:    V.1.0.3
+#
+# Target :  Arm(R) M-Profile Architecture
+# ----------------------------------------------------------------------
+
 """Render aligned Ethos-U operator samples as ranked and QREAD-ordered SVGs."""
+
+# Architecture: this is a report consumer, not a firmware/PTE decoder.
+#
+#   align_vela_qread.py
+#     |
+#     +-- ethosu_operator_samples.csv   operator metadata + attributed hit counts
+#     +-- vela_alignment.json          checks, totals and provenance limitations
+#                     |
+#                     v
+#               main(): validate and normalize CSV fields
+#                     |
+#                     +-- optional add_sampled_offsets()
+#                     |     aggregate samples + complete inference windows
+#                     |       -> sampled phase median / percentiles per operator
+#                     |       -> ethosu_operator_timing.csv
+#                     v
+#               draw(): shared SVG layout
+#                     +-- ranked full chart, with browser sorting
+#                     +-- QREAD-ordered full chart, usable without scripting
+#                     +-- compact top-N chart for screenshots
+#
+# Keep these quantities separate:
+#   Sample share: operator hits / ALL running ticks, including unattributable ticks.
+#   Vela estimates: compile-time cycles/MACs/accesses, not measured PMU counts.
+#   Sampled phase: tick offset from the first observed running tick in a complete
+#                  period, not operator start time, latency or duration.
+#
+# QREAD identifies a command position. Kick intervals can include DMA and setup
+# for another operation. The aligner checks supplied artifacts; neither it nor
+# this renderer proves that the device executed the supplied PTE.
+#
+# Responsibilities stay separate: main() checks report consistency before output;
+# add_sampled_offsets() joins observations within each capture; draw() only lays
+# out normalized data. No report time is extended across debugger pauses.
+# SVG is written directly so charts need no plotting package or remote resources.
 
 import argparse
 import bisect
@@ -14,6 +61,8 @@ from html import escape
 from itertools import pairwise
 from pathlib import Path
 
+# Known TOSA operation types retain familiar colors across generated views.
+# Unlisted types get a deterministic fallback color in draw().
 COLORS = {
     "Conv2D": "#2563EB",
     "DepthwiseConv2D": "#7C3AED",
@@ -26,19 +75,23 @@ COLORS = {
 
 
 def label(value, limit):
+    """Shorten visible names; the full name remains available in the hover text."""
     return value if len(value) <= limit else value[: limit - 1] + "…"
 
 
 def text_at(x, y, value, *, css="", anchor="start"):
+    """Escape report text for SVG; positioning and CSS come from the renderer."""
     return f'<text x="{x}" y="{y}" class="{css}" text-anchor="{anchor}">{escape(str(value))}</text>'
 
 
 def read_csv(path):
+    """Keep fields as strings until their consumer validates or converts them."""
     with path.open(newline="") as source:
         return list(csv.DictReader(source))
 
 
 def percentile(values, percent):
+    """Interpolate within a nonempty sample distribution, not a confidence interval."""
     ordered = sorted(values)
     position = (len(ordered) - 1) * percent / 100
     lower, upper = math.floor(position), math.ceil(position)
@@ -46,10 +99,18 @@ def percentile(values, percent):
 
 
 def add_sampled_offsets(rows, alignment, run_dir):
-    """Use capture-local ticks, never elapsed time across debugger pauses."""
+    """Enrich rows in place and return the timing CSV projection.
+
+    Reconcile all attributable hits against the aligned histogram, then estimate
+    phase only from samples inside complete inference windows. Thus a row can
+    have hits but no usable timing observations. Offsets are sample-weighted:
+    a period with more hits contributes more values than a period with fewer.
+    """
     aggregate = json.loads((run_dir / "summary.json").read_text())
     folded = json.loads((run_dir / "folded_summary.json").read_text())
     sample_hz = int(aggregate["sample_hz"])
+    # Mixing a fold and aggregate from different runs could yield plausible
+    # phase values. Check their metadata before matching individual observations.
     if (
         sample_hz <= 0
         or folded["sample_hz"] != sample_hz
@@ -58,6 +119,8 @@ def add_sampled_offsets(rows, alignment, run_dir):
         or aggregate["ethosu_running_ticks"] != alignment["running_samples"]
     ):
         raise ValueError("timing run does not match the validated QREAD alignment")
+    # The generic activity fold works without PMU. The PMU window file also
+    # carries these boundaries when that is the available input.
     window_path = run_dir / "ethosu_inference_windows.csv"
     if not window_path.is_file():
         window_path = run_dir / "inference_pmu.csv"
@@ -66,11 +129,15 @@ def add_sampled_offsets(rows, alignment, run_dir):
         raise ValueError("complete inference windows differ from fold summary")
     by_capture = {}
     for window in windows:
-        capture = int(window["capture"].removeprefix("capture_"))
+        # Both folded windows and aggregate samples carry the numeric manifest
+        # index. Capture directory names need not follow a naming convention.
+        capture = int(window["capture"])
         start, last = int(window["start_tick"]), int(window["last_running_tick"])
         if start > last or capture < 0 or capture >= aggregate["captures"]:
             raise ValueError("invalid inference window")
         by_capture.setdefault(capture, []).append((start, last))
+    # Capture-local ticks may restart at the next capture. Index windows per
+    # capture and forbid overlap so a sample has at most 1 period assignment.
     starts_by_capture = {}
     for capture, periods in by_capture.items():
         periods.sort()
@@ -78,6 +145,8 @@ def add_sampled_offsets(rows, alignment, run_dir):
             raise ValueError(f"capture {capture}: overlapping inference windows")
         starts_by_capture[capture] = [start for start, _ in periods]
 
+    # Search command positions independently of display order. Each interval is
+    # [kick, next_kick): a QREAD exactly at the next kick belongs to the next row.
     ordered = sorted(rows, key=lambda row: int(row["kick_offset"], 16))
     starts = [int(row["kick_offset"], 16) for row in ordered]
     ends = [int(row["next_kick_offset"], 16) for row in ordered]
@@ -92,10 +161,17 @@ def add_sampled_offsets(rows, alignment, run_dir):
     for sample in read_csv(run_dir / "ethosu_samples.csv"):
         if not int(sample["running"]):
             continue
-        if sample["stream_id"] not in stream_ids or int(sample["sample_count"]) != 1:
-            raise ValueError("running sample has an unexpected stream or weight")
+        if int(sample["sample_count"]) != 1:
+            raise ValueError("running sample has an unexpected weight")
         running += 1
+        # Retain all running ticks in the denominator, matching the aligner.
+        if int(sample["stream_id"]) == 0 or sample["qread"] == "":
+            continue
+        if sample["stream_id"] not in stream_ids:
+            raise ValueError("running sample has an unexpected stream")
         qread = int(sample["qread"])
+        # Find the last kick <= QREAD in O(log operators), then check its end.
+        # Setup before the first kick and positions beyond the map stay unmatched.
         index = bisect.bisect_right(starts, qread) - 1
         if index < 0 or qread >= ends[index]:
             continue
@@ -104,13 +180,20 @@ def add_sampled_offsets(rows, alignment, run_dir):
         capture, tick = int(sample["capture"]), int(sample["tick"])
         periods = by_capture.get(capture, [])
         starts_for_capture = starts_by_capture.get(capture, [])
+        # A hit outside retained windows still counts in the histogram, but
+        # cannot supply a phase estimate. Window endpoints are sampled ticks.
         period_index = bisect.bisect_right(starts_for_capture, tick) - 1
         if period_index >= 0 and tick <= periods[period_index][1]:
             offsets[op].append(tick - periods[period_index][0])
+    # Validate the join as well as aggregate totals. A timing run with different
+    # operator hit counts must not quietly decorate this chart.
     if running != alignment["running_samples"] or any(
         counts[row["op"]] != row["samples"] for row in rows
     ):
         raise ValueError("raw running QREAD samples differ from operator histogram")
+    # Convert ticks to milliseconds only after computing the distributions.
+    # More samples improve coverage, but cannot create sub-tick observations.
+    # None distinguishes "no timing evidence" from a legitimate zero offset.
     timing = []
     for row in rows:
         values = offsets[row["op"]]
@@ -138,6 +221,12 @@ def add_sampled_offsets(rows, alignment, run_dir):
 
 
 def draw(rows, running_samples, destination, limit=None, mode="ranked", interactive=False):
+    """Write 1 SVG from nonempty, normalized rows; ranked input is already sorted.
+
+    limit selects a compact view without renormalizing percentages. QREAD order
+    is command-address order, not a reconstruction of instruction execution.
+    Optional script changes row positions only, leaving measured values intact.
+    """
     if mode not in ("ranked", "qread"):
         raise ValueError(f"Unknown sort mode: {mode}")
     ordered = (
@@ -146,10 +235,14 @@ def draw(rows, running_samples, destination, limit=None, mode="ranked", interact
         else rows
     )
     selected = ordered[:limit] if limit else ordered
+    # Use the same percentage axis and type colors in every view, including
+    # the top-N subset, so a different selection does not alter interpretation.
     max_percent = max(row["percent"] for row in rows)
     axis_max = max(2, math.ceil(max_percent / 2) * 2)
     timed = any("median_offset_ms" in row for row in rows)
     sample_interval_ms = rows[0].get("_sample_interval_ms") if timed else None
+    # Fixed columns favor readable screenshots and stable SVG sorting. Timing
+    # adds a column; a multi-line legend can increase the vertical header space.
     width, bar_x, bar_width = (1950 if timed else 1750), 700, 500
     show_controls = limit is None
     shift = 35 if show_controls else 0
@@ -207,6 +300,8 @@ def draw(rows, running_samples, destination, limit=None, mode="ranked", interact
         ),
     ]
 
+    # Real links work when an SVG viewer does not execute scripts. The full
+    # interactive chart intercepts clicks to sort in place instead.
     if show_controls:
         for key, caption, x, href in (
             ("ranked", "Top sampled", 20, "ethosu_operator_hotspots.svg"),
@@ -236,6 +331,7 @@ def draw(rows, running_samples, destination, limit=None, mode="ranked", interact
         )
         svg.append(text_at(x + 20, y, f"{op} ({count})"))
 
+    # Background bands stay fixed while interactive row groups move over them.
     for rank in range(1, len(selected) + 1):
         y = start_y + (rank - 1) * row_height
         if rank % 2:
@@ -277,6 +373,8 @@ def draw(rows, running_samples, destination, limit=None, mode="ranked", interact
         )
         svg.append(text_at(f"{x:.2f}", start_y - 15, f"{pct}%", css="axis", anchor="middle"))
 
+    # Each row is one movable group containing its bar, text and hover target.
+    # Short labels keep the grid readable; the tooltip preserves full metadata.
     for rank, row in enumerate(selected, 1):
         y = start_y + (rank - 1) * row_height
         pct = row["percent"]
@@ -358,6 +456,9 @@ def draw(rows, running_samples, destination, limit=None, mode="ranked", interact
             css="subtitle",
         )
     )
+    # Sort without rerendering: data-origin remembers the original row slot.
+    # The JavaScript's 27-pixel translation must match row_height above.
+    # Only geometry and row numbers change; operator IDs and tooltips are stable.
     if interactive:
         svg.append("""<script type="text/ecmascript"><![CDATA[
 function setSort(mode) {
@@ -392,6 +493,7 @@ for (const mode of ["ranked", "qread"]) {
 
 
 def main():
+    """Validate paired reports, optionally add timing, then emit consistent views."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--samples", required=True, type=Path, help="ethosu_operator_samples.csv")
     parser.add_argument(
@@ -409,6 +511,8 @@ def main():
     args = parser.parse_args()
     if args.top < 1:
         parser.error("--top must be positive")
+    # This flag concerns supplied listing/PTE bytes, not deployed identity.
+    # The aligner's running total includes invalid QREAD and unknown streams.
     alignment = json.loads(args.alignment.read_text())
     if alignment.get("listing_matches_pte") is not True:
         parser.error("Vela command stream has not been verified against the PTE")
@@ -421,6 +525,8 @@ def main():
         parser.error("operator sample table is empty")
     if len(raw) != alignment["debug_queue_operations"]:
         raise SystemExit("Queue operation count changed")
+    # CSV fields arrive as strings. Normalize once and verify rounded shares
+    # against counts; 0.006 percentage points allows rounding to 2 decimals.
     rows = []
     for source in raw:
         row = dict(source)
@@ -432,12 +538,15 @@ def main():
         rows.append(row)
     if sum(row["samples"] for row in rows) != alignment["assigned_samples"]:
         raise SystemExit("Assigned sample count changed")
+    # Timing is optional and must succeed before any chart is created.
     timing = None
     if args.timing_run_dir:
         try:
             timing = add_sampled_offsets(rows, alignment, args.timing_run_dir)
         except (OSError, ValueError, KeyError, TypeError) as error:
             parser.exit(1, f"operator timing failed: {error}\n")
+    # Break equal-hit ties by operator ID for repeatable screenshots. Every
+    # output shares the same rows and denominator, including the compact chart.
     rows.sort(key=lambda row: (-row["percent"], row["op"]))
     args.output_dir.mkdir(parents=True, exist_ok=True)
     if timing is not None:

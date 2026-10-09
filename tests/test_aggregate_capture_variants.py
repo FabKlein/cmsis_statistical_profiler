@@ -1,5 +1,17 @@
 # SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+#
 # SPDX-License-Identifier: Apache-2.0
+
+# ----------------------------------------------------------------------
+# Project:      CMSIS Statistical Profiler
+# Title:        test_aggregate_capture_variants.py
+# Description:  Capture report regression checks
+#
+# $Date:        9 October 2026
+# $Revision:    V.1.0.3
+#
+# Target :  Arm(R) M-Profile Architecture
+# ----------------------------------------------------------------------
 
 """Repeated capture aggregation accepts either processor and optional PMUs."""
 
@@ -38,6 +50,7 @@ class AggregateVariantTests(unittest.TestCase):
                         "elf_sha256": "same-elf",
                         "unknown_samples": 0,
                         "timing_valid": True,
+                        "flamegraph": None,
                         "header": {
                             "sample_hz": 1000,
                             "timestamp_hz": 1000000,
@@ -141,6 +154,47 @@ class AggregateVariantTests(unittest.TestCase):
                 ],
             )
         return capture
+
+    def test_mcu_pmu_unavailable_and_partial_totals(self):
+        for statuses in (
+            ("unavailable", "unavailable"),
+            ("ok", "invalid_overflow_or_read"),
+            ("ok", "ok"),
+        ):
+            with (
+                self.subTest(statuses=statuses),
+                tempfile.TemporaryDirectory() as folder,
+            ):
+                root = Path(folder)
+                captures = [
+                    self.make_capture(root, f"capture_{i:02d}", ethos=False)
+                    for i in range(2)
+                ]
+                for capture, status in zip(captures, statuses):
+                    path = capture / "cortex_m_report/summary.json"
+                    data = json.loads(path.read_text())
+                    data["pmu_events"] = [
+                        {
+                            "event": "cpu-cycles",
+                            "status": status,
+                            "count": 10 if status == "ok" else None,
+                        }
+                    ]
+                    path.write_text(json.dumps(data))
+                aggregate.aggregate(captures, root)
+                result = mcu_report.generate(root)
+                expected = 20 if statuses == ("ok", "ok") else None
+                self.assertEqual(result["pmu_event_totals"]["pmu0"], expected)
+                detail = result["pmu_event_details"]["pmu0"]
+                self.assertEqual(detail["event"], "cpu-cycles")
+                self.assertEqual(detail["valid_captures"], statuses.count("ok"))
+                self.assertEqual(
+                    detail["invalid_or_missing_captures"], 2 - statuses.count("ok")
+                )
+                self.assertEqual(
+                    detail["valid_count"],
+                    10 * statuses.count("ok") if "ok" in statuses else None,
+                )
 
     def test_cpu_only_without_pmu(self):
         with tempfile.TemporaryDirectory() as folder:

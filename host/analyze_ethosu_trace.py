@@ -7,8 +7,8 @@
 # Title:        analyze_ethosu_trace.py
 # Description:  Validate and export Ethos-U statistical captures
 #
-# $Date:        5 October 2026
-# $Revision:    V.1.0.6
+# $Date:        9 October 2026
+# $Revision:    V.1.0.7
 #
 # Target :  Arm(R) M-Profile Architecture
 #
@@ -22,6 +22,8 @@ import json
 import struct
 from collections import Counter
 from pathlib import Path
+
+from ethosu_pmu_events import DRIVER_VERSION, describe_events
 
 MAGIC = 0x52545545
 HEADER_WORDS = 32
@@ -168,6 +170,10 @@ def decode(data):
         raise ValueError("unknown_stream_samples counter disagrees with records")
     summary = {key: header[key] for key in HEADER_FIELDS if key != "magic"}
     summary["format"] = "EUTR"
+    summary["pmu_events"] = describe_events(
+        header["device_type"], [header[f"pmu_event{i}"] for i in range(pmu_count)]
+    )
+    summary["pmu_catalog_driver_version"] = DRIVER_VERSION
     summary["streams"] = streams
     summary["running_samples"] = sum(record["running"] for record in records)
     summary["idle_samples"] = sum(record["idle_count"] for record in records)

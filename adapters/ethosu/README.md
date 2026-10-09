@@ -23,6 +23,13 @@ application definitions in its `PROFILER_USER_CONFIG` header:
 #define PROFILER_ETHOSU_PMU_EVENT3 ETHOSU_PMU_CYCLE
 ```
 
+Event selections are **driver enum IDs**, not TRM register encodings. The shared
+[host catalog](../../host/ethosu_pmu_events.py) maps U55/U65/U85 IDs to official
+symbols and hardware encodings from Arm core-driver 1.26.2, with links to the TRMs.
+The decoder and inference fold use this catalog for any selected combination;
+unknown IDs retain numeric labels. Captures do not identify the driver version,
+so check that the catalog matches your firmware's driver.
+
 Reserve the buffer's linker section in memory accessible to the sampling core
 and debugger. Do not overlap the Cortex-M profiler buffer, stack, heap, another
 core's allocation, or the NPU's scratch memory. Call `trace_ethosu_bind(drv)`

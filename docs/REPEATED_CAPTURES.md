@@ -165,6 +165,20 @@ the combined PC hotspot chart and summary. When backtraces exist, supply
 Brendan Gregg's `flamegraph.pl`; the script reconciles all-PC flamegraph
 leaves with the hotspot counts. CPU PMU totals are included when available.
 
+The all-PC graph keeps unreliable callers and missing selected roots in separate
+PC-only categories. The recovered graph contains only decoder-included stacks;
+empty graphs are omitted. Use the same `--stack-root` selection for every capture.
+Renderer provenance includes the script's SHA-256; a Git checkout is optional.
+
+`captures.csv` stores paths relative to the aggregate directory, including `..`
+for captures outside it. Preserve that layout when moving a run. Treat manifests
+as trusted local inputs. The generator stages the entire owned `mcu_report/`
+directory before replacing it; validation or renderer failures preserve the
+previous report. Keep supplemental files outside that generated directory.
+If restoring the previous report also fails, its backup is retained and the
+error gives its recovery path. Folded inference windows use numeric capture
+indices from the manifest, matching the aggregate sample tables.
+
 ## 4. Match TOSA/Vela operations to QREAD
 
 A TOSA graph describes the model handed to Vela. **TOSA alone cannot label a
@@ -424,3 +438,33 @@ The index can link older `ethosu_pmu_timeline.svg` and `ethosu_pmu_zoom.svg`
 files when a run already contains them. Their one-off generator has not yet
 been moved into this repository; the complete-period PMU fold above is the
 reusable PMU chart workflow.
+
+### PMU clocks and incomplete observations
+
+The decoder and inference fold share [ethosu_pmu_events.py](../host/ethosu_pmu_events.py):
+U55/U65/U85 driver IDs, official symbols and hardware encodings from Arm
+core-driver 1.26.2. Driver IDs differ from TRM encodings and between devices.
+Check the firmware's driver version; it is not embedded in captures. Unknown IDs
+retain numeric labels, and repeated selections keep separate counter columns.
+Summary `pmu_events` includes each event's meaning and unit; generic CSV
+`*_cycles` columns still contain event counts, which are not always cycles.
+
+NPU active totals remain cycle counts by default: the CPU profiler timestamp
+frequency is not the NPU clock. Use `fold_ethosu_by_inference.py --npu-clock-hz HZ` only when
+the NPU cycle clock is known and constant throughout every capture; this adds
+`mean_npu_active_ms_per_inference`. Do not use that conversion with changing
+NPU clock frequencies.
+
+Unknown streams and invalid QREAD samples still contribute to running activity
+and PMU intervals. QREAD medians and operator timing omit those observations;
+a period starting without usable QREAD has an empty start-offset field.
+
+Combined Perfetto durations use sampling ticks to recover full 32-bit timestamp
+wraps, rather than truncating long captures to the timestamp-counter period.
+
+The aggregate MCU report keys `pmu_event_totals` and `pmu_event_details` by counter
+slot (`pmu0`, `pmu1`, etc.), so repeated events stay separate. Details include
+the event name and ID. A total stays null unless every capture has a valid count.
+Its `pmu_event_details` records the valid
+partial sum, valid/invalid capture counts and observed statuses. An unavailable
+counter is not reported as zero.

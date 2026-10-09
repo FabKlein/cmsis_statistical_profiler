@@ -1,5 +1,17 @@
 # SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+#
 # SPDX-License-Identifier: Apache-2.0
+
+# ----------------------------------------------------------------------
+# Project:      CMSIS Statistical Profiler
+# Title:        test_combine_perfetto_captures.py
+# Description:  Capture report regression checks
+#
+# $Date:        9 October 2026
+# $Revision:    V.1.0.1
+#
+# Target :  Arm(R) M-Profile Architecture
+# ----------------------------------------------------------------------
 
 """The combined trace omits debugger gaps and PMU intervals across windows."""
 
@@ -53,6 +65,10 @@ class CombinedPerfettoTests(unittest.TestCase):
                             "count": 2,
                             "sample_hz": 1000,
                             "timestamp_hz": 1_000_000,
+                            "start_tick": 0,
+                            "stop_tick": 2,
+                            "timer_hz": 1_000_000,
+                            "timer_period": 1000,
                             "start_timestamp": 0xFFFFFF00 if index else 100,
                             "stop_timestamp": 0x000006D0 if index else 2100,
                             "complete": 1,
@@ -92,6 +108,59 @@ class CombinedPerfettoTests(unittest.TestCase):
                             "pmu0_raw": raw,
                         }
                     )
+
+    def test_duration_recovers_multiple_timestamp_wraps(self):
+        for seconds in (12, 30):
+            with self.subTest(seconds=seconds):
+                header = dict(
+                    timestamp_hz=400_000_000,
+                    start_timestamp=123,
+                    stop_timestamp=(123 + seconds * 400_000_000) & 0xFFFFFFFF,
+                    start_tick=0xFFFFFF00,
+                    stop_tick=(0xFFFFFF00 + seconds * 1000) & 0xFFFFFFFF,
+                    timer_hz=100_000_000,
+                    timer_period=100000,
+                )
+                self.assertEqual(merger.duration_us(header), seconds * 1_000_000)
+
+    def test_long_capture_places_next_window_after_full_duration(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            self.make_run(root)
+            path = root / "capture_00/cortex_m_report/summary.json"
+            summary = json.loads(path.read_text())
+            summary["header"].update(
+                timestamp_hz=400_000_000,
+                start_timestamp=0,
+                stop_timestamp=(12 * 400_000_000) & 0xFFFFFFFF,
+                stop_tick=12000,
+            )
+            path.write_text(json.dumps(summary))
+            target = root / "combined.json"
+            _, _, duration = merger.combine(root, target)
+            self.assertEqual(duration, 12_002_000)
+            events = json.loads(target.read_text())["traceEvents"]
+            starts = [
+                event["ts"]
+                for event in events
+                if event.get("cat") == "capture.boundary"
+                and event["args"]["position"] == "start"
+            ]
+            self.assertEqual(starts, [0, 12_000_000])
+
+    def test_duration_rejects_inconsistent_clock_metadata(self):
+        with self.assertRaises(ValueError):
+            merger.duration_us(
+                dict(
+                    timestamp_hz=400_000_000,
+                    start_timestamp=0,
+                    stop_timestamp=1,
+                    start_tick=0,
+                    stop_tick=1000,
+                    timer_hz=100_000_000,
+                    timer_period=100000,
+                )
+            )
 
     def test_merges_active_time_with_boundaries_and_no_cross_window_rate(self):
         with tempfile.TemporaryDirectory() as folder:

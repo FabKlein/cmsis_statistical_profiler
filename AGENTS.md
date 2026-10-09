@@ -21,7 +21,11 @@ Never concatenate raw captures or count debugger pauses as sample time.
 Use [generate_aggregate_mcu_report.py](host/generate_aggregate_mcu_report.py)
 for aggregate CPU hotspots and optional backtrace flamegraphs. Supply Brendan
 Gregg's `flamegraph.pl` when backtraces exist; never substitute a homegrown
-flamegraph renderer. Use
+flamegraph renderer. Use the same stack-root selection across captures; the
+all-PC view keeps missing roots separate from unreliable callers. PMU totals
+are keyed by counter slot. Capture paths are relative to the aggregate manifest;
+preserve the layout when relocating a run. Generation replaces the owned
+`mcu_report/` directory only after staging succeeds. Use
 [summarize_tosa_operators.py](host/summarize_tosa_operators.py) only after
 exact PTE/Vela alignment has passed.
 For NPU attribution, build a map from a matching Vela debug database and
@@ -113,6 +117,10 @@ start or end times.
   Ethos-U PMU collection requires exclusive ownership until stop returns, even
   after buffer full. Use `PROFILER_ETHOSU_PMU_COUNT=0` if the application owns it;
   later PMU reconfiguration is not detected.
+  Reuse [ethosu_pmu_events.py](host/ethosu_pmu_events.py) for event labels and
+  encodings. EUTR stores device-specific driver enum IDs, not raw TRM codes.
+  The catalog matches Arm core-driver 1.26.2; capture headers do not verify the
+  driver version. Preserve numeric labels for unknown IDs and separate repeated counters.
 - Keep ISR code bounded and integer-only: no allocation, blocking, logging, FP or
   vector instructions. Preserve the original exception frame.
 - On Armv8-M, determine the interrupted frame security state from the captured
