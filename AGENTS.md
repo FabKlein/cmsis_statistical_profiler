@@ -48,7 +48,13 @@ utilization; omit it without an explicit idle classification. Take capture
 count, sampling frequency, sample totals, and validation from
 the decoded/aggregate metadata. For repeated captures, generate one combined
 Perfetto timeline with explicit window boundaries and debugger pauses omitted;
-show aggregate results in the index. Include available MCU hotspots,
+add `--include-ethosu` to `combine_perfetto_captures.py` when every capture has
+synchronized CPU/NPU reports. The resulting `combined.perfetto.json` includes
+NPU snapshots and PMU rates; shared ticks/timestamps must verify alignment.
+Compressed idle snapshots are observations, not measured inference durations.
+NPU PMU tracks display zero during sampled idle; snapshot details retain measured
+interval rates. Do not interpret display zeros as hardware counter measurements.
+Show aggregate results in the index. Include available MCU hotspots,
 flamegraphs, instruction reports, Ethos-U operator/command-stream views, PMU
 charts, and combined tables. Preserve raw capture buffers and decoded reports
 for verification. Omit missing outputs,

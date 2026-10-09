@@ -1,6 +1,17 @@
 # SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 
+# ----------------------------------------------------------------------
+# Project:      CMSIS Statistical Profiler
+# Title:        generate_report_index.py
+# Description:  Offline report navigation and combined Perfetto trace launcher
+#
+# $Date:        9 October 2026
+# $Revision:    V.1.0.1
+#
+# Target :  Arm(R) M-Profile Architecture
+# ----------------------------------------------------------------------
+
 """Build an offline HTML index of available statistical profiling artifacts."""
 
 import argparse
@@ -28,6 +39,7 @@ GROUPS = (
         "Cortex-M analysis",
         (
             ("mcu_report/REPORT.md", "MCU report"),
+            ("combined.perfetto.json", "Combined Cortex-M and Ethos-U Perfetto timeline"),
             ("cortex_m_combined.perfetto.json", "Combined Cortex-M Perfetto timeline"),
             ("mcu_folded.svg", "MCU activity folded by inference"),
             ("mcu_folded.png", "MCU folded chart image"),
@@ -254,8 +266,22 @@ def metadata(root, summary, captures, board, application):
     return tuple(facts)
 
 
+def combined_trace(root):
+    """Prefer the CPU/NPU trace when both exports exist."""
+    for name in ("combined.perfetto.json", "cortex_m_combined.perfetto.json"):
+        if (root / name).is_file():
+            return name
+    return None
+
+
 def artifact_section(root, identifier, title, entries):
     found = [(relative, label) for relative, label in entries if (root / relative).is_file()]
+    if combined_trace(root) == "combined.perfetto.json":
+        found = [
+            (relative, label)
+            for relative, label in found
+            if relative != "cortex_m_combined.perfetto.json"
+        ]
     if identifier == "ethosu":
         found.extend(
             (path.relative_to(root).as_posix(), "Operator hotspots, compact")
@@ -268,7 +294,7 @@ def artifact_section(root, identifier, title, entries):
         f"<li>{link(Path(relative), label)}<small>{escape(relative)}</small></li>"
         for relative, label in found
     )
-    if identifier == "mcu" and (root / "cortex_m_combined.perfetto.json").is_file():
+    if identifier == "mcu" and combined_trace(root):
         items += (
             '<li><a id="open-perfetto" href="https://ui.perfetto.dev">'
             "Open combined trace in Perfetto ↗</a>"
@@ -322,7 +348,7 @@ PERFETTO_SCRIPT = """<script>
       const buffer = await response.arrayBuffer();
       target.postMessage({perfetto: {
         buffer,
-        title: document.title + ' · combined Cortex-M',
+        title: document.title + ' · combined profiler trace',
         fileName: 'cortex_m_combined.perfetto.json',
         shareable: false,
         downloadable: true,
@@ -433,7 +459,7 @@ footer{{color:#52657a;margin:2rem 0}}@media(max-width:500px){{.previews{{grid-te
 <main><nav>{navigation}</nav><section id="details"><h2>Capture details</h2><dl>{cards}</dl>{detail_note}</section>
 {previews}{"".join(sections)}
 <footer>Offline index generated from available files. PC and QREAD samples estimate activity; PMU event counts are not per-instruction costs.</footer>
-</main>{PERFETTO_SCRIPT if (root / "cortex_m_combined.perfetto.json").is_file() else ""}</body></html>
+</main>{PERFETTO_SCRIPT.replace("cortex_m_combined.perfetto.json", combined_trace(root)) if combined_trace(root) else ""}</body></html>
 """
 
 

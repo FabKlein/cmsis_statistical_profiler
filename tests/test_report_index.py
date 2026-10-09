@@ -1,6 +1,17 @@
 # SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 
+# ----------------------------------------------------------------------
+# Project:      CMSIS Statistical Profiler
+# Title:        test_report_index.py
+# Description:  Offline report navigation and Perfetto launcher checks
+#
+# $Date:        9 October 2026
+# $Revision:    V.1.0.1
+#
+# Target :  Arm(R) M-Profile Architecture
+# ----------------------------------------------------------------------
+
 """Offline report index links only real artifacts and checks capture totals."""
 
 import csv
@@ -31,6 +42,18 @@ class Links(HTMLParser):
 
 
 class ReportIndexTests(unittest.TestCase):
+    def test_prefers_cpu_npu_trace_for_link_and_launcher(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            for name in ("combined.perfetto.json", "cortex_m_combined.perfetto.json"):
+                (root / name).write_text("{}")
+            page = report_index.render(
+                root, {"captures": 0}, [], "Board", "Application"
+            )
+            self.assertIn("Combined Cortex-M and Ethos-U Perfetto timeline", page)
+            self.assertIn("fetch('combined.perfetto.json')", page)
+            self.assertNotIn("cortex_m_combined.perfetto.json", page)
+
     def test_optional_artifacts_and_relative_links(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)

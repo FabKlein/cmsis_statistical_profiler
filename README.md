@@ -76,6 +76,9 @@ share. See the [report-index step](docs/REPEATED_CAPTURES.md#5-build-an-offline-
 For repeated captures, [combine_perfetto_captures.py](host/combine_perfetto_captures.py)
 builds one pause-free Cortex-M timeline with capture boundaries; see the
 [report-index step](docs/REPEATED_CAPTURES.md#5-build-an-offline-report-index).
+Add `--include-ethosu` to include synchronized NPU snapshots and PMU rates in
+`combined.perfetto.json`; the HTML index selects it automatically. NPU PMU tracks
+display zero during sampled idle runs; snapshot details retain measured rates.
 For captures with synchronized MCU and Ethos-U ticks,
 [fold_mcu_by_ethosu.py](host/fold_mcu_by_ethosu.py) builds an MCU activity
 profile aligned to NPU running starts, with CPU PMU counters when present.

@@ -8,12 +8,12 @@
 # Description:  Combine capture-local timelines without debugger pause time
 #
 # $Date:        9 October 2026
-# $Revision:    V.1.0.3
+# $Revision:    V.1.0.4
 #
 # Target :  Arm(R) M-Profile Architecture
 # ----------------------------------------------------------------------
 
-"""Combine decoded Cortex-M capture windows into one pause-free Perfetto trace."""
+"""Combine Cortex-M captures, optionally with aligned Ethos-U snapshots, for Perfetto."""
 
 # Architecture
 # ============
@@ -39,6 +39,12 @@
 #                      |
 #                      v
 #   cortex_m_combined.perfetto.json
+#   or combined.perfetto.json with --include-ethosu
+#
+# Optional ethosu_report/{summary.json,samples.csv} supplies a separate NPU
+# process: STATUS/QREAD instants and PMU interval rates. Shared sampling ticks
+# and timestamps verify alignment; both processors use the Cortex-M epoch.
+# Idle runs remain compressed observations, not inferred execution spans.
 #
 # Timeline convention (example):
 #
@@ -68,6 +74,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from analyze_profiler_buffer import timestamp_delta
+from ethosu_perfetto import trace_events as ethosu_trace_events
 from visualize_profiler_report import event_rates, read_report, write_perfetto
 
 
@@ -127,7 +134,7 @@ def boundary(index, position, timestamp, duration):
     }
 
 
-def combine(root, destination):
+def combine(root, destination, include_ethosu=False):
     """Join validated windows and return capture count, sample count and duration."""
     aggregate = json.loads((root / "summary.json").read_text())
     rows = capture_rows(root)
@@ -140,6 +147,8 @@ def combine(root, destination):
     events = []
     offset_us = 0.0
     sample_total = 0
+    npu_records = npu_ticks = 0
+    npu_configuration = None
     # Reuse write_perfetto() rather than duplicating its PC/PMU event schema.
     # The scratch file is overwritten per window and removed on failure too.
     with TemporaryDirectory() as temporary:
@@ -172,6 +181,20 @@ def combine(root, destination):
             rates, warnings = event_rates(summary, samples)
             write_perfetto(scratch, summary, samples, rates, warnings)
             window_events = json.loads(scratch.read_text())["traceEvents"]
+            if include_ethosu:
+                npu_events, npu_summary, configuration = ethosu_trace_events(
+                    report.parent / "ethosu_report", header, samples
+                )
+                if npu_configuration is not None and configuration != npu_configuration:
+                    raise ValueError("Ethos-U device or PMU configuration differs between captures")
+                npu_configuration = configuration
+                if npu_summary["total_samples"] != int(row["ethosu_ticks"]) or npu_summary[
+                    "count"
+                ] != int(row["ethosu_records"]):
+                    raise ValueError(f"capture {index}: Ethos-U counts differ from captures.csv")
+                window_events.extend(npu_events)
+                npu_records += npu_summary["count"]
+                npu_ticks += npu_summary["total_samples"]
             # ph=M records name shared process/thread tracks and have no sample
             # timestamp. Retain them once; other metadata is a timed event and
             # remains attached to its own capture.
@@ -189,6 +212,7 @@ def combine(root, destination):
                             "captures": len(rows),
                             "time_basis": "concatenated active capture durations; debugger pauses omitted",
                             "pmu_boundary": "no PMU rate calculated between capture windows",
+                            "processors": "Cortex-M and Ethos-U" if include_ethosu else "Cortex-M",
                         },
                     }
                 )
@@ -201,7 +225,10 @@ def combine(root, destination):
                 # Shift only presentation time. Original sample indices, ticks,
                 # symbol names and PMU rates retain their capture-local meanings.
                 event["ts"] += offset_us
-                event.setdefault("args", {})["capture"] = index
+                # Counter args are numeric series: a capture ID there would
+                # accidentally create an additional counter named "capture".
+                if event["ph"] != "C":
+                    event.setdefault("args", {})["capture"] = index
                 events.append(event)
             offset_us += duration
             events.append(boundary(index, "end", offset_us, duration))
@@ -210,6 +237,10 @@ def combine(root, destination):
     # final write, not an atomic replace; write/I/O failures can still interrupt it.
     if sample_total != aggregate.get("cpu_samples"):
         raise ValueError("combined sample count differs from aggregate summary")
+    if include_ethosu and (
+        npu_records != aggregate.get("ethosu_records") or npu_ticks != aggregate.get("ethosu_ticks")
+    ):
+        raise ValueError("combined Ethos-U counts differ from aggregate summary")
     destination.write_text(
         json.dumps({"traceEvents": events}, separators=(",", ":"), allow_nan=False) + "\n"
     )
@@ -220,11 +251,18 @@ def main():
     """Resolve the run directory and expose the combiner as a small CLI."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-dir", required=True, type=Path)
+    parser.add_argument(
+        "--include-ethosu",
+        action="store_true",
+        help="Include synchronized Ethos-U reports; requires both processors in every capture",
+    )
     args = parser.parse_args()
     root = args.run_dir.resolve()
-    destination = root / "cortex_m_combined.perfetto.json"
+    destination = root / (
+        "combined.perfetto.json" if args.include_ethosu else "cortex_m_combined.perfetto.json"
+    )
     try:
-        captures, samples, duration = combine(root, destination)
+        captures, samples, duration = combine(root, destination, args.include_ethosu)
         print(
             f"{destination}: {captures} captures, {samples} CPU samples, {duration / 1_000_000:.3f} s active time"
         )

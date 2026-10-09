@@ -296,6 +296,8 @@ board is deliberately not inferred from an ELF name.
 RUN_DIR=/path/to/run
 # Run this line only when Cortex-M samples were captured:
 python3 host/combine_perfetto_captures.py --run-dir "$RUN_DIR"
+# Alternatively, include synchronized Ethos-U snapshots and PMU rates:
+python3 host/combine_perfetto_captures.py --run-dir "$RUN_DIR" --include-ethosu
 python3 host/generate_report_index.py \
   --run-dir "$RUN_DIR" --board "<board or simulator>" \
   --application "<application name>"
@@ -304,8 +306,29 @@ python3 host/generate_report_index.py \
 `$RUN_DIR/index.html` summarizes the capture count, sample frequency, CPU and
 Ethos-U counts, PMU configuration, validation status, and ELF hash from
 `summary.json`. The main sections link only aggregate artifacts present in the
-run, including the single `cortex_m_combined.perfetto.json`, flamegraphs,
+run, including `combined.perfetto.json` (CPU + NPU) or
+`cortex_m_combined.perfetto.json` (CPU only), flamegraphs,
 instruction annotations, operator charts, command listings, and PMU views.
+
+`--include-ethosu` requires finalized CPU and NPU reports in every capture.
+It verifies shared timestamp clocks and identical timestamps at overlapping
+sampling ticks. Both processors use the CPU capture epoch; NPU captures must
+fit inside that window. Unverifiable alignment is rejected before output is written.
+The HTML index prefers the CPU/NPU trace when both exports exist.
+
+Ethos-U has a separate process with STATUS/stream/QREAD instant observations
+and 0–4 PMU rate tracks. Compressed idle runs remain 1 observation at their last
+snapshot, carrying `idle_count`; no exact inference or operator durations are
+invented. PMU tracks are labelled **idle-clamped**: they display zero from the
+first sampled idle tick until the next running sample, preventing Perfetto from
+holding a busy value across compressed idle runs. The first idle tick uses its
+CPU timestamp, or a labelled timer-period estimate if that CPU sample is missing.
+Capture boundaries also reset the display to zero. These zeros are a display
+convention, not measured PMU rates: some events can count while idle.
+Click a snapshot for the original `pmuN_measured_events_per_second` values and
+`pmu_interval_us`. These rates average the preceding retained interval, including
+idle, and require fewer than 2^32 increments between snapshots. No interval
+crosses capture boundaries. Unknown streams and unavailable QREAD remain explicit.
 
 For optional platform details and Cortex-M activity, place `platform.json`
 beside `summary.json` before generating the index. For example:
