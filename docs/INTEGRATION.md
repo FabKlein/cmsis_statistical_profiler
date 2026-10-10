@@ -63,7 +63,7 @@ require zero unexpected rejections before enabling PMU or backtraces.
 
    ```sh
    python3 host/check_profiler_elf.py --elf firmware.elf
-   python3 host/create_profiler_report.py --samples samples.bin --elf firmware.elf --output report-pc
+   python3 host/create_profiler_report.py --samples samples.bin --elf firmware.elf --output report-pc --board "<actual target>" --application "<application>"
    ```
 
 6. Require correct workload output, complete/inactive capture, valid timing,
@@ -91,7 +91,7 @@ Use the split-code example if code occupies disjoint allocations.
 
 ```sh
 python3 host/check_profiler_elf.py --elf firmware.elf --require-unwind --function functionF --output preflight.json
-python3 host/create_profiler_report.py --samples samples.bin --elf firmware.elf --output report-stacks --stack-root osThreadEntry --flamegraph /path/to/FlameGraph/flamegraph.pl
+python3 host/create_profiler_report.py --samples samples.bin --elf firmware.elf --output report-stacks --board "<actual target>" --application "<application>" --stack-root osThreadEntry --flamegraph /path/to/FlameGraph/flamegraph.pl
 ```
 
 Choose a root actually present in your workload, or omit `--stack-root`.
@@ -114,6 +114,7 @@ finalization separately. Finalization does not prove the requested duration ran.
 The wrapper keeps raw data/ELF, hashes, configuration, validation and tool hashes
 in `manifest.json`; pass `--producer-revision`, `--compiler-id` and
 `--capture-command` to record firmware provenance. These values are caller supplied.
+Supply the actual `--board` and `--application` labels. See [host requirements](HOST_TOOLS.md#python-and-dependencies) for Python 3.10+ and optional dependencies.
 Add `--html` with the optional Plotly dependency for a dashboard. Open `index.html`
 locally. Keep private firmware and reports outside source control.
 
@@ -122,3 +123,5 @@ and unwinding at several rates. Repeat runs under identical clocks/cache/input
 conditions; compare elapsed time and MSP/task stack high-water marks. Report
 whole-workload overhead separately from any measured ISR latency. Validate on
 hardware before claiming device accuracy; FVP is a functional regression test.
+Use the [ISR budget guide](ISR_BUDGET.md) to account for complete call paths,
+exception frames and nesting, and to record maximum observed interrupt time.

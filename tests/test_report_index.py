@@ -228,6 +228,11 @@ class ReportIndexTests(unittest.TestCase):
             (root / "platform.json").write_text(json.dumps(platform))
             with self.assertRaisesRegex(ValueError, "frequency_hz"):
                 report_index.render(root, {}, [], "board", "app")
+            del platform["cpu"]["frequency_hz"]
+            platform["cpu"]["idle_pc_ranges"][0]["start"] = True
+            (root / "platform.json").write_text(json.dumps(platform))
+            with self.assertRaisesRegex(ValueError, "PC range addresses"):
+                report_index.render(root, {}, [], "board", "app")
 
 
 if __name__ == "__main__":

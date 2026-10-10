@@ -26,7 +26,18 @@ class JointFoldTests(unittest.TestCase):
     def make_run(self, root):
         common = {"captures": 2, "complete_inferences": 4, "sample_hz": 2000}
         (root / "mcu_folded_summary.json").write_text(
-            json.dumps({**common, "cpu_pmu_events": ["cpu-cycles"]})
+            json.dumps(
+                {
+                    **common,
+                    "idle_classification": {
+                        "idle_functions": ["idle"],
+                        "idle_pc_ranges": [],
+                    },
+                    "cpu_pmu_events": [
+                        {"slot": 0, "key": "pmu0", "label": "PMU0 · cpu-cycles"}
+                    ],
+                }
+            )
         )
         (root / "folded_summary.json").write_text(json.dumps(common))
         write_csv(
@@ -38,8 +49,9 @@ class JointFoldTests(unittest.TestCase):
                     "cpu_samples": 4,
                     "non_idle_percent": 75,
                     "ethosu_running_samples": running,
-                    "cpu-cycles_mean": 200,
-                    "cpu-cycles_ci95": 10,
+                    "pmu0_intervals": 4,
+                    "pmu0_mean": 200,
+                    "pmu0_ci95": 10,
                 }
                 for phase, running in ((0.0, 4), (0.5, 2))
             ],
@@ -71,8 +83,43 @@ class JointFoldTests(unittest.TestCase):
             self.assertEqual(summary["complete_inferences"], 4)
             self.assertEqual(len(rows), 2)
             self.assertEqual(rows[1]["ethosu_running_percent"], 50)
-            self.assertEqual(rows[1]["mcu_cpu-cycles_mean"], 200)
+            self.assertEqual(rows[1]["mcu_pmu0_mean"], 200)
             self.assertEqual(omitted, 1)
+
+    def test_repeated_cpu_event_slots_survive_joint_output(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            self.make_run(root)
+            path = root / "mcu_folded_summary.json"
+            summary = json.loads(path.read_text())
+            summary["cpu_pmu_events"].append(
+                {"slot": 1, "key": "pmu1", "label": "PMU1 · cpu-cycles"}
+            )
+            path.write_text(json.dumps(summary))
+            rows = joint.read_csv(root / "mcu_folded.csv")
+            for row in rows:
+                row.update(pmu1_intervals=4, pmu1_mean=600, pmu1_ci95=30)
+            write_csv(root / "mcu_folded.csv", rows)
+            merged, combined, _ = joint.combine(root)
+            self.assertEqual(len(merged["cpu_pmu_events"]), 2)
+            self.assertEqual(
+                (combined[0]["mcu_pmu0_mean"], combined[0]["mcu_pmu1_mean"]), (200, 600)
+            )
+
+    def test_joint_omits_unclassified_idle_estimate(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            self.make_run(root)
+            path = root / "mcu_folded_summary.json"
+            summary = json.loads(path.read_text())
+            summary["idle_classification"] = None
+            path.write_text(json.dumps(summary))
+            rows = joint.read_csv(root / "mcu_folded.csv")
+            for row in rows:
+                del row["non_idle_percent"]
+            write_csv(root / "mcu_folded.csv", rows)
+            _, combined, _ = joint.combine(root)
+            self.assertNotIn("mcu_non_idle_percent", combined[0])
 
     def test_rejects_mismatched_coverage(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -93,8 +140,9 @@ class JointFoldTests(unittest.TestCase):
             (root / "mcu_folded_summary.json").write_text(json.dumps(summary))
             rows = joint.read_csv(root / "mcu_folded.csv")
             for row in rows:
-                del row["cpu-cycles_mean"]
-                del row["cpu-cycles_ci95"]
+                del row["pmu0_intervals"]
+                del row["pmu0_mean"]
+                del row["pmu0_ci95"]
             write_csv(root / "mcu_folded.csv", rows)
             (root / "folded_pmu.csv").unlink()
             write_csv(

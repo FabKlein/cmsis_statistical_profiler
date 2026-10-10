@@ -137,6 +137,27 @@ int main(void)
     reset(0x808400B0U);
     regs[13] += sizeof(stack);
     expect(0, PROFILER_UNWIND_BOUNDS);
+    reset(0x808400B0U);
+    bounds.bytes = sizeof(uint32_t) - 1U; /* A readable prefix is not a whole word. */
+    expect(0, PROFILER_UNWIND_BOUNDS);
+    reset(0x808400B0U);
+    bounds.bytes = sizeof(uint32_t);
+    stack[0] = 0x10002005U;
+    expect(1, PROFILER_UNWIND_BOUNDS); /* Last word is valid; next frame has no word. */
+    assert(sample.callers[0] == 0x10002005U);
+    assert(regs[13] == (uint32_t)(uintptr_t)stack + sizeof(uint32_t));
+    reset(0x808600B0U); /* Restoring SP must not redirect the remaining pop reads. */
+    bounds.bytes = sizeof(uint32_t);
+    stack[0] = (uint32_t)(uintptr_t)stack;
+    stack[1] = 0x10003005U; /* Outside bounds; this LR must never be read. */
+    expect(0, PROFILER_UNWIND_BOUNDS);
+    assert(regs[14] == 0x10002005U);
+    reset(0x808400B0U);
+    /* On a 64-bit test host this allocation fits uintptr_t, but advancing the
+     * virtual 32-bit SP would wrap. Reject before touching the fictitious RAM. */
+    bounds = (struct ProfilerStackBounds){UINT32_MAX - 3U, 8U};
+    regs[13] = UINT32_MAX - 3U;
+    expect(0, PROFILER_UNWIND_BOUNDS);
     reset(0x80408400U); /* SP subtraction crosses allocation base. */
     expect(0, PROFILER_UNWIND_BOUNDS);
     reset(0x80978400U); /* SP = r7 then pop LR. */

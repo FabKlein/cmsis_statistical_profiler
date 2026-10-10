@@ -67,13 +67,14 @@ int profiler_timer_init(struct ProfilerClock *clock)
     clock->timer_period = period;
     return 1;
 }
-void profiler_timer_start(void)
+int profiler_timer_start(void)
 {
     CHANNEL.UTIMER_CHAN_INTERRUPT = OVERFLOW;
     CHANNEL.UTIMER_CHAN_INTERRUPT_MASK = ~OVERFLOW;
     NVIC_ClearPendingIRQ(PROFILER_ALIF_TIMER_IRQ);
     NVIC_EnableIRQ(PROFILER_ALIF_TIMER_IRQ);
     UTIMER->UTIMER_GLB_CNTR_START = CHANNEL_MASK;
+    return 1;
 }
 void profiler_timer_stop(void)
 {

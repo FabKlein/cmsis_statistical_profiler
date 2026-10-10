@@ -4,7 +4,6 @@
 """Fold Cortex-M PC and PMU samples around Ethos-U running-burst starts."""
 
 import argparse
-import csv
 import json
 import math
 import statistics
@@ -12,68 +11,38 @@ from collections import Counter, defaultdict
 from itertools import pairwise
 from pathlib import Path
 
-from combine_perfetto_captures import capture_rows
+from report_helpers import (
+    idle_classification,
+    is_idle,
+    mean_ci,
+    read_aggregate,
+    read_ethosu_report,
+    read_platform,
+    require_finalized,
+    running_groups,
+    write_csv,
+)
 from visualize_profiler_report import event_rates, read_report
 
 
-def read_ethosu_report(directory):
-    summary = json.loads((directory / "summary.json").read_text())
-    with (directory / "samples.csv").open(newline="") as source:
-        records = list(csv.DictReader(source))
-    if (
-        summary.get("active") != 0
-        or summary.get("complete") != 1
-        or not summary.get("validation_passed")
-    ):
-        raise ValueError(f"{directory}: Ethos-U capture is incomplete or invalid")
-    if len(records) != summary["count"]:
-        raise ValueError(f"{directory}: record count differs from summary")
-    return summary, records
-
-
-def running_groups(records):
-    groups = []
-    current = []
-    for record in records:
-        if int(record["running"]):
-            tick = int(record["tick"])
-            if current and tick != int(current[-1]["tick"]) + 1:
-                raise ValueError("running Ethos-U group has missing sample ticks")
-            current.append(record)
-        elif current:
-            groups.append(current)
-            current = []
-    if current:
-        groups.append(current)
-    return groups
-
-
-def mean_ci(values):
-    if not values:
-        return "", ""
-    mean = statistics.mean(values)
-    ci = 1.96 * statistics.stdev(values) / math.sqrt(len(values)) if len(values) > 1 else 0
-    return mean, ci
-
-
-def fold(root, pre_ms=0.0, post_ms=40.0, idle_function="osRtxIdleThread", highlight_function=None):
-    aggregate = json.loads((root / "summary.json").read_text())
-    captures = capture_rows(root)
-    if aggregate.get("captures") != len(captures) or not aggregate.get("all_validation_passed"):
-        raise ValueError("aggregate captures are incomplete or unvalidated")
+def fold(root, pre_ms=0.0, post_ms=40.0, idle_function=None, highlight_function=None):
+    aggregate, captures = read_aggregate(root)
+    classification = idle_classification(read_platform(root), idle_function)
     rate = int(aggregate["sample_hz"])
     pre_ticks = round(pre_ms * rate / 1000)
     post_ticks = round(post_ms * rate / 1000)
     if pre_ticks < 0 or post_ticks < 1:
         raise ValueError("invalid phase window")
 
+    phase_idle = Counter()
     phase_functions = defaultdict(Counter)
     phase_pmu = defaultdict(lambda: defaultdict(list))
     phase_expected = Counter()
     phase_npu_running = Counter()
     inference_rows = []
     excluded_edges = 0
-    event_names = None
+    event_ids = None
+    cpu_events = []
     period_ticks = []
     matched_cpu_ticks = 0
     highlighted_run_counts = Counter()
@@ -84,6 +53,7 @@ def fold(root, pre_ms=0.0, post_ms=40.0, idle_function="osRtxIdleThread", highli
         cpu_summary, cpu = read_report(directory / "cortex_m_report")
         ethos_summary, ethos = read_ethosu_report(directory / "ethosu_report")
         cpu_header = cpu_summary["header"]
+        require_finalized(cpu_header, f"capture {capture_index}: CPU")
         if (cpu_header["sample_hz"], cpu_header["timestamp_hz"]) != (
             ethos_summary["sample_hz"],
             ethos_summary["timestamp_hz"],
@@ -106,10 +76,20 @@ def fold(root, pre_ms=0.0, post_ms=40.0, idle_function="osRtxIdleThread", highli
                 raise ValueError(f"capture {capture_index}: CPU PMU event is invalid")
             # Validate decoded interval deltas against raw counter values.
             event_rates(cpu_summary, cpu)
-        names = tuple(event["event"] for event in events) if pmu_active else ()
-        if event_names is None:
-            event_names = names
-        elif names != event_names:
+        ids = tuple(int(event["event_id"], 0) for event in events) if pmu_active else ()
+        if event_ids is None:
+            event_ids = ids
+            cpu_events = [
+                {
+                    "slot": slot,
+                    "key": f"pmu{slot}",
+                    "event_id": event["event_id"],
+                    "event": event["event"],
+                    "label": f"PMU{slot} · {event['event']}",
+                }
+                for slot, event in enumerate(events if pmu_active else [])
+            ]
+        elif ids != event_ids:
             raise ValueError(f"capture {capture_index}: CPU PMU configuration changed")
 
         cpu_by_tick = {int(row["tick"]): (index, row) for index, row in enumerate(cpu)}
@@ -129,8 +109,8 @@ def fold(root, pre_ms=0.0, post_ms=40.0, idle_function="osRtxIdleThread", highli
         excluded_edges += min(len(groups), 2)
         # Match the Ethos-U PMU fold: both capture-edge running groups are excluded.
         for group_index in range(1, len(groups) - 1):
-            first_tick = int(groups[group_index][0]["tick"])
-            next_tick = int(groups[group_index + 1][0]["tick"])
+            first_tick = int(ethos[groups[group_index][0]]["tick"])
+            next_tick = int(ethos[groups[group_index + 1][0]]["tick"])
             period = next_tick - first_tick
             if period <= 0:
                 raise ValueError(f"capture {capture_index}: non-increasing inference starts")
@@ -166,11 +146,14 @@ def fold(root, pre_ms=0.0, post_ms=40.0, idle_function="osRtxIdleThread", highli
                 index, row = pair
                 observed += 1
                 function = row["function"]
-                idle += function == idle_function
+                if classification and is_idle(row, classification):
+                    idle += 1
+                    phase_idle[phase] += 1
                 phase_functions[phase][function] += 1
                 if index and int(cpu[index - 1]["tick"]) == tick - 1:
-                    for event_index, name in enumerate(event_names):
-                        phase_pmu[phase][name].append(int(row[f"pmu{event_index}_interval_delta"]))
+                    for event in cpu_events:
+                        slot = event["slot"]
+                        phase_pmu[phase][slot].append(int(row[f"pmu{slot}_interval_delta"]))
             inference_rows.append(
                 {
                     "capture": capture_index,
@@ -179,7 +162,7 @@ def fold(root, pre_ms=0.0, post_ms=40.0, idle_function="osRtxIdleThread", highli
                     "next_start_tick": next_tick,
                     "period_ticks": period,
                     "cpu_samples_in_window": observed,
-                    "idle_samples_in_window": idle,
+                    **({"idle_samples_in_window": idle} if classification else {}),
                 }
             )
     if not inference_rows:
@@ -195,16 +178,20 @@ def fold(root, pre_ms=0.0, post_ms=40.0, idle_function="osRtxIdleThread", highli
             "ethosu_running_samples": phase_npu_running[phase],
             "ethosu_running_percent": 100 * phase_npu_running[phase] / phase_expected[phase],
             "cpu_samples": observed,
-            "idle_samples": functions[idle_function],
-            "idle_percent": 100 * functions[idle_function] / observed if observed else "",
-            "non_idle_percent": 100 * (observed - functions[idle_function]) / observed
-            if observed
-            else "",
         }
-        for name in event_names:
-            values = phase_pmu[phase][name]
-            row[f"{name}_intervals"] = len(values)
-            row[f"{name}_mean"], row[f"{name}_ci95"] = mean_ci(values)
+        if classification:
+            row.update(
+                idle_samples=phase_idle[phase],
+                idle_percent=100 * phase_idle[phase] / observed if observed else "",
+                non_idle_percent=100 * (observed - phase_idle[phase]) / observed
+                if observed
+                else "",
+            )
+        for event in cpu_events:
+            key = event["key"]
+            values = phase_pmu[phase][event["slot"]]
+            row[f"{key}_intervals"] = len(values)
+            row[f"{key}_mean"], row[f"{key}_ci95"] = mean_ci(values)
         phases.append(row)
         for function, count in sorted(functions.items(), key=lambda item: (-item[1], item[0])):
             function_rows.append(
@@ -223,18 +210,21 @@ def fold(root, pre_ms=0.0, post_ms=40.0, idle_function="osRtxIdleThread", highli
         "sample_hz": rate,
         "pre_ms": pre_ms,
         "post_ms": post_ms,
-        "idle_function": idle_function,
-        "idle_function_observed": any(row["idle_samples_in_window"] for row in inference_rows),
+        "idle_classification": classification,
         "median_period_ms": statistics.median(period_ticks) * 1000 / rate,
         "min_period_ms": min(period_ticks) * 1000 / rate,
         "max_period_ms": max(period_ticks) * 1000 / rate,
-        "cpu_pmu_events": event_names,
+        "cpu_pmu_events": cpu_events,
         "cpu_phase_observations": sum(row["cpu_samples_in_window"] for row in inference_rows),
         "pre_context_may_repeat_samples": pre_ticks > 0,
-        "idle_phase_observations": sum(row["idle_samples_in_window"] for row in inference_rows),
         "missing_cpu_phase_samples": sum(phase_expected.values())
         - sum(row["cpu_samples"] for row in phases),
     }
+    if classification:
+        summary["idle_phase_observations"] = sum(
+            row["idle_samples_in_window"] for row in inference_rows
+        )
+        summary["idle_observed"] = summary["idle_phase_observations"] > 0
     if highlight_function:
         summary["highlight_function"] = highlight_function
         summary["highlight_sampled_runs_per_period"] = dict(sorted(highlighted_run_counts.items()))
@@ -244,13 +234,6 @@ def fold(root, pre_ms=0.0, post_ms=40.0, idle_function="osRtxIdleThread", highli
             else None
         )
     return summary, inference_rows, phases, function_rows
-
-
-def write_csv(path, rows):
-    with path.open("w", newline="") as destination:
-        writer = csv.DictWriter(destination, fieldnames=list(rows[0]))
-        writer.writeheader()
-        writer.writerows(rows)
 
 
 def plot(root, summary, phases, function_rows, highlight_function=None, highlight_label=None):
@@ -264,10 +247,9 @@ def plot(root, summary, phases, function_rows, highlight_function=None, highligh
     totals = Counter()
     for row in function_rows:
         by_phase[row["phase_ms"]][row["function"]] = row["samples"]
-        if row["function"] != summary["idle_function"]:
-            totals[row["function"]] += row["samples"]
+        totals[row["function"]] += row["samples"]
     top = [name for name, _ in totals.most_common(5)]
-    labels = [summary["idle_function"], *top, "Other active"]
+    labels = [*top, "Other functions"]
     series = []
     for name in labels[:-1]:
         series.append(
@@ -282,8 +264,8 @@ def plot(root, summary, phases, function_rows, highlight_function=None, highligh
             for values, row in zip(zip(*series), phases)
         ]
     )
-    event_names = summary["cpu_pmu_events"]
-    rows = 1 + math.ceil(len(event_names) / 2)
+    events = summary["cpu_pmu_events"]
+    rows = 1 + math.ceil(len(events) / 2)
     fig, axes = plt.subplots(rows, 2, figsize=(14, 3.5 * rows), sharex=True, squeeze=False)
     mix = axes[0, 0]
     mix.stackplot(x, *series, labels=labels, alpha=0.88)
@@ -321,12 +303,31 @@ def plot(root, summary, phases, function_rows, highlight_function=None, highligh
             )
             mix.set_ylim(0, 114)
     mix.legend(fontsize=7, loc="center left", bbox_to_anchor=(1.01, 0.5))
-    axes[0, 1].plot(x, [row["non_idle_percent"] for row in phases], color="#1d6d80")
-    axes[0, 1].set(ylabel="Non-idle PC samples (%)", ylim=(0, 100), title="MCU non-idle share")
+    if summary["idle_classification"]:
+        axes[0, 1].plot(
+            x,
+            [
+                float(row["non_idle_percent"]) if row["non_idle_percent"] != "" else float("nan")
+                for row in phases
+            ],
+            color="#1d6d80",
+        )
+        axes[0, 1].set(
+            ylabel="Non-idle PC samples (%)", ylim=(0, 100), title="MCU non-idle share (estimate)"
+        )
+    else:
+        axes[0, 1].set_visible(False)
     colors = ("#245A91", "#D07A14", "#138A70", "#9B4089")
-    for axis, name, color in zip(axes.flat[2:], event_names, colors):
-        mean = [float(row[f"{name}_mean"] or 0) for row in phases]
-        ci = [float(row[f"{name}_ci95"] or 0) for row in phases]
+    for axis, event, color in zip(axes.flat[2:], events, colors):
+        name = event["key"]
+        mean = [
+            float(row[f"{name}_mean"]) if row[f"{name}_mean"] != "" else float("nan")
+            for row in phases
+        ]
+        ci = [
+            float(row[f"{name}_ci95"]) if row[f"{name}_ci95"] != "" else float("nan")
+            for row in phases
+        ]
         axis.plot(x, mean, color=color, linewidth=1.6)
         axis.fill_between(
             x,
@@ -335,8 +336,8 @@ def plot(root, summary, phases, function_rows, highlight_function=None, highligh
             color=color,
             alpha=0.16,
         )
-        axis.set(title=name, ylabel="Events / sample interval")
-    for axis in list(axes.flat)[2 + len(event_names) :]:
+        axis.set(title=event["label"], ylabel="Events / sample interval")
+    for axis in list(axes.flat)[2 + len(events) :]:
         axis.set_visible(False)
     for axis in axes.flat:
         axis.axvline(0, color="#333333", linewidth=0.8, linestyle="--")
@@ -361,7 +362,11 @@ def main():
     parser.add_argument("--run-dir", required=True, type=Path)
     parser.add_argument("--pre-ms", type=float, default=0.0)
     parser.add_argument("--post-ms", type=float, default=40.0)
-    parser.add_argument("--idle-function", default="osRtxIdleThread")
+    parser.add_argument(
+        "--idle-function",
+        action="append",
+        help="Explicit idle function (repeatable); otherwise use platform.json",
+    )
     parser.add_argument("--highlight-function", help="Show the sampled span of this function")
     parser.add_argument("--highlight-label", help="Caption for the highlighted function span")
     args = parser.parse_args()

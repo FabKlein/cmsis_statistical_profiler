@@ -65,7 +65,7 @@ int profiler_timer_init(struct ProfilerClock *clock)
     return 1;
 }
 
-void profiler_timer_start(void)
+int profiler_timer_start(void)
 {
     PROFILER_CTIMER->TCR = CTIMER_TCR_CRST_MASK;
     PROFILER_CTIMER->TCR = 0U;
@@ -73,6 +73,7 @@ void profiler_timer_start(void)
     NVIC_ClearPendingIRQ(PROFILER_CTIMER_IRQ);
     NVIC_EnableIRQ(PROFILER_CTIMER_IRQ);
     PROFILER_CTIMER->TCR = CTIMER_TCR_CEN_MASK;
+    return 1;
 }
 
 void profiler_timer_stop(void)

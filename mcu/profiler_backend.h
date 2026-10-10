@@ -89,8 +89,10 @@ int profiler_timer_init(struct ProfilerClock *clock);
 /**
  * @brief Start the configured sampling timer and its interrupt.
  * @pre Timer initialization succeeded; interrupts are masked by the caller.
+ * @return 1 on success, 0 on failure; optionally report adapter diagnostics.
+ * @note The backend calls stop on failure before restoring interrupts.
  */
-void profiler_timer_start(void);
+int profiler_timer_start(void);
 /**
  * @brief Stop the sampling timer and clear its pending interrupt.
  * @note Called with interrupts masked; must be safe before initialization.

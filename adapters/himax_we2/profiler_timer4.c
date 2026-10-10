@@ -74,19 +74,23 @@ int profiler_timer_init(struct ProfilerClock *clock)
     timer_config.period = 1000U / PROFILER_SAMPLE_HZ;
     owned = 1U;
     profiler_timer_stop();
-    EPII_NVIC_SetVector(PROFILER_TIMER_IRQ, (uint32_t)profiler_timer4_irq_handler);
+    EPII_NVIC_SetVector(PROFILER_TIMER_IRQ, (uint32_t)(uintptr_t)profiler_timer4_irq_handler);
     NVIC_SetPriority(PROFILER_TIMER_IRQ, PROFILER_IRQ_PRIORITY);
     clock->timer_hz = timer_hz;
     clock->timer_period = period;
     return 1;
 }
 
-void profiler_timer_start(void)
+int profiler_timer_start(void)
 {
     NVIC_ClearPendingIRQ(PROFILER_TIMER_IRQ);
-    (void)hx_drv_timer_hw_start(PROFILER_TIMER_ID, &timer_config, unused_vendor_callback);
-    EPII_NVIC_SetVector(PROFILER_TIMER_IRQ, (uint32_t)profiler_timer4_irq_handler);
+    int status = hx_drv_timer_hw_start(PROFILER_TIMER_ID, &timer_config, unused_vendor_callback);
+    if (status != TIMER_NO_ERROR)
+        return profiler_init_fail(PROFILER_INIT_TIMER, PROFILER_INIT_UNAVAILABLE, PROFILER_TIMER_IRQ, (uint32_t)status);
+
+    EPII_NVIC_SetVector(PROFILER_TIMER_IRQ, (uint32_t)(uintptr_t)profiler_timer4_irq_handler);
     NVIC_EnableIRQ(PROFILER_TIMER_IRQ);
+    return 1;
 }
 
 void profiler_timer_stop(void)

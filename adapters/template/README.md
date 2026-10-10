@@ -31,7 +31,7 @@ then remove its deliberate `#error`.
 | IRQ/vector | Exact startup handler, routed to the sampled core/security domain |
 | Init | Reject busy resources; configure a stopped periodic timer |
 | Clock/period | Actual count frequency after prescaling; use `profiler_timer_period()` |
-| Start | Clear stale events, enable IRQ and counting |
+| Start | Clear stale events, enable IRQ/counting; return 1 on success, 0 on failure |
 | Stop | Mask IRQ, stop and clear; safe before init and on repeated captures |
 | Ack | Clear a real sample event and return 1; return 0 for spurious IRQs |
 
@@ -39,6 +39,11 @@ Store actual `timer_hz` and `timer_period` in `ProfilerClock`; preserve
 `timestamp_hz`. Convert period to hardware reload values only at register writes.
 Init/start/stop run with local interrupts masked. Reserve the timer for the firmware
 lifetime, including across cores; avoid changing shared clocks or resetting blocks.
+
+`profiler_timer_start()` returns `int`. Check fallible SDK calls and optionally
+set `profiler_init_fail()` diagnostics before returning 0. The backend calls
+`profiler_timer_stop()` on a failed start before restoring interrupts, so stop
+must clean up a partial start as well as a running capture.
 
 Use `PROFILER_DEFINE_IRQ_HANDLER` as the actual vector entry, without a C/HAL
 wrapper. Ack runs even while gated off/full. Keep it bounded and integer-only;

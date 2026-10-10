@@ -99,6 +99,10 @@ buffer allocation. Each record costs 20..36 bytes. IDs are 1-based table indices
 unused descriptors are zero. This is the initial EUTR format (identifier 1);
 firmware and decoder use the same layout.
 
+Startup clears the header and stream table only. Unused record bytes retain old
+contents and have no defined value. Export the full allocation after stop; the
+decoder uses `count` and `record_bytes` to bound records.
+
 Consecutive idle samples always share 1 record. STATUS bit 0 selects the meaning
 of word 4: stream ID when running, nonzero idle count otherwise. Every idle tick
 updates the last record with the latest timestamp, tick, STATUS and PMU values.

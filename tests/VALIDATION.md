@@ -1,10 +1,10 @@
 # Validation
 
-Updated on 1 October 2026:
+Updated on 10 October 2026:
 
 | Check | Coverage / result |
 |---|---|
-| 56 native/Python tests (1 skipped) | Lifecycle, rates, cache, timer stop/restart, PRIMASK, SysTick preservation, clock wraps, frame/bounds rejection, explicit stack-region configuration and malformed/empty captures |
+| 171 native/Python tests | Lifecycle, frames/bounds, PMU/backtraces, adapter contracts, decoded-report validation, repeated captures, slot-preserving folds, index generation and malformed/empty captures; all pass with optional Plotly installed |
 | EHABI backtraces | Native compact recipes, bounds, register reconstruction, basic/FP/padded MSP/PSP frames, wrong-task rejection, all PMU counts, variable record lengths, configurable depth limits, atomic full-buffer handling and folded-stack filtering; AC6/GCC architecture matrix includes the enabled IRQ entry |
 | Backtrace FVP | AC6/GCC PSP/FP captures recover `capture_on_psp;profile_workload;run_once`; 84 samples and valid timing. AC6 MSP also recovers callers and stops at missing runtime metadata. Physical hardware remains untested |
 | Host C++ symbols | Batched demangling, overloads, C names, unavailable/failed tools, CLI reports and opt-out |
@@ -31,6 +31,166 @@ Updated on 1 October 2026:
 GCC 13 uses `-march=armv8.1-m.main` for M52 because it lacks that CPU name.
 FVP D-cache refill/backend-stall counts are 0 for the ITCM/DTCM workload;
 this says nothing about hardware stalls. Inspect ISR disassembly after compiler/LTO changes.
+
+## Lifecycle and header separation (9 October 2026)
+
+Repeated-stop regressions preserve the complete buffer, PMU snapshots and first
+stop's workload results across PMU counts 0-4, without another hardware stop or
+cache flush. The public API compiles as C11 and C++11 without target settings;
+configuration rejection tests now include the configuration header explicitly.
+
+The 161-test native/host suite passed (1 Plotly-dependent test skipped). GCC 13.2.1 and
+AC6 6.24 passed all 12 Cortex-M compile targets. The standalone AC6 matrix used a
+temporary wrapper to replace the runner's `--target=arm-none-eabi` with AC6's
+required `--target=arm-arm-none-eabi`; the project sources were compiled unchanged.
+Corstone adapter builds passed at 125/333/2500 Hz with sampling enabled/disabled.
+Both AC6 FVP contexts passed with 84 samples each, including the backtrace checks.
+Doxygen generation completed without warnings. No new physical-hardware run.
+
+## Metadata reset and ISR simplification (10 October 2026)
+
+CPU initialization clears its 176-byte header instead of the full allocation.
+Ethos-U startup clears its 128-byte header and stream table; unused descriptors
+remain zero. Native tests seed record storage with nonzero values, verify it
+survives initialization/restart and decode full allocations containing old tails.
+Mixed-depth tests verify failed appends leave the unused tail untouched.
+
+The Cortex-M backend owns the single recording-gate check. Record/reject storage
+requires an admitted ISR, with one shared full-buffer closure. Per-record DMB
+publication is removed: the sole producer completes before same-core thread-mode
+stop, and readers wait for stop's barriers and cache clean. Live-buffer readers,
+concurrent lifecycle calls and shared multicore buffers are outside this contract.
+
+Measured with GCC 13.2.1, CMSIS 6.3.0, Cortex-M55, SysTick, `-Os -mcmse
+-mfloat-abi=soft -ffunction-sections -fdata-sections`, vectorization disabled,
+FPU disabled and the default 16-caller limit. Each cell is before -> after under
+identical compiler settings:
+
+| Features | Record writer bytes | CPU + SysTick object code/read-only bytes |
+|---|---|---|
+| PC | 120 -> 96 | 1,454 -> 1,422 |
+| PC + 4 PMU | 152 -> 132 | 2,026 -> 1,998 |
+| PC + backtraces | 168 -> 152 | 3,150 -> 3,126 |
+| PC + 4 PMU + backtraces | 208 -> 196 | 3,734 -> 3,714 |
+
+The rejection helper shrinks from 40 to 32 bytes in every configuration. The
+record writer has no barrier call in the resulting disassembly; its PC-only
+compiler stack frame shrinks from 32 to 20 bytes. State/buffer allocations are
+unchanged. Object totals exclude linked library helpers and application unwind
+tables. These are code-size/stack measurements, not measured ISR cycles or latency.
+
+The 161-test suite passed (1 Plotly-dependent test skipped), as did all 12 GCC/AC6
+Cortex-M targets, Corstone enabled/disabled adapter builds at 125/333/2500 Hz and
+both AC6 FVP contexts. The FVP context produced 83 samples; Unwind produced 84;
+both passed timing, workload and rejection checks. AC6 used the target wrapper
+described above. Doxygen generation completed without warnings. No new
+physical-hardware run or silicon latency measurement.
+
+## Backtrace stack budget (10 October 2026)
+
+The unwinder's register pop uses one aligned, complete-word bounds check and
+retains the 32-bit cursor-overflow check. Native tests cover a truncated word,
+the final readable word followed by a partial bounds failure, a restored SP
+that must not redirect later reads, and a cursor that would wrap. Recovered
+prefixes and their failure status remain intact.
+
+[The ISR budget guide](../docs/ISR_BUDGET.md) publishes GCC 13.2.1 and AC6 6.24
+local-frame measurements for all 12 cores, plus GCC M55 caller-depth comparisons.
+Each compiler checked 124 configurations at `-Os`: applicable security/timestamp
+modes, PMU counts 0/4 and backtraces off/depth 16. Another 40 GCC M55 configurations
+checked PMU counts 0–4 at depths 4/32. All reported frames were static. The compile
+tool can now retain CSV measurements and compiler/input provenance; it also
+selects AC6's target triple directly, without the earlier command wrapper.
+
+In the M55 four-PMU/depth-16 GCC object, `pop()` cleanup reduces unwind object
+code/read-only size from 1,436 to 1,424 bytes. The handler and unwinder frames stay
+216/112 bytes. The disassembled wrapper/handler/unwinder/region-check/span-check
+path totals 404 software stack bytes, excluding hardware entry, other application
+paths and nesting; this is not a recommended stack allocation.
+
+All 161 tests passed (1 optional Plotly test skipped). The AC6 Unwind FVP context
+passed with 84 samples, 0 rejected/unresolved PCs and the expected partial chains.
+There is no new hardware stack high-water or silicon ISR-time measurement;
+the guide specifies those integration checks and distinguishes a maximum
+observed duration from a proven worst-case execution-time bound.
+
+## Timer startup contracts and CLANG scope (10 October 2026)
+
+Every timer start hook returns 1/0. The backend stops failed/partial starts
+before restoring the caller's PRIMASK and preserves adapter diagnostics. Himax
+checks the vendor result before handing the vector/IRQ to the profiler; timer
+unavailable diagnostics retain IRQ/vendor status. Custom adapters must update
+their formerly void start hook.
+
+The 162-test suite passed (1 optional Plotly test skipped). Native backend tests
+exercise partial-start cleanup with both initial interrupt masks, generic and
+adapter-supplied diagnostics, and disabled recording after failure. Himax vendor
+API doubles exercise busy resources, failed/successful vector handoff, stop/restart
+and supported/unsupported rates. Alif's native channel tests check the start result.
+The Himax test headers are API doubles, not real SDK headers.
+
+GCC 13.2.1 and AC6 6.24 passed the 124-configuration architecture/stack report
+matrix described above; the published ISR frames are unchanged. LLVM Clang 22
+also compiled all 12 cores, applicable security/timestamp modes and enabled
+four-slot/depth-16 backtraces at `-O2`. The system Clang used Newlib headers via
+`C_INCLUDE_PATH=/usr/include/newlib`; ATfE Professional 22.1 was unavailable
+without its license. These are compile checks, not LLVM runtime validation.
+
+GCC/AC6 Corstone and STM32N6 SDK-header builds passed at 125/333/2500 Hz with
+sampling enabled/disabled and two PMU slots. STM32 headers came from the FSBL
+driver snapshot in Keil STM32N6570-DK_BSP 1.1.0. AC6 FVP and Unwind captures passed
+with 83 and 84 samples respectively, no rejected/unresolved PCs and unchanged
+workload/timing checks.
+
+Generated CMSIS option-scope checks passed for AC6/GCC/CLANG on the five
+Corstone-compatible timer layers. Every timer layer now declares CLANG
+vectorization restrictions in its source group; CI checks AC6 and CLANG.
+The NXP layer is still excluded from generated scope checks because of its
+device-pack requirements. No fresh Himax, Alif or NXP SDK-header build or
+physical-hardware validation was performed.
+Doxygen completed without warnings; Python formatting and local documentation
+file-link checks passed.
+
+## Host simplification and report identity (10 October 2026)
+
+The 171-test suite passed with Plotly 6.3.0 installed, without skips. Regressions
+keep same-event CPU PMU slots with deltas 10 and 30 as separate means, reject
+changed event IDs despite identical labels, and preserve blank intervals when
+CPU observations are missing. Both folds now share finalized-capture,
+compressed-weight, burst and statistics helpers. Explicit idle names/PC ranges
+are shared with the report index; absent classification omits non-idle estimates.
+
+Matplotlib CLI smoke checks generated MCU, Ethos-U and joint SVG/PNG charts from
+synchronized synthetic reports, including repeated counters and both classified
+and unclassified idle cases. A previously validated 84-sample AC6 Unwind FVP
+capture and its exact ELF were packaged with the shared index generator and
+Plotly dashboard; local artifact links were checked. Packaging regressions also
+preserve raw inputs and diagnostics after optional-render failure. No new target
+capture or physical-hardware measurement was performed for these host changes.
+
+Python formatting and updated documentation links/heading anchors passed.
+See [host requirements and commands](../docs/HOST_TOOLS.md) for optional packages;
+all analysis helpers and plain report/index generation remain standard-library only.
+
+## Generic SysTick hardware evidence
+
+The generic SysTick path was hardware-validated on an Infineon PSOC Edge E84
+platform with independent Cortex-M55 and Cortex-M33 RAM images. Both used 64 KiB
+capture buffers and EHABI backtraces at 1 kHz with zero rejected frames or
+unresolved PCs. The M55 captured four PMU events; the M33 correctly ran PC and
+backtrace sampling without a PMU. This validation inherited board clocks and
+power/security setup from already-running boot firmware; it does not replace the
+Infineon BSP startup flow or validate coexistence with software that owns SysTick.
+
+It was also validated on an NXP MIMXRT685-EVK Cortex-M33 RAM image at 1 kHz with
+a 128 KiB buffer and 16-level EHABI backtraces. The completed capture contained
+2,248 samples with zero rejected frames and zero unresolved PCs; 2,247 samples
+reconstructed the expected A-F workload beneath the selected root. The Cortex-M33
+correctly ran with `PROFILER_PMU_COUNT=0`. This test exposed an important Armv8-M
+integration rule: infer the exception frame security state from `EXC_RETURN`, not
+from the debugger's visible SCS alias. See the
+[SysTick validation notes](../integrations/systick/README.md#nxp-mimxrt685-evk-hardware-validation).
+
 
 ## SDKs used
 
@@ -61,8 +221,8 @@ python3 tests/compile_adapters.py \
 Add `--stack-unwind --output build/fvp-unwind` to the FVP runner below to require
 at least 90% of samples to recover 2 callers and verify folded-stack counts.
 
-Run `python3 tests/check_layer_scope.py --compiler AC6 GCC` to check compiler-option
-scope (requires csolution, PyYAML and the packs above). CI checks AC6.
+Run `python3 tests/check_layer_scope.py --compiler AC6 GCC CLANG` to check compiler-option
+scope (requires csolution, PyYAML and the packs above). CI checks AC6 and CLANG.
 
 Supply `--cc /path/to/armclang` for AC6. The architecture check and example
 builder also accept `--cc /path/to/ATfE/bin/clang`. The AC6 example builder

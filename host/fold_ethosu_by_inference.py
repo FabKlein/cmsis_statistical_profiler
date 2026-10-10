@@ -65,14 +65,20 @@
 # Memory grows with retained periods, phase lengths and QREAD observations.
 
 import argparse
-import csv
 import json
 import math
 import statistics
 from collections import defaultdict
 from pathlib import Path
 
-from combine_perfetto_captures import capture_rows
+from report_helpers import (
+    mean_ci,
+    percentile,
+    read_aggregate,
+    read_ethosu_report,
+    running_groups,
+    write_csv,
+)
 from ethosu_pmu_events import DRIVER_VERSION, SUPPORTED_DEVICES, describe_events
 
 # Optional ratios select semantic event names from the shared catalog.
@@ -84,52 +90,6 @@ RATIOS = (
 )
 
 
-def read_csv(path):
-    """Read decoded rows; numeric conversion remains explicit at each use."""
-    with path.open(newline="") as source:
-        return list(csv.DictReader(source))
-
-
-def write_csv(path, rows):
-    """Write a nonempty result table using the first row's column order."""
-    with path.open("w", newline="") as target:
-        writer = csv.DictWriter(target, fieldnames=list(rows[0]))
-        writer.writeheader()
-        writer.writerows(rows)
-
-
-def percentile(values, percent):
-    """Interpolate a percentile of observed periods, not a confidence bound."""
-    ordered = sorted(values)
-    position = (len(ordered) - 1) * percent / 100
-    lower, upper = math.floor(position), math.ceil(position)
-    return ordered[lower] + (ordered[upper] - ordered[lower]) * (position - lower)
-
-
-def running_groups(records):
-    """Return record indices for each uninterrupted sequence of running ticks.
-
-    Idle rows may represent many ticks; a single idle row still separates bursts.
-    Running rows represent individual ticks. Gaps within a burst are rejected
-    rather than filled with invented activity. Tick rollover is not unwrapped
-    by this grouping routine.
-    """
-    groups = []
-    current = []
-    for index, record in enumerate(records):
-        if int(record["running"]):
-            tick = int(record["tick"])
-            if current and tick != int(records[current[-1]]["tick"]) + 1:
-                raise ValueError("running Ethos-U group has missing sample ticks")
-            current.append(index)
-        elif current:
-            groups.append(current)
-            current = []
-    if current:
-        groups.append(current)
-    return groups
-
-
 def fold(root, npu_clock_hz=None):
     """Return summary, windows, activity phases, PMU windows and PMU phases.
 
@@ -139,13 +99,8 @@ def fold(root, npu_clock_hz=None):
     """
     if npu_clock_hz is not None and (not math.isfinite(npu_clock_hz) or npu_clock_hz <= 0):
         raise ValueError("NPU clock frequency must be finite and positive")
-    aggregate = json.loads((root / "summary.json").read_text())
-    captures = capture_rows(root)
-    if aggregate.get("captures") != len(captures) or not aggregate.get("all_validation_passed"):
-        raise ValueError("aggregate captures are incomplete or unvalidated")
+    aggregate, captures = read_aggregate(root)
     sample_hz = int(aggregate["sample_hz"])
-    if sample_hz <= 0:
-        raise ValueError("invalid sample rate")
     event_ids = None
     timestamp_hz = None
     device_type = None
@@ -163,19 +118,9 @@ def fold(root, npu_clock_hz=None):
 
     for capture_index, item in enumerate(captures):
         directory = root / item["capture_dir"] / "ethosu_report"
-        summary = json.loads((directory / "summary.json").read_text())
-        records = read_csv(directory / "samples.csv")
-        # The aggregate manifest locates reports; recheck each source so a stale
-        # or incomplete report cannot silently contribute to the averages.
-        if any(
-            summary.get(key) != value
-            for key, value in (("active", 0), ("complete", 1), ("validation_passed", 1))
-        ):
-            raise ValueError(f"capture {capture_index}: Ethos-U trace is not finalized and valid")
-        if len(records) != summary["count"] or summary["sample_hz"] != sample_hz:
-            raise ValueError(f"capture {capture_index}: record count or sample rate differs")
-        if sum(int(row["sample_count"]) for row in records) != summary["total_samples"]:
-            raise ValueError(f"capture {capture_index}: compressed tick count differs")
+        summary, records = read_ethosu_report(directory)
+        if summary["sample_hz"] != sample_hz:
+            raise ValueError(f"capture {capture_index}: sample rate differs")
         # No-PMU captures still produce activity and QREAD folds. When PMU is
         # present, counter order, symbolic event IDs and device must agree.
         count = int(summary["pmu_count"])
@@ -320,15 +265,7 @@ def fold(root, npu_clock_hz=None):
             pmu_row = dict(row)
             for index, (key, _) in enumerate(names):
                 values = [record[index] for record in phase_pmu[phase]]
-                pmu_row[f"{key}_mean_cycles"] = statistics.mean(values)
-                # Approximate normal 95% interval for the mean. Repeated periods
-                # may be correlated; this is not a bound on profiling error.
-                # A single observation uses width 0, not proof of certainty.
-                pmu_row[f"{key}_ci95_cycles"] = (
-                    1.96 * statistics.stdev(values) / math.sqrt(len(values))
-                    if len(values) > 1
-                    else 0
-                )
+                pmu_row[f"{key}_mean_cycles"], pmu_row[f"{key}_ci95_cycles"] = mean_ci(values)
             pmu_phases.append(pmu_row)
     summary = {
         "captures": len(captures),

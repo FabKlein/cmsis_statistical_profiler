@@ -59,38 +59,6 @@ board adapters do not select or probe those bounds.
 | CMSIS-RTOS2 | [RTX](examples/corstone300_rtos2/CALL_TREE.md) / [FreeRTOS](examples/corstone300_freertos/README.md) dual-thread Toolbox/FVP tests, [integration illustration](examples/corstone300_rtos2/README.md) |
 | New board | [Adapter template](adapters/template/README.md) |
 
-The optional Ethos-U trace discovers command streams automatically and reports
-QREAD hotspots per stream. No application registration is required; command-stream
-contents must remain unchanged during capture. Consecutive idle samples share
-1 record; reported utilization still counts every represented sampling tick.
-For multiple capture/export/resume cycles and Vela operator attribution, see
-[Repeated Cortex-M and Ethos-U profiling](docs/REPEATED_CAPTURES.md).
-For a matching PTE and Vela debug database, the
-[Ethos-U operator report guide](docs/ETHOSU_OPERATOR_REPORTS.md) covers
-command-stream unwrapping, exact-byte validation, and operator SVG charts.
-The [offline HTML report index](host/generate_report_index.py) collects whichever
-aggregate charts, timelines, tables, and annotations were generated for a run.
-An optional per-run `platform.json` adds processor names, core roles, nominal
-clocks, and explicit idle function or PC ranges for sampled Cortex-M non-idle
-share. See the [report-index step](docs/REPEATED_CAPTURES.md#5-build-an-offline-report-index).
-For repeated captures, [combine_perfetto_captures.py](host/combine_perfetto_captures.py)
-builds one pause-free Cortex-M timeline with capture boundaries; see the
-[report-index step](docs/REPEATED_CAPTURES.md#5-build-an-offline-report-index).
-Add `--include-ethosu` to include synchronized NPU snapshots and PMU rates in
-`combined.perfetto.json`; the HTML index selects it automatically. NPU PMU tracks
-display zero during sampled idle runs; snapshot details retain measured rates.
-For captures with synchronized MCU and Ethos-U ticks,
-[fold_mcu_by_ethosu.py](host/fold_mcu_by_ethosu.py) builds an MCU activity
-profile aligned to NPU running starts, with CPU PMU counters when present.
-[fold_ethosu_by_inference.py](host/fold_ethosu_by_inference.py) folds Ethos-U
-running activity and optional PMU counters over complete inference periods.
-[plot_joint_mcu_ethosu.py](host/plot_joint_mcu_ethosu.py) places the two folds
-on one shared phase axis when both processors were captured.
-[generate_aggregate_mcu_report.py](host/generate_aggregate_mcu_report.py)
-creates combined CPU hotspots and optional Brendan Gregg flamegraphs;
-[summarize_tosa_operators.py](host/summarize_tosa_operators.py) groups
-PTE-verified queue operations by TOSA type.
-
 Select the common layer, 1 board and 1 board timer:
 
 ```yaml
@@ -119,37 +87,14 @@ peripheral timer need an appropriate adapter.
 M0/M0+/M1/M23 need a [custom timestamp](adapters/template/profiler_timestamp.c.example).
 TCM is optional.
 
-The generic SysTick path was hardware-validated on an Infineon PSOC Edge E84
-platform with independent Cortex-M55 and Cortex-M33 RAM images. Both used 64 KiB
-capture buffers and EHABI backtraces at 1 kHz with zero rejected frames or
-unresolved PCs. The M55 captured four PMU events; the M33 correctly ran PC and
-backtrace sampling without a PMU. This validation inherited board clocks and
-power/security setup from already-running boot firmware; it does not replace the
-Infineon BSP startup flow or validate coexistence with software that owns SysTick.
-
-It was also validated on an NXP MIMXRT685-EVK Cortex-M33 RAM image at 1 kHz with
-a 128 KiB buffer and 16-level EHABI backtraces. The completed capture contained
-2,248 samples with zero rejected frames and zero unresolved PCs; 2,247 samples
-reconstructed the expected A-F workload beneath the selected root. The Cortex-M33
-correctly ran with `PROFILER_PMU_COUNT=0`. This test exposed an important Armv8-M
-integration rule: infer the exception frame security state from `EXC_RETURN`, not
-from the debugger's visible SCS alias. See the
-[SysTick validation notes](integrations/systick/README.md#nxp-mimxrt685-evk-hardware-validation).
-
-Set `PROFILER_SAMPLE_HZ` and `PROFILER_SAMPLE_BUFFER_BYTES` in your application
-project or configuration header ([staged integration](docs/INTEGRATION.md)). A
-64 KiB buffer holds 2,723
-samples without PMU, 2,042 with 2 events or 1,634 with 4 events, without backtraces. Currently, recording
-stops when the buffer is full; existing records are not overwritten. Circular
-buffering is not implemented. An application can implement a repeated
-capture/export/resume workflow as described in the
-[runbook](docs/REPEATED_CAPTURES.md): stop and finalize both buffers, export and
-decode them while halted, then reinitialize for the next capture.
-See [configuration](docs/CONFIGURATION.md) for clocks, bounds and build options.
+Set sampling rate, buffer size and readable stack bounds in the application;
+see [configuration](docs/CONFIGURATION.md). Use one timer source. Recording stops
+when the buffer is full; existing records are preserved. Start with PC sampling
+and enable PMU/backtraces only after that capture passes validation.
 
 ## Capture and decode
 
-Call from privileged thread mode on the sampled core:
+Run lifecycle calls serially in privileged thread mode on the sampled core:
 
 ```c
 if (!profiler_init())
@@ -159,249 +104,72 @@ run_your_workload();
 profiler_stop(1, workload_output_is_correct());
 ```
 
-The public API is declared in `mcu/sampling_profiler.h`. `profiler_enable()` and
-`profiler_disable()` gate recording; `profiler_stop()` stops sampling and finalizes
-the buffer. `profiler_sample_ticks()` and `profiler_elapsed_ms()` return cumulative
-sampling interrupts and timer milliseconds. Subtract 2 readings for an interval;
-these counters are independent of RTOS ticks and are not reset by initialization.
-`profiler_port_*` functions are internal backend interfaces; `profiler_timer_*`
-functions are board adapter hooks.
+The public API is in [sampling_profiler.h](mcu/sampling_profiler.h).
+`profiler_enable()`/`profiler_disable()` gate recording; `profiler_stop()` finalizes
+the capture and repeated stops preserve its first result. `profiler_init()` resets
+metadata for the next capture. `profiler_sample_ticks()` and
+`profiler_elapsed_ms()` provide cumulative timer readings; subtract two readings
+for an interval.
 
-The workload functions are placeholders. Always stop, even when full. Keep clocks
-stable; avoid sleep, debugger halts and long interrupt masking during capture.
-After `profiler_stop()` returns, halt the target. With the matching ELF
-loaded in GDB, use [tools/export_profiler_buffer.gdb](tools/export_profiler_buffer.gdb) from the
-repository root:
+Before capture, check the exact ELF with Python 3.10+:
+
+```sh
+python3 host/check_profiler_elf.py --elf firmware.elf
+```
+
+After stop returns, halt the target with that ELF loaded in GDB. From the
+repository root, export the whole allocation:
 
 ```gdb
 source tools/export_profiler_buffer.gdb
 export_profiler_buffer samples.bin
 ```
 
-The helper checks that capture is complete and inactive, prints the header, and
-dumps the whole buffer, including unused space. For AMP, stop all captures before
-halting, then run it in each core's debugger context with its own ELF and filename.
-
-For a packaged report, use [create_profiler_report.py](host/create_profiler_report.py);
-it preserves inputs/provenance and links decoded data, Perfetto and optional plots.
-See the [integration commands](docs/INTEGRATION.md).
-
-Decode directly with Python 3.8+ and the exact unstripped executable:
+Decode and package the first report into a new directory:
 
 ```sh
-python3 host/analyze_profiler_buffer.py --samples samples.bin --elf firmware.elf --output report
+python3 host/create_profiler_report.py \
+  --samples samples.bin --elf firmware.elf --output report \
+  --board "<actual board or simulator>" --application "<application name>"
 ```
 
-C++ function names are demangled automatically using `arm-none-eabi-c++filt`,
-`llvm-cxxfilt` or `c++filt` from `PATH`. Use `--cxxfilt PATH` to select a tool, or
-`--no-demangle` to retain ELF names. If the tool is unavailable or fails, the decoder
-warns and keeps the original names. Regenerate the report and visualization to
-update existing plots.
-
-Outputs: `functions.csv`, `samples.csv`, `summary.json`, and `events.csv` for PMU
-requests. Function percentages estimate sampled execution time, not call counts.
-Samples aggregate tasks; task IDs are not recorded. Optional backtraces are
-available for FlameGraph export (see below).
-If timestamp clocks disagree, the host warns and marks `timing_valid=false`;
-derived time fields are blank, while raw timestamps and PC/PMU reports remain available.
-
-For AMP, use 1 profiler instance, buffer, timer channel and ELF per core.
-See [Alif dual-core setup and retrieval](adapters/alif_e8/README.md). Reports stay
-separate; independent timestamps are not automatically synchronized.
+Open `report/index.html`; keep `REPORT.md`, raw inputs and the exact ELF together.
+Require complete/inactive capture, valid timing, correct workload output and no
+unexpected rejected frames or unresolved PCs. Keep clocks stable and avoid
+sleep/debugger pauses during capture. PC percentages estimate sampled execution
+time; PMU deltas are not per-function costs.
 
 ## Optional PMU
 
-See the [Armv8.1-M Performance Monitoring User Guide](https://documentation-service.arm.com/static/63f365789567172d4e2aadf5)
-for PMU events, counter chaining and usage guidance.
-
-Set `PROFILER_PMU_COUNT` to 0-4 in your application (default 0). Each 32-bit
-event uses 2 hardware counters. Default events, in order: D-cache refill (`0x0003`),
-backend stall (`0x0024`), instructions retired (`0x0008`) and CPU cycles (`0x0011`).
-Override `PROFILER_PMU_EVENT0` through `PROFILER_PMU_EVENT3` as needed. Records
-use 24, 28, 32, 36 or 40 bytes for 0-4 active events.
-Unavailable PMU collection falls back to PC sampling with a diagnostic status.
-
-PMU counts cover init through stop, including interrupts and gated-off execution.
-The host reports totals and interval deltas, without per-function attribution.
-Overflow or incoherent reads invalidate derived counts.
+Configure 0–4 events in the application; see [PMU configuration](docs/CONFIGURATION.md).
+Unavailable PMU falls back to PC sampling with a diagnostic. Counter slots retain
+separate identities even when selecting the same event twice.
 
 ## Optional backtraces and FlameGraph
 
-Set `PROFILER_STACK_UNWIND=1` and `PROFILER_PRECISE_STACK_BOUNDS=1` in your application
-to collect caller addresses. `PROFILER_UNWIND_MAX_DEPTH` defaults to 16;
-each sample stores only its recovered callers (4-byte metadata + 4 bytes/caller). This requires
-compiler-generated EHABI tables, a linker-table hook and precise stack bounds.
-The decoder exports `stacks.folded` and trace-status diagnostics; incomplete traces
-remain visible without diagnostic frames; unreliable chains are excluded with counts.
-Use `--stack-root osThreadEntry` to select the graph base. See [setup and limitations](docs/UNWINDING.md).
+Backtraces require EHABI tables, precise stack bounds and both application hooks;
+see [unwinding setup](docs/UNWINDING.md) and the [ISR budget](docs/ISR_BUDGET.md).
+The decoder retains partial-trace diagnostics and exports folded stacks.
+Render them with Brendan Gregg's external `flamegraph.pl` as described in the
+[host tools guide](docs/HOST_TOOLS.md#optional-backtraces-and-flamegraph).
 
-Interpret `no_table` and `unsupported` at the point where unwinding **stopped**,
-not necessarily at the sampled PC. A partial chain that already reached the
-chosen `--stack-root` is useful even if C runtime startup above it has no
-recipe. Compare `root_reached_percent`, `unwind_status_counts` and the actual
-`callchain` values in `samples.csv`; raw status totals alone do not measure
-FlameGraph coverage. For C++ code, `-funwind-tables` may produce a generic
-personality recipe that this compact-EHABI walker cannot decode. Check required
-functions in the final ELF with
-`host/check_profiler_elf.py --elf firmware.axf --function NAME --require-unwind`; disabling
-exceptions for an affected source is an option
-only if its behavior does not depend on C++ exception propagation.
+## Further guides
 
-![F16 MobileNetV3 on STM32N6: sampled call stacks as a flamegraph](docs/images/stm32n6-mobilenetv3-f16-flamegraph.svg)
-
-*Example flamegraph: F16 MobileNetV3 on STM32N6. Frame widths represent included
-sample counts, not call counts or per-function PMU totals.*
-
-## Annotate hot instructions
-
-Show a ranked hotspot summary of functions, source lines and instruction PCs:
-
-```sh
-python3 host/annotate_profiler_report.py --report report --elf firmware.elf --top 5 --source
-```
-
-The default `--view hotspots` ranks self-PC samples across the selected functions.
-Source-line hits from different functions add together when they map to the same
-file and line. `--hotspot-limit 15` controls the number of source lines and PCs.
-Shares use all capture samples as the denominator; they are not measured instruction
-cycle costs. Sampling bias and interrupt latency still apply. PMU counts are not
-attributed to source lines or instructions.
-
-Use `--view groups` for the detailed disassembly. Functions and their instruction
-groups are shown in descending sample-share order; equal-hit groups retain address
-order. Groups contain 8 instructions by default; use `--group-instructions 4` to
-shrink or `1` for individual instructions. Zero-hit groups are hidden with an
-omission marker; use `--show-zero-hit-groups` for the full disassembly. Group
-percentages are relative to the function's samples. These are consecutive
-instruction groups, not branch-delimited basic blocks.
-
-Use `--function NAME` (or `0xADDRESS`) to select a function, and `--output annotation.txt`
-to save text. The tool probes `arm-none-eabi-objdump`, then `llvm-objdump` on `PATH`;
-use `--objdump /path/to/objdump` to override. The ELF must match the report's hash.
-Unmatched PCs are reported explicitly, without assigning them to nearby instructions.
-For Cortex-M55 MVE code, pass the architecture explicitly, for example GNU Arm
-`--objdump-arg=-m --objdump-arg=armv8.1-m.main` or LLVM
-`--objdump-arg=--mcpu=cortex-m55`. Without it, valid MVE opcodes can appear as
-coprocessor instructions such as `cdp` or `ldc`.
-
-Add `--source` for a source-line ranking in the hotspot view or distinct source
-lines above each group in the detailed view. This needs
-ELF debug information (`-g`) and matching local sources. GNU Arm/LLVM `addr2line`
-is auto-detected; override with `--addr2line PATH`. For a relocated source tree,
-use `--source-map /original/project=/local/project` (repeatable). Missing lines
-or files are noted while disassembly remains available. Optimized source mappings
-can be reordered or inlined; they do not define group boundaries.
-
-## Visualize reports: HTML and Perfetto
-
-[host/visualize_profiler_report.py](host/visualize_profiler_report.py) converts a decoded report
-into a Perfetto trace and, optionally, an interactive HTML dashboard. It reads
-`samples.csv` and `summary.json` from the same decoder run. No connected board,
-firmware rebuild or ELF is needed at this stage; symbolization is already done.
-Use the matching ELF when running `analyze_profiler_buffer.py` first.
-
-![F16 MobileNetV3 on STM32N6: sampled function shares and PMU event rates](docs/images/stm32n6-mobilenetv3-f16.png)
-
-*Example HTML dashboard: F16 MobileNetV3 on STM32N6, showing sampled function
-shares and PMU event rates over time.*
-
-Run these commands from the repository root. `REPORT_DIR` can be outside the
-repository; keep confidential captures and generated reports out of version control.
-
-```sh
-python3 host/visualize_profiler_report.py --report REPORT_DIR
-```
-
-This writes `REPORT_DIR/samples.perfetto.json` using only the Python standard
-library. To also generate HTML, install the optional visualization dependency
-in your Python environment:
-
-```sh
-python3 -m pip install -r host/requirements-visualization.txt
-python3 host/visualize_profiler_report.py --report REPORT_DIR --html
-```
-
-This additionally writes `REPORT_DIR/dashboard.html`. Open it in a browser, or
-launch it with Python using the absolute file path:
-
-```sh
-python3 -m webbrowser "file:///absolute/path/to/report/dashboard.html"
-```
-
-| Option | Purpose |
+| Task | Guide |
 |---|---|
-| `--report PATH` | Required directory containing `samples.csv` and `summary.json` |
-| `--output PATH` | Output directory; defaults to the report directory |
-| `--html` | Also create `dashboard.html`; requires Plotly |
-| `--symbol-max-chars N` | Limit displayed function labels (default 120, minimum 40) |
-| `--help` | Show command-line usage |
+| Host requirements, packaging, instruction annotation, HTML and Perfetto | [Host tools](docs/HOST_TOOLS.md) |
+| Repeated or synchronized MCU/Ethos-U captures, aggregation and report index | [Repeated captures](docs/REPEATED_CAPTURES.md) |
+| Exact PTE/Vela validation and operator attribution | [Ethos-U operator reports](docs/ETHOSU_OPERATOR_REPORTS.md) |
+| Compile, FVP and hardware evidence and limitations | [Validation](tests/VALIDATION.md) |
+| Binary layout | [Capture format](FORMAT.md) |
 
-Existing exports with these names are overwritten; decoded CSV/JSON inputs are
-unchanged. Use `--output` to retain multiple exports.
-
-### HTML dashboard
-
-- Top 20 function names by exclusive PC hits, plus a full function-name table.
-- Individual PC samples with function, time, PC, LR and sample index on hover.
-- 0-4 valid PMU event-rate graphs sharing the PC timeline's zoomable time axis.
-- Capture warnings, validation status, PMU totals and ELF/capture hashes.
-- Embedded Plotly JavaScript: works offline, with no CDN or server required.
-
-Drag to zoom, double-click a plot to reset, click legend entries to hide functions,
-or double-click a legend entry to isolate a function. Function rank 0 is the hottest
-name in the table. Hotspot percentages and the table always describe the whole
-capture, even when the timeline is zoomed. Identical function names are aggregated.
-
-Long demangled names retain their beginning and end plus a stable eight-digit
-SHA256 prefix ID, within the label limit. Full names remain in plot hover text
-(wrapped for readability) and table tooltips. Click a table name to expand its
-full, copyable signature. For example, use `--html --symbol-max-chars 100` for
-shorter labels. Aggregation still uses the full name; CSV inputs are unchanged.
-
-### Perfetto trace
-
-Open `samples.perfetto.json` with **Open trace file** in an approved Perfetto UI.
-For confidential data, use your approved local/self-hosted viewer and do not use
-upload or sharing features. The exporter itself performs no network requests.
-
-The Chrome JSON trace contains 1 instant event per PC sample, named after its
-function, with PC/LR/index/tick arguments. PMU rates appear as counter tracks.
-Long event names use the same compact labels; select an event to see its full
-name in the `function` argument. The short ID is a display aid, not a unique
-symbol key; use the full argument and PC for programmatic analysis.
-A capture-information event contains warnings, limitations, hashes and PMU totals.
-Timestamps use microseconds in JSON; Perfetto SQL uses nanoseconds.
-No call stacks, function-duration spans or inference boundaries are inferred.
-
-### Interpretation and validation
-
-PMU rates are `interval_delta / actual_elapsed_seconds` between consecutive
-samples. A value at time T describes the interval **ending** at T, not the time
-after T; viewer lines/steps are not additional measurements. The initial PMU
-interval is omitted because its epoch differs from the timestamp epoch. Final
-unsampled time is also omitted, so plotted intervals need not sum to the full
-initialization-to-stop totals.
-
-These are raw event-rate plots, not smoothed curves, CPI, stall percentages or
-cache-miss rates. PMU intervals include interrupts and gated-off execution and
-must not be attributed to the function sampled at their endpoint. PC hits estimate
-exclusive execution-time share, not calls or exact cycle counts. Fixed-rate
-aliasing and interrupt latency remain limitations; LR is not a call stack.
-
-Empty captures, invalid timing, non-increasing timestamps, inconsistent sample
-counts and malformed PMU deltas are rejected. Disabled/invalid PMU suppresses
-rate tracks while retaining valid PC samples. Full/incomplete captures, rejected
-frames, failed workload validation and unresolved PCs produce warnings.
-The exporter preserves supplied hashes but cannot independently verify that the
-CSV, summary and original ELF belong together.
+For AMP, reserve a distinct buffer and timer per image and decode with each core's
+ELF. The [Alif guide](adapters/alif_e8/README.md) covers dual-core integration.
+Ethos-U uses a separate trace buffer; see its [adapter guide](adapters/ethosu/README.md).
 
 ## Development
 
-A minimal [Doxygen scaffold](Documentation/README.md) generates draft API documentation.
-
-Run `python3 -B -m unittest discover -s tests -v`.
-[GitHub Actions](.github/workflows/fvp.yml) builds the
-[Corstone-300 csolution](examples/corstone300/profiler.csolution.yml) with AC6 via CMSIS-Toolbox and checks an FVP PMU
-capture against the [acceptance reference](tests/fvp_reference.json).
-See [validation](tests/VALIDATION.md), [capture format](FORMAT.md),
+Run `python3 -B -m unittest discover -s tests -v` and
+`ruff format --check host/`. See [validation commands](tests/VALIDATION.md),
+[CI](.github/workflows/fvp.yml), [Doxygen](Documentation/README.md),
 [agent guide](AGENTS.md) and [TODO](TODO.md).

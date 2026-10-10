@@ -86,7 +86,7 @@ int main(void)
     assert(fake_priority[irq] == PROFILER_IRQ_PRIORITY);
     assert(fake_timer.UTIMER_GLB_CNTR_STOP == CHANNEL_MASK);
     assert(fake_timer.UTIMER_GLB_CNTR_CLEAR == CHANNEL_MASK);
-    profiler_timer_start();
+    assert(profiler_timer_start());
     assert(fake_enabled[irq] && !fake_pending[irq]);
     assert(fake_timer.UTIMER_GLB_CNTR_START == CHANNEL_MASK);
     assert(!profiler_timer_ack());

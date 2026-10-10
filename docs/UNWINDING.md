@@ -15,6 +15,10 @@ The existing PC identifies the current function. Header `unwind_max_depth=0`
 means no backtraces; a nonzero value identifies EHABI and the compiled limit.
 Rebuild firmware and use the matching decoder after this format change.
 
+Budget the interrupt stack separately from the capture buffer. See the
+[ISR stack and time budgets](ISR_BUDGET.md) for compiler measurements, caller-depth
+tradeoffs, complete call-path accounting and target timing checks.
+
 ## Build and integration
 
 1. Generate unwind tables for application and library code, for example with

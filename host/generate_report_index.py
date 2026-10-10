@@ -21,13 +21,15 @@ import json
 from pathlib import Path
 from urllib.parse import quote
 
+from report_helpers import capture_rows, idle_classification, is_idle, read_platform
+
 GROUPS = (
     (
         "overview",
         "Capture and provenance",
         (
             ("REPORT.md", "Human report"),
-            ("summary.json", "Aggregate metadata"),
+            ("summary.json", "Decoded / aggregate metadata"),
             ("captures.csv", "Capture validation table"),
             ("manifest.json", "Input and tool provenance"),
             ("platform.json", "Platform and idle classification metadata"),
@@ -118,64 +120,12 @@ def read_capture_rows(root):
     path = root / "captures.csv"
     if not path.is_file():
         return []
-    with path.open(newline="") as source:
-        return list(csv.DictReader(source))
-
-
-def read_platform(root):
-    path = root / "platform.json"
-    if not path.is_file():
-        return {}
-    platform = json.loads(path.read_text())
-    if not isinstance(platform, dict) or platform.get("schema_version") != 1:
-        raise ValueError("platform.json requires schema_version 1 and a JSON object")
-    for key in ("soc", "clock_basis"):
-        if key in platform and (not isinstance(platform[key], str) or not platform[key].strip()):
-            raise ValueError(f"platform.json {key} must be nonempty text")
-    for component in ("cpu", "ethosu"):
-        data = platform.get(component, {})
-        if not isinstance(data, dict):
-            raise TypeError(f"platform.json {component} must be an object")
-        for key in ("name", "role"):
-            if key in data and (not isinstance(data[key], str) or not data[key].strip()):
-                raise ValueError(f"platform.json {component}.{key} must be nonempty text")
-        frequency = data.get("frequency_hz")
-        if frequency is not None and (type(frequency) is not int or frequency <= 0):
-            raise ValueError(f"platform.json {component}.frequency_hz must be a positive integer")
-    cpu = platform.get("cpu", {})
-    idle_functions = cpu.get("idle_functions", [])
-    if not isinstance(idle_functions, list) or any(
-        not isinstance(name, str) or not name.strip() for name in idle_functions
-    ):
-        raise ValueError("platform.json cpu.idle_functions must be a list of names")
-    ranges = cpu.get("idle_pc_ranges", [])
-    if not isinstance(ranges, list):
-        raise TypeError("platform.json cpu.idle_pc_ranges must be a list")
-    for item in ranges:
-        if not isinstance(item, dict) or set(item) != {"start", "end"}:
-            raise ValueError("idle PC ranges require start and exclusive end")
-        start, end = parse_address(item["start"]), parse_address(item["end"])
-        if start < 0 or end <= start:
-            raise ValueError("idle PC ranges require 0 <= start < end")
-    return platform
-
-
-def parse_address(value):
-    if type(value) is int:
-        return value
-    if isinstance(value, str):
-        return int(value, 0)
-    raise ValueError("PC range addresses must be integers or numeric strings")
+    return capture_rows(root)
 
 
 def sampled_cpu_non_idle(root, summary, platform):
-    cpu = platform.get("cpu", {})
-    idle_functions = set(cpu.get("idle_functions", []))
-    idle_ranges = [
-        (parse_address(item["start"]), parse_address(item["end"]))
-        for item in cpu.get("idle_pc_ranges", [])
-    ]
-    if not idle_functions and not idle_ranges:
+    classification = idle_classification(platform)
+    if classification is None:
         return None
     path = root / "cortex_m_samples.csv"
     if not path.is_file():
@@ -189,13 +139,7 @@ def sampled_cpu_non_idle(root, summary, platform):
         raise ValueError("CPU sample count differs from summary.json")
     if not rows:
         return None
-    idle = 0
-    for row in rows:
-        pc = parse_address(row["pc"]) if idle_ranges else None
-        if row.get("function") in idle_functions or any(
-            start <= pc < end for start, end in idle_ranges
-        ):
-            idle += 1
+    idle = sum(is_idle(row, classification) for row in rows)
     return 100 * (len(rows) - idle) / len(rows)
 
 
@@ -372,11 +316,17 @@ def render(root, summary, captures, board, application):
         else ""
     )
     clock_note = platform.get("clock_basis", "")
-    detail_note = "".join(
-        f'<p class="detail-note">{escape(note)}</p>'
-        for note in (cpu_activity_note, clock_note)
-        if note
-    )
+    notes = [cpu_activity_note, clock_note]
+    graph = summary.get("flamegraph")
+    if graph:
+        notes += [
+            graph["subtitle"],
+            "Stack inclusion and reaching a selected root do not prove stack accuracy.",
+        ]
+    manifest_path = root / "manifest.json"
+    if manifest_path.is_file():
+        notes.extend(json.loads(manifest_path.read_text()).get("problems", []))
+    detail_note = "".join(f'<p class="detail-note">{escape(note)}</p>' for note in notes if note)
     cards = "".join(
         f'<div class="fact"><dt>{escape(label)}</dt><dd>{escape(value)}</dd></div>'
         for label, value in facts
@@ -391,8 +341,12 @@ def render(root, summary, captures, board, application):
         ("hotspots.svg", "PC hotspots"),
         ("flamegraph.svg", "Flamegraph"),
         ("stacks.folded", "Folded stacks"),
+        ("stacks.note.txt", "Stack inclusion and coverage"),
         ("functions.csv", "Function samples"),
         ("samples.csv", "PC samples"),
+        ("events.csv", "PMU counter totals (slot order)"),
+        ("inputs/samples.bin", "Exact raw capture"),
+        ("inputs/firmware.elf", "Exact unstripped executable"),
     )
     sections.append(artifact_section(root, "single", "Single-capture views", single))
     navigation = "".join(

@@ -38,7 +38,6 @@
  * arrangement; they are not a lock for multiple cores or concurrent callers.
  */
 
-#include "sampling_profiler.h"
 #include "sampling_profiler_port.h"
 #include <string.h>
 
@@ -101,7 +100,11 @@ int profiler_init(void)
     /* Begin a fresh capture and clear any failure reported by the previous init. */
     initialized = 0;
     diagnostics = (struct ProfilerDiagnostics){0};
-    memset((void *)&statistical_samples, 0, sizeof(statistical_samples));
+    /* Only metadata needs resetting; unused record bytes retain old contents.
+     * The decoder bounds records by count/bytes_used, not by zero-filled RAM.
+     * Restore this full clear only when the application needs data erasure:
+     * memset((void *)&statistical_samples, 0, sizeof(statistical_samples)); */
+    memset((void *)&statistical_samples.header, 0, sizeof(statistical_samples.header));
 
     /* Describe the allocation so the host can validate the dump before decoding. */
     statistical_samples.header.magic = PROFILER_CAPTURE_MAGIC;
@@ -176,10 +179,12 @@ int profiler_full(void) { return statistical_samples.header.full != 0; }
 
 void profiler_stop(uint32_t iterations, uint32_t validation_passed)
 {
+    /* A finalized capture stays unchanged until the next initialization. */
+    if (!initialized || statistical_samples.header.complete)
+        return;
+
     /* Gate off writes before stopping the hardware and taking final snapshots. */
     profiler_disable();
-    if (!initialized)
-        return;
 
     profiler_port_stop();
 #if PROFILER_PMU_COUNT
@@ -203,14 +208,14 @@ void profiler_stop(uint32_t iterations, uint32_t validation_passed)
  * host can distinguish a quiet workload from failed frame validation. */
 void profiler_reject(enum ProfilerRejection reason)
 {
-    if (!statistical_sampling_gate || (unsigned)reason >= PROFILER_REJECT_REASON_COUNT)
+    if ((unsigned)reason >= PROFILER_REJECT_REASON_COUNT)
         return;
 
     ++statistical_samples.header.rejected;
     ++statistical_samples.header.rejected_reason[reason];
 }
 
-/* Append 1 backend-validated sample; called only by the sampling ISR.
+/* Append 1 backend-admitted, validated sample; called only by the sampling ISR.
  * Record layout (32-bit words):
  *   [timestamp, tick, PC, LR, xPSR, exception return]
  *   [0-4 PMU values] [optional unwind metadata + recovered callers]
@@ -219,9 +224,6 @@ void profiler_reject(enum ProfilerRejection reason)
  */
 void profiler_record(const struct ProfilerSample *sample)
 {
-    if (!statistical_sampling_gate)
-        return;
-
     /* Work out the complete record size before touching buffer contents. */
     uint32_t index = statistical_samples.header.count;
     uint32_t bytes = statistical_samples.header.record_base_bytes;
@@ -237,12 +239,7 @@ void profiler_record(const struct ProfilerSample *sample)
      * that cannot fit in full; previously captured records remain untouched. */
     uint32_t used = statistical_samples.header.bytes_used;
     if (bytes > sizeof(statistical_samples.records) - used)
-    {
-        statistical_samples.header.full = 1;
-        statistical_sampling_gate = 0;
-        statistical_samples.header.active = 0;
-        return;
-    }
+        goto full;
 
     /* Copy the architectural sample first, then its enabled optional fields. */
     volatile uint32_t *record = &statistical_samples.records[used / 4U];
@@ -263,18 +260,19 @@ void profiler_record(const struct ProfilerSample *sample)
         record[offset + 1U + i] = sample->callers[i];
 #endif
 
-    /* Publish lengths/count only after the record data has been written. This
-     * orders writes; readers must still wait for stop before exporting a capture. */
-    profiler_port_barrier();
+    /* Volatile stores keep the record before its lengths/count in program order.
+     * No live readers: the single-core ISR finishes before thread-mode stop,
+     * which orders and flushes the entire capture before export. */
     statistical_samples.header.bytes_used = used + bytes;
     statistical_samples.header.count = index + 1U;
 
     /* Close the gate immediately if even a minimum-size next record cannot fit.
      * The timer still runs; profiler_stop() is needed to finalize the capture. */
-    if (sizeof(statistical_samples.records) - used - bytes < statistical_samples.header.record_base_bytes)
-    {
-        statistical_samples.header.full = 1;
-        statistical_sampling_gate = 0;
-        statistical_samples.header.active = 0;
-    }
+    if (sizeof(statistical_samples.records) - used - bytes >= statistical_samples.header.record_base_bytes)
+        return;
+
+full:
+    statistical_samples.header.full = 1;
+    statistical_sampling_gate = 0;
+    statistical_samples.header.active = 0;
 }

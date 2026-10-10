@@ -4,17 +4,13 @@
 """Plot synchronized MCU and Ethos-U inference folds on one phase axis."""
 
 import argparse
-import csv
 import json
 import math
 from collections import Counter, defaultdict
 from itertools import pairwise
 from pathlib import Path
 
-
-def read_csv(path):
-    with path.open(newline="") as source:
-        return list(csv.DictReader(source))
+from report_helpers import read_csv, write_csv
 
 
 def number(row, key):
@@ -74,17 +70,20 @@ def combine(root):
             "phase_ms": phase,
             "inferences_eligible": eligible,
             "mcu_pc_samples": observed,
-            "mcu_non_idle_percent": number(cpu, "non_idle_percent"),
             "ethosu_running_samples": running,
             "ethosu_running_percent": 100 * running / eligible,
         }
         if "running_samples" in npu and running != int(npu["running_samples"]):
             raise ValueError(f"Ethos-U running coverage differs at {phase} ms")
-        if not (0 <= row["mcu_non_idle_percent"] <= 100):
-            raise ValueError(f"invalid MCU activity at {phase} ms")
-        for name in mcu_summary["cpu_pmu_events"]:
-            row[f"mcu_{name}_mean"] = number(cpu, f"{name}_mean")
-            row[f"mcu_{name}_ci95"] = number(cpu, f"{name}_ci95")
+        if mcu_summary["idle_classification"]:
+            row["mcu_non_idle_percent"] = number(cpu, "non_idle_percent") if observed else ""
+            if observed and not 0 <= row["mcu_non_idle_percent"] <= 100:
+                raise ValueError(f"invalid MCU activity at {phase} ms")
+        for event in mcu_summary["cpu_pmu_events"]:
+            key = event["key"]
+            for suffix in ("intervals", "mean", "ci95"):
+                field = f"{key}_{suffix}"
+                row[f"mcu_{field}"] = number(cpu, field) if cpu[field] != "" else ""
         for event in events:
             name = event["key"]
             row[f"ethosu_{name}_mean_cycles"] = number(pmu[phase], f"{name}_mean_cycles")
@@ -111,8 +110,7 @@ def plot(root, summary, rows, omitted_ethos_phases):
         if phase not in x or name in by_phase[phase] or count < 0:
             raise ValueError(f"invalid MCU function samples at {phase} ms")
         by_phase[phase][name] = count
-        if name != summary["idle_function"]:
-            totals[name] += count
+        totals[name] += count
     for row in rows:
         if sum(by_phase[row["phase_ms"]].values()) != row["mcu_pc_samples"]:
             raise ValueError(f"MCU function samples differ at {row['phase_ms']} ms")
@@ -130,7 +128,7 @@ def plot(root, summary, rows, omitted_ethos_phases):
     fig.subplots_adjust(left=0.095, right=0.79, top=0.948, bottom=0.064, hspace=0.58)
     mix = axes[0]
     top = [name for name, _ in totals.most_common(5)]
-    labels = [summary["idle_function"], *top, "Other active"]
+    labels = [*top, "Other functions"]
     series = [
         [
             100 * by_phase[phase].get(name, 0) / row["mcu_pc_samples"]
@@ -187,14 +185,35 @@ def plot(root, summary, rows, omitted_ethos_phases):
             )
             mix.set_ylim(0, 114)
 
-    axes[1].plot(x, [row["mcu_non_idle_percent"] for row in rows], color="#1d6d80")
-    axes[1].set(ylabel="PC samples (%)", ylim=(0, 100), title="Cortex-M · non-idle share")
+    if summary["idle_classification"]:
+        axes[1].plot(
+            x,
+            [
+                float(row["mcu_non_idle_percent"])
+                if row["mcu_non_idle_percent"] != ""
+                else float("nan")
+                for row in rows
+            ],
+            color="#1d6d80",
+        )
+        axes[1].set(
+            ylabel="PC samples (%)", ylim=(0, 100), title="Cortex-M · non-idle share (estimate)"
+        )
+    else:
+        axes[1].set_visible(False)
 
     cpu_colors = ("#245A91", "#D07A14", "#138A70", "#9B4089")
-    for index, (axis, name) in enumerate(zip(axes[2 : 2 + len(cpu_events)], cpu_events)):
+    for index, (axis, event) in enumerate(zip(axes[2 : 2 + len(cpu_events)], cpu_events)):
+        name = event["key"]
         color = cpu_colors[index % len(cpu_colors)]
-        mean = [row[f"mcu_{name}_mean"] for row in rows]
-        ci = [row[f"mcu_{name}_ci95"] for row in rows]
+        mean = [
+            float(row[f"mcu_{name}_mean"]) if row[f"mcu_{name}_mean"] != "" else float("nan")
+            for row in rows
+        ]
+        ci = [
+            float(row[f"mcu_{name}_ci95"]) if row[f"mcu_{name}_ci95"] != "" else float("nan")
+            for row in rows
+        ]
         axis.plot(x, mean, color=color, linewidth=1.6)
         axis.fill_between(
             x,
@@ -203,7 +222,7 @@ def plot(root, summary, rows, omitted_ethos_phases):
             color=color,
             alpha=0.16,
         )
-        axis.set(title=f"Cortex-M · {name}", ylabel=f"Events / {interval_ms:g} ms")
+        axis.set(title=f"Cortex-M · {event['label']}", ylabel=f"Events / {interval_ms:g} ms")
 
     npu_activity = axes[2 + len(cpu_events)]
     npu_activity.plot(x, [row["ethosu_running_percent"] for row in rows], color="#7C3AED")
@@ -259,10 +278,7 @@ def main():
     root = args.run_dir.resolve()
     try:
         summary, rows, omitted = combine(root)
-        with (root / "joint_folded.csv").open("w", newline="") as destination:
-            writer = csv.DictWriter(destination, fieldnames=list(rows[0]))
-            writer.writeheader()
-            writer.writerows(rows)
+        write_csv(root / "joint_folded.csv", rows)
         plot(root, summary, rows, omitted)
         print(f"Wrote {len(rows)} aligned phases from {summary['complete_inferences']} periods")
     except (OSError, ValueError, KeyError, TypeError, IndexError) as error:

@@ -21,7 +21,7 @@
 #if PROFILER_ETHOSU_TRACE
     #include "ethosu_driver.h"
     #include "pmu_ethosu.h"
-    #include "sampling_profiler.h"
+    #include "sampling_profiler_format.h"
     #include "sampling_profiler_port.h"
     #include <string.h>
 
@@ -79,7 +79,12 @@ int trace_ethosu_start(void)
     {
         trace_ethosu_stop(0U, 0U);
     }
-    memset((void *)&ethosu_trace_samples, 0, sizeof(ethosu_trace_samples));
+    /* Reset metadata and descriptors, not the unused record area. Old tail
+     * contents are excluded by header.count and the fixed record width.
+     * Restore this full clear only when the application needs data erasure:
+     * memset((void *)&ethosu_trace_samples, 0, sizeof(ethosu_trace_samples)); */
+    memset((void *)&ethosu_trace_samples.header, 0, sizeof(ethosu_trace_samples.header));
+    memset((void *)ethosu_trace_samples.streams, 0, sizeof(ethosu_trace_samples.streams));
     volatile struct EthosuTraceHeader *header = &ethosu_trace_samples.header;
     current_stream_id = 0U;
     header->stream_capacity = PROFILER_ETHOSU_MAX_STREAMS;

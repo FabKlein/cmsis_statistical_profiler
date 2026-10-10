@@ -18,7 +18,7 @@
 #include "ethosu_driver.h"
 #include "ethosu_trace.h"
 #include "pmu_ethosu.h"
-#include "sampling_profiler.h"
+#include "sampling_profiler_format.h"
 #include <assert.h>
 #include <stdio.h>
 
@@ -126,8 +126,16 @@ int main(int argc, char **argv)
     assert(argc == 2);
     struct ethosu_driver other_driver = {0};
 
+    for (uint32_t i = 0; i < sizeof(ethosu_trace_samples.records) / sizeof(uint32_t); ++i)
+        ethosu_trace_samples.records[i] = 0xA5A5A5A5U;
+    for (uint32_t i = 0; i < PROFILER_ETHOSU_MAX_STREAMS; ++i)
+        ethosu_trace_samples.streams[i] = (struct EthosuTraceStream){0x1000U, 16U};
     assert(trace_ethosu_bind(&driver));
     assert(trace_ethosu_start());
+    for (uint32_t i = 0; i < sizeof(ethosu_trace_samples.records) / sizeof(uint32_t); ++i)
+        assert(ethosu_trace_samples.records[i] == 0xA5A5A5A5U);
+    for (uint32_t i = 0; i < PROFILER_ETHOSU_MAX_STREAMS; ++i)
+        assert(!ethosu_trace_samples.streams[i].command_address && !ethosu_trace_samples.streams[i].stream_bytes);
     /* Rejected binding changes must leave sampling and cleanup on driver. */
     assert(!trace_ethosu_bind(&other_driver));
     assert(!trace_ethosu_bind(NULL));
@@ -196,9 +204,16 @@ int main(int argc, char **argv)
 
     /* Restart resets IDs and diagnostics, rather than retaining stale metadata. */
     status = 0U;
+    uint32_t previous_records[sizeof(ethosu_trace_samples.records) / sizeof(uint32_t)];
+    for (uint32_t i = 0; i < sizeof(previous_records) / sizeof(uint32_t); ++i)
+        previous_records[i] = ethosu_trace_samples.records[i];
     assert(trace_ethosu_start());
     assert(ethosu_trace_samples.header.stream_count == 0U);
     assert(ethosu_trace_samples.header.unknown_stream_samples == 0U);
+    for (uint32_t i = 0; i < sizeof(previous_records) / sizeof(uint32_t); ++i)
+        assert(ethosu_trace_samples.records[i] == previous_records[i]);
+    for (uint32_t i = 0; i < PROFILER_ETHOSU_MAX_STREAMS; ++i)
+        assert(!ethosu_trace_samples.streams[i].command_address && !ethosu_trace_samples.streams[i].stream_bytes);
     submit(1);
     sample(1U);
     trace_ethosu_stop(1, 1);

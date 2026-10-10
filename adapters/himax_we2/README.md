@@ -43,6 +43,11 @@ performs its clock/register/NVIC setup. It then replaces the SDK vector using
 intentional: starting the timer after installing the profiler vector would let
 the vendor driver overwrite it.
 
+The vendor start result is checked. Failure makes `profiler_init()` return 0
+with timer/unavailable diagnostics: `value0` is the IRQ and `value1` is the
+vendor status. The backend stops any partial setup before restoring interrupts;
+the profiler vector is handed over only after a successful vendor start.
+
 The final vector is the profiler's naked entry point. Do not install another
 TIMER4 handler or call `hx_drv_timer_irq_handler()` from it; an ordinary C wrapper
 would alter the exception frame before the profiler captures it.
@@ -61,6 +66,8 @@ binary object, then an optional trailing marker. Do not print text inside the
 binary payload:
 
 ```c
+#include "sampling_profiler_format.h"
+
 xprintf("SCPF_BEGIN %lu\r\n",
         (unsigned long)statistical_samples.header.buffer_bytes);
 for (uint32_t byte = 0U;
@@ -91,7 +98,8 @@ secure image:
 
 ```sh
 python3 host/create_profiler_report.py \
-  --samples samples.bin --elf firmware.elf --output report --html
+  --samples samples.bin --elf firmware.elf --output report --html \
+  --board "Himax WE2" --application "<application name>"
 ```
 
 ## Hardware validation

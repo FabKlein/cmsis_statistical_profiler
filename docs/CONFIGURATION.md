@@ -9,6 +9,12 @@ No `#undef` overrides are needed.
 Apply settings consistently to every translation unit. Start with the
 [3 integration stages](INTEGRATION.md).
 
+`sampling_profiler.h` exposes the application API without loading settings.
+Application code that reads settings must include `sampling_profiler_config.h`;
+code that reads or exports the capture buffer must include
+`sampling_profiler_format.h`, which also loads configuration. The backend and
+timer interfaces load configuration through `sampling_profiler_port.h`.
+
 | Setting | Default | Meaning |
 |---|---|---|
 | `PROFILER_PMU_COUNT` | 0 | Request 0-4 chained 32-bit events; 0 disables collection; skip if unavailable or hardware capacity is insufficient |
@@ -22,7 +28,7 @@ Apply settings consistently to every translation unit. Start with the
 | `PROFILER_SAMPLE_BUFFER_BYTES` | 64 KiB | Allocation budget including the 176-byte header |
 | `PROFILER_SAMPLING_ENABLED` | 1 | Supplied handler/example switch; 0 still maintains ticks |
 | `PROFILER_STACK_BASE`, `PROFILER_STACK_BYTES` | Required unless REGIONS is supplied | Application-supplied bounds for 1 readable stack RAM range |
-| `PROFILER_UNWIND_MAX_DEPTH` | 16 | Maximum recovered callers (1-255); bounds ISR work and temporary storage, not each stored record |
+| `PROFILER_UNWIND_MAX_DEPTH` | 16 | Maximum recovered callers (1-255); bounds ISR work and temporary storage, not each stored record. See [stack/time budgets](ISR_BUDGET.md) |
 | `PROFILER_STACK_UNWIND` | 0 | 1 enables EHABI backtraces (4 bytes + 4 bytes/recovered caller); requires precise bounds and linker-table hook. See [unwinding](UNWINDING.md) |
 | `PROFILER_PRECISE_STACK_BOUNDS` | 0 | Enable an ISR-safe adapter hook that narrows RAM bounds to the interrupted stack |
 | `PROFILER_STACK_REGIONS` | Required unless BASE/BYTES are supplied | Array initializer of `{CPU address, bytes}` readable stack regions |
@@ -64,6 +70,17 @@ TCM is optional. The application must configure initialized, CPU-readable stack
 RAM with BASE/BYTES or REGIONS, never both. Cover MSP and all task stacks using
 the actual application memory layout. No board layer supplies default bounds or
 probes DTCM size. The capture buffer defaults to aligned BSS.
+
+Initialization clears metadata only: 176 bytes for Cortex-M, or the 128-byte
+Ethos-U header plus its stream table. Record storage retains its previous contents;
+unused tails are not records. The full-buffer clears remain commented in the
+startup functions for applications that require erased exports.
+
+The Cortex-M backend checks admission once before frame validation. Storage
+assumes that admitted ISR context and closes a full buffer in one place. Lifecycle
+calls run serially in thread mode on the same core, and capture readers wait for
+stop to return. Under this contract, record writes need no per-record hardware
+barrier; lifecycle barriers and the final cache clean remain in place.
 
 `PROFILER_PRECISE_STACK_BOUNDS=1` requires an ISR-safe [bounds hook](../adapters/template/profiler_stack_bounds.c.example).
 It only narrows the whitelist; a failed lookup rejects the sample.
@@ -118,3 +135,9 @@ use input Hz/period); busy/denied errors identify the IRQ. Unwind validation
 identifies the offending region or index entry. Fix ownership/clocks/security,
 readable RAM bounds or linker ranges before retrying. These checks cannot prove
 MPU readability or protect against a bad application-supplied pointer.
+
+Timer adapters implement `int profiler_timer_start(void)`: 1 means started,
+0 fails initialization. The backend stops a failed/partial start before restoring
+interrupts. Himax vendor-start failures report timer/unavailable with IRQ/vendor
+status in `value0/value1`; adapters without specific diagnostics get the generic
+timer/unavailable result. Update custom adapters that used a void start hook.

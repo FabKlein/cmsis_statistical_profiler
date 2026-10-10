@@ -71,14 +71,15 @@ int profiler_timer_init(struct ProfilerClock *clock)
     return 1;
 }
 
-void profiler_timer_start(void)
+int profiler_timer_start(void)
 {
     /* TODO(timer): clear the peripheral event flag; enable its interrupt
      * source and periodic counter in the order required by the hardware.
-     * Clear stale NVIC state before enabling delivery. This function cannot
-     * report failure: init must already have validated all prerequisites. */
+     * Clear stale NVIC state before enabling delivery. Check fallible SDK calls
+     * and return 0 on failure; the backend will stop before restoring IRQs. */
     NVIC_ClearPendingIRQ(TIMER_IRQ);
     NVIC_EnableIRQ(TIMER_IRQ);
+    return 1;
 }
 
 void profiler_timer_stop(void)

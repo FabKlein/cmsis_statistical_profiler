@@ -51,7 +51,14 @@ void profiler_pmu_init(void)
 void profiler_pmu_stop(void) {}
 int main(int argc, char **argv)
 {
-    assert(argc == 2 && profiler_init());
+    assert(argc == 2);
+    /* Decode only committed records, even when the unused tail resembles data. */
+    for (uint32_t i = 0; i < PROFILER_STORAGE_WORDS; ++i)
+        statistical_samples.records[i] = 0xA5A5A5A5U;
+    assert(profiler_init());
+    assert(!statistical_samples.header.count && !statistical_samples.header.bytes_used);
+    for (uint32_t i = 0; i < PROFILER_STORAGE_WORDS; ++i)
+        assert(statistical_samples.records[i] == 0xA5A5A5A5U);
     profiler_enable();
     struct ProfilerSample sample = {.timestamp = 1000,
                                     .tick = 1,
@@ -87,13 +94,12 @@ int main(int argc, char **argv)
             assert(statistical_samples.header.bytes_used == before);
             const volatile uint32_t *tail = statistical_samples.records + before / 4U;
             for (uint32_t i = 0; i < remaining / 4U; ++i)
-                assert(tail[i] == 0U); /* Failed append left no partial record. */
+                assert(tail[i] == 0xA5A5A5A5U); /* Failed append left no partial record. */
         }
     }
     uint32_t committed = statistical_samples.header.bytes_used;
     profiler_enable();
-    profiler_record(&sample);
-    assert(statistical_samples.header.bytes_used == committed);
+    assert(!statistical_sampling_gate && statistical_samples.header.bytes_used == committed);
 #endif
     ticks = 1;
     profiler_stop(1, 1);

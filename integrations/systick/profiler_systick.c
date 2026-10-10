@@ -38,9 +38,10 @@ int profiler_timer_init(struct ProfilerClock *clock)
     clock->timer_period = period;
     return 1;
 }
-void profiler_timer_start(void)
+int profiler_timer_start(void)
 {
     SysTick->CTRL = SysTick_CTRL_ENABLE_Msk | SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_CLKSOURCE_Msk;
+    return 1;
 }
 void profiler_timer_stop(void)
 {

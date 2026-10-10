@@ -35,7 +35,11 @@ int profiler_timer_init(struct ProfilerClock *clock)
     clock->timer_period = profiler_timer_period(SystemCoreClock, UINT32_MAX);
     return clock->timer_period != 0U;
 }
-void profiler_timer_start(void) { running = 1U; }
+int profiler_timer_start(void)
+{
+    running = 1U;
+    return 1;
+}
 void profiler_timer_stop(void) { running = 0U; }
 int profiler_timer_ack(void) { return running != 0U; }
 void SCB_CleanDCache_by_Addr(void *address, int32_t bytes)

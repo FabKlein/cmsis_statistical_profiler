@@ -48,7 +48,7 @@ int profiler_timer_init(struct ProfilerClock *clock)
     clock->timer_period = period;
     return 1;
 }
-void profiler_timer_start(void)
+int profiler_timer_start(void)
 {
     TIM2->CNT = 0U;
     TIM2->SR = 0U;
@@ -56,6 +56,7 @@ void profiler_timer_start(void)
     NVIC_ClearPendingIRQ(TIM2_IRQn);
     NVIC_EnableIRQ(TIM2_IRQn);
     TIM2->CR1 = TIM_CR1_CEN;
+    return 1;
 }
 void profiler_timer_stop(void)
 {

@@ -20,7 +20,7 @@ its own profiler state and buffer. Keep the operating system's interrupts intact
 
 ## Application API
 
-Include `sampling_profiler.h`:
+Include `sampling_profiler.h`; it requires no target configuration:
 
 1. Call profiler_init() and check for success.
 2. Use profiler_enable() / profiler_disable() to control recording.
@@ -30,5 +30,9 @@ profiler_diagnostics() explains initialization failures. profiler_full() reports
 buffer exhaustion. profiler_sample_ticks() and profiler_elapsed_ms() measure
 cumulative sampling time; subtract readings to measure an interval.
 
-The remaining headers describe backend and adapter interfaces. Backtraces are
-best-effort; sampling percentages are estimates, not exact function durations.
+The first profiler_stop() finalizes the capture; repeated stops preserve it until
+profiler_init() starts a new one. Include `sampling_profiler_format.h` for capture
+layout and buffer export, or `sampling_profiler_config.h` to read application
+settings. `sampling_profiler_port.h` holds internal sample and backend interfaces.
+Backtraces are best-effort; sampling percentages are estimates, not exact function
+durations.

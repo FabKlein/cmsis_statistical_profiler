@@ -24,7 +24,7 @@
 
 struct FakeDWT fake_dwt;
 uint32_t fake_stack[16];
-static uint32_t ticks, timestamp = 100U;
+static uint32_t ticks, timestamp = 100U, stop_count, flush_count;
 int profiler_port_init(struct ProfilerClock *clock)
 {
     clock->timestamp_hz = 1000000U;
@@ -32,7 +32,7 @@ int profiler_port_init(struct ProfilerClock *clock)
     clock->timer_period = 1000U;
     return 1;
 }
-void profiler_port_stop(void) {}
+void profiler_port_stop(void) { ++stop_count; }
 uint32_t profiler_port_timestamp(void) { return timestamp; }
 uint32_t profiler_port_ticks(void) { return ticks; }
 uint32_t profiler_port_millis(void) { return ticks; }
@@ -41,6 +41,7 @@ void profiler_port_flush(const void *p, uint32_t n)
 {
     (void)p;
     (void)n;
+    ++flush_count;
 }
 #if defined(TEST_PMU) && PROFILER_PMU_COUNT
 struct FakePMU fake_pmu;
@@ -53,6 +54,9 @@ static void set_counter(uint32_t pair, uint32_t value)
 #endif
 static void record(void)
 {
+    /* This backend stub follows the ISR's admission contract. */
+    if (!statistical_sampling_gate)
+        return;
     timestamp += 1000U;
     ++ticks;
     struct ProfilerSample sample = {.timestamp = timestamp,
@@ -69,6 +73,8 @@ static void record(void)
 int main(int argc, char **argv)
 {
     assert(argc == 2);
+    profiler_stop(99U, 0U);
+    assert(!stop_count && !flush_count && !statistical_samples.header.complete);
 #if defined(TEST_PMU) && PROFILER_PMU_COUNT
     PMU->TYPE = (31U << 8) | (2U * PROFILER_PMU_COUNT - 1U);
     assert(profiler_init() && statistical_samples.header.pmu_status == 4U);
@@ -132,6 +138,25 @@ int main(int argc, char **argv)
     for (uint32_t event = 0; event < PROFILER_PMU_COUNT; ++event)
         assert(statistical_samples.header.pmu_stop[event] == (event + 1U) * 0x10000U + 3U * (5U + 2U * event));
 #endif
+    /* A second stop cannot change the epoch, workload results, records or PMU
+     * snapshots, even if the timestamp and hardware counters advance. */
+    struct ProfilerSamplingBuffer finalized;
+    memcpy(&finalized, (const void *)&statistical_samples, sizeof(finalized));
+    uint32_t finalized_stops = stop_count;
+    assert(flush_count == 1U);
+    timestamp += 1000000U;
+    ++ticks;
+#if defined(TEST_PMU) && PROFILER_PMU_COUNT
+    for (uint32_t event = 0; event < PROFILER_PMU_COUNT; ++event)
+        set_counter(event, 0xDEADBEEFU);
+#endif
+    profiler_stop(99U, 0U);
+    profiler_enable();
+    record();
+    assert(!statistical_sampling_gate);
+    assert(!memcmp(&finalized, (const void *)&statistical_samples, sizeof(finalized)));
+    assert(stop_count == finalized_stops && flush_count == 1U);
+
     FILE *out = fopen(argv[1], "wb");
     assert(out && fwrite((const void *)&statistical_samples, sizeof(statistical_samples), 1, out) == 1);
     assert(!fclose(out));

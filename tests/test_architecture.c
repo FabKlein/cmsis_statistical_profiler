@@ -35,7 +35,11 @@ int profiler_timer_init(struct ProfilerClock *clock)
     clock->timer_period = profiler_timer_period(clock->timer_hz, UINT32_MAX);
     return clock->timer_period != 0U;
 }
-void profiler_timer_start(void) { running = 1; }
+int profiler_timer_start(void)
+{
+    running = 1;
+    return 1;
+}
 void profiler_timer_stop(void) { running = 0; }
 int profiler_timer_ack(void) { return running; }
 static void sample(uint32_t exc)

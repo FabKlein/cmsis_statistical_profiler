@@ -25,7 +25,30 @@
 #define PROFILER_PORT_H
 
 #include "sampling_profiler.h"
+#include "sampling_profiler_format.h"
 #include <stdint.h>
+
+/**
+ * @brief Validated sample passed internally from the ISR to capture storage.
+ * @details The wire record contains 6 base words, header.pmu_count event words and optional backtrace words;
+ * this staging type is not used as the wire stride.
+ */
+struct ProfilerSample
+{
+    uint32_t timestamp;        /**< Timestamp counter at sampling time. */
+    uint32_t tick;             /**< Sampling interrupt counter at sampling time. */
+    uint32_t pc;               /**< Interrupted program counter. */
+    uint32_t lr;               /**< Interrupted link register; not a reconstructed call stack. */
+    uint32_t xpsr;             /**< Interrupted program status register. */
+    uint32_t exception_return; /**< EXC_RETURN captured at interrupt entry. */
+#if PROFILER_PMU_COUNT
+    uint32_t pmu[PROFILER_PMU_COUNT]; /**< Staging snapshot; only active event words are stored. */
+#endif
+#if PROFILER_STACK_UNWIND
+    uint32_t unwind;                             /**< Depth in bits 0-7, ProfilerUnwindStatus in bits 8-15. */
+    uint32_t callers[PROFILER_UNWIND_MAX_DEPTH]; /**< Raw Thumb return addresses, immediate caller first. */
+#endif
+};
 
 /* Internal boundary: no vendor or CMSIS types cross into the capture core.
  * Timestamps use a fixed-frequency 32-bit counter and a sampling-interrupt counter.
@@ -53,6 +76,7 @@ extern "C" {
 int profiler_port_init(struct ProfilerClock *clock);
 /** @brief Record an init failure and return 0; never call from the sampling ISR.
  * @details Timer bad-clock context is input Hz/requested Hz; busy/denied context is IRQ/0.
+ * A vendor timer-start failure records IRQ/vendor status with reason UNAVAILABLE.
  * Unwind context is entry or region index/0. Other context values are 0 unless documented.
  */
 int profiler_init_fail(enum ProfilerInitStage stage, enum ProfilerInitReason reason, uint32_t value0, uint32_t value1);
@@ -109,21 +133,25 @@ void profiler_pmu_snapshot(uint32_t *values);
  */
 void profiler_port_flush(const void *address, uint32_t bytes);
 
-/* ISR-only capture operations; record requires a non-NULL sample. */
+/* ISR-only capture operations, after the backend admits the tick through the
+ * gate. Lifecycle calls cannot preempt this producer; no gate recheck is needed. */
 /**
  * @brief Single-core producer gate; nonzero allows the ISR to record samples.
  */
 extern volatile uint32_t statistical_sampling_gate;
 /**
- * @brief Count 1 rejected frame while recording is enabled.
+ * @brief Count 1 rejected frame from an admitted sampling interrupt.
  * @param reason First failing check; out-of-range reasons are ignored.
+ * @pre The backend checked statistical_sampling_gate in this interrupt.
  * @note Called only by the sampling ISR.
  */
 void profiler_reject(enum ProfilerRejection reason);
 /**
  * @brief Append a validated sample and close the gate when the buffer fills.
  * @param[in] sample Non-NULL sample; PMU words are stored only if pmu_count is nonzero.
+ * @pre The backend checked statistical_sampling_gate in this interrupt.
  * @note Single sampling-ISR producer only. Existing records are never overwritten.
+ * Readers must wait for profiler_stop() to return; no per-record hardware barrier.
  */
 void profiler_record(const struct ProfilerSample *sample);
 

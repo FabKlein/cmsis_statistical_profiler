@@ -6,6 +6,8 @@ at a time. Run these commands from the profiler repository root. The
 [repeated-capture runbook](REPEATED_CAPTURES.md) explains how to obtain and
 aggregate the histogram.
 
+See [host requirements](HOST_TOOLS.md#python-and-dependencies) for Python and the matching Vela environment.
+
 ## Inputs
 
 - The exact PTE deployed in firmware, or a byte-identical copy of it.

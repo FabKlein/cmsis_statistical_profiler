@@ -18,6 +18,7 @@
 
 #include "profile_workload.h"
 #include "sampling_profiler.h"
+#include "sampling_profiler_format.h"
 
 #ifndef PROFILER_SAMPLE_DURATION_MS
     #define PROFILER_SAMPLE_DURATION_MS 30000U

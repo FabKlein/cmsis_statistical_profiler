@@ -1,9 +1,5 @@
 # TODO
 
-- [ ] Review the per-record `profiler_port_barrier()` in `profiler_record()`: it adds
-  overhead to every sample. Measure the cost and verify memory-ordering requirements
-  for the single-core ISR writer and post-stop readers before changing it.
-
 - [ ] Circular buffering with defined overwrite and export ordering.
 - [ ] Repeated capture/export/resume: capture until full, stop and finalize,
   export through the debugger, then resume capture.

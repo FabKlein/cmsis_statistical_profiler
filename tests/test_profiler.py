@@ -18,6 +18,7 @@
 import importlib.util
 import itertools
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -168,9 +169,37 @@ class ProfilerTests(unittest.TestCase):
         for flags, valid in cases:
             with self.subTest(flags=flags):
                 result = subprocess.run(["cc", "-std=c11", "-fsyntax-only", "-x", "c", "-Imcu"] + flags + ["-"],
-                                        input='#include "sampling_profiler.h"\n', text=True,
+                                        input='#include "sampling_profiler_config.h"\n', text=True,
                                         capture_output=True, cwd=ROOT)
                 self.assertEqual(result.returncode == 0, valid, result.stderr)
+
+    def test_public_api_without_configuration(self):
+        source = '''
+#include "sampling_profiler.h"
+#include "sampling_profiler.h"
+#if defined(PROFILER_DEVICE_HEADER) || defined(PROFILER_SAMPLE_HZ) || defined(PROFILER_CAPTURE_MAGIC)
+#error "Public API must not import target configuration or capture layout"
+#endif
+int application(void)
+{
+    if (!profiler_init())
+        return profiler_diagnostics()->reason != PROFILER_INIT_OK;
+    profiler_enable();
+    uint32_t ticks = profiler_sample_ticks(), elapsed = profiler_elapsed_ms();
+    profiler_disable();
+    profiler_stop(ticks, elapsed != 0U);
+    return profiler_full();
+}
+'''
+        for compiler, language, standard in [("cc", "c", "c11"), ("c++", "c++", "c++11")]:
+            with self.subTest(language=language):
+                if not shutil.which(compiler):
+                    self.skipTest(f"no {language} compiler")
+                result = subprocess.run(
+                    [compiler, f"-std={standard}", "-Wall", "-Wextra", "-Werror",
+                     "-fsyntax-only", "-x", language, "-Imcu", "-"],
+                    input=source, text=True, capture_output=True, cwd=ROOT)
+                self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_timestamp_and_tick_wrap(self):
         self.assertEqual(analyzer.timestamp_delta(705032704, 50000, 0, 0,

@@ -46,6 +46,7 @@
 #include "profile_workload.h"
 #include "profiler_backend.h"
 #include "sampling_profiler.h"
+#include "sampling_profiler_format.h"
 #include "syscounter_armv8-m_cntrl_reg_map.h"
 
 /* System Counter Control Register (CNTCR), enable bit (EN).

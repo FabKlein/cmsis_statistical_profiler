@@ -34,7 +34,11 @@ int profiler_timer_init(struct ProfilerClock *clock)
     clock->timer_period = 1000;
     return 1;
 }
-void profiler_timer_start(void) { running = 1; }
+int profiler_timer_start(void)
+{
+    running = 1;
+    return 1;
+}
 void profiler_timer_stop(void) { running = 0; }
 int profiler_timer_ack(void) { return running; }
 int profiler_unwind_init(void) { return 1; }
@@ -85,13 +89,16 @@ int main(void)
                 if (fp || padding)
                 {
                     calls = 0;
+                    uint32_t previous_tail[8];
+                    for (unsigned i = 0; i < 8; ++i)
+                        previous_tail[i] = statistical_samples.records[7U + i];
                     assert(profiler_init());
                     profiler_enable();
                     statistical_sampling_tick(frame, expected_exc, saved);
                     assert(calls == 0 && statistical_samples.header.count == 1);
                     assert(statistical_samples.records[6] == (PROFILER_UNWIND_BOUNDS << 8));
                     for (unsigned i = 7; i < 15; ++i)
-                        assert(statistical_samples.records[i] == 0);
+                        assert(statistical_samples.records[i] == previous_tail[i - 7U]);
                 }
                 mode = 2; /* Wrong current task / context-switch mismatch. */
                 calls = 0;

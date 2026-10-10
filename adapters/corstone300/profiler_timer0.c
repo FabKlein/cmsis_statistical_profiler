@@ -68,13 +68,14 @@ int profiler_timer_init(struct ProfilerClock *clock)
     clock->timer_period = period;
     return 1;
 }
-void profiler_timer_start(void)
+int profiler_timer_start(void)
 {
     TIMER->cntp_ctl = CNTP_CTL_ENABLE | CNTP_CTL_IMASK; /* Enable while masked, before starting auto-increment. */
     TIMER->cntp_aival_ctl = CNTP_AIVAL_CTL_ENABLE;
     TIMER->cntp_ctl = CNTP_CTL_ENABLE;
     NVIC_ClearPendingIRQ(TIMER0_IRQn);
     NVIC_EnableIRQ(TIMER0_IRQn);
+    return 1;
 }
 void profiler_timer_stop(void)
 {

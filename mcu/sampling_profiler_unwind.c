@@ -301,18 +301,15 @@ static int pop(uint32_t regs[16], uint32_t mask, const struct ProfilerStackBound
         if (!(mask & (1U << reg)))
             continue;
 
-        if (!valid_sp(cursor, bounds))
-            return 0;
-
-        /* A legal SP may point at the stack end, where no saved word is readable. */
-        if (!contains(bounds->base, bounds->bytes, cursor, EHABI_WORD_BYTES))
-            return 0;
-
-        if (cursor > UINT32_MAX - EHABI_WORD_BYTES)
+        /* Unlike a legal SP at the exclusive end, a pop needs a whole aligned
+         * word and a representable post-pop cursor. One span check covers both
+         * stack bounds without repeating valid_sp()'s zero-length check. */
+        if ((cursor & (EHABI_WORD_BYTES - 1U)) || cursor > UINT32_MAX - EHABI_WORD_BYTES ||
+            !contains(bounds->base, bounds->bytes, cursor, EHABI_WORD_BYTES))
             return 0;
 
         regs[reg] = *(const uint32_t *)(uintptr_t)cursor;
-        cursor += 4U;
+        cursor += EHABI_WORD_BYTES;
     }
 
     /* Prefer an explicitly restored SP; otherwise advance beyond the save area. */

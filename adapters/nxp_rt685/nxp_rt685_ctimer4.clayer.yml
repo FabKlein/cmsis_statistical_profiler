@@ -28,6 +28,10 @@ layer:
           C:
             - -fno-vectorize
             - -fno-slp-vectorize
+        - for-compiler: CLANG
+          C:
+            - -fno-vectorize
+            - -fno-slp-vectorize
         - for-compiler: GCC
           C:
             - -fno-tree-vectorize

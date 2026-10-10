@@ -31,7 +31,7 @@ uint32_t fake_primask, fake_priority = 3U;
 int fake_counter_runs = 1;
 static uint32_t clean_count;
 static uint32_t timer_hz = 37000000U, timer_period, timer_running, timer_event;
-static uint32_t timer_busy;
+static uint32_t timer_busy, timer_start_failure, partial_stops;
 int profiler_timer_init(struct ProfilerClock *clock)
 {
     timer_period = profiler_timer_period(timer_hz, UINT32_MAX);
@@ -41,8 +41,21 @@ int profiler_timer_init(struct ProfilerClock *clock)
     clock->timer_period = timer_period;
     return 1;
 }
-void profiler_timer_start(void) { timer_running = 1U; }
-void profiler_timer_stop(void) { timer_running = timer_event = 0U; }
+int profiler_timer_start(void)
+{
+    assert(fake_primask == 1U);
+    timer_running = 1U; /* A failing SDK may already have touched hardware. */
+    timer_event = timer_start_failure != 0U;
+    if (timer_start_failure == 2U)
+        return profiler_init_fail(PROFILER_INIT_TIMER, PROFILER_INIT_DENIED, 7U, 42U);
+    return timer_start_failure == 0U;
+}
+void profiler_timer_stop(void)
+{
+    if (timer_running)
+        ++partial_stops;
+    timer_running = timer_event = 0U;
+}
 int profiler_timer_ack(void)
 {
     uint32_t event = timer_running && timer_event;
@@ -98,6 +111,24 @@ int main(int argc, char **argv)
     SystemCoreClock = 100000000U;
     assert(!profiler_init());
     timer_busy = 0U;
+    for (uint32_t mask = 0; mask <= 1U; ++mask)
+        for (timer_start_failure = 1U; timer_start_failure <= 2U; ++timer_start_failure)
+        {
+            uint32_t before = partial_stops;
+            fake_primask = mask;
+            assert(!profiler_init());
+            assert(fake_primask == mask && !timer_running && !timer_event);
+            assert(partial_stops == before + 1U);
+            assert(profiler_diagnostics()->stage == PROFILER_INIT_TIMER);
+            assert(profiler_diagnostics()->reason ==
+                   (timer_start_failure == 1U ? PROFILER_INIT_UNAVAILABLE : PROFILER_INIT_DENIED));
+            if (timer_start_failure == 2U)
+                assert(profiler_diagnostics()->value0 == 7U && profiler_diagnostics()->value1 == 42U);
+            profiler_enable();
+            assert(!statistical_sampling_gate && !statistical_samples.header.active);
+        }
+    timer_start_failure = 0U;
+    fake_primask = 0U;
     SystemCoreClock = 100000000U;
     fake_counter_runs = 0;
     assert(!profiler_init());
@@ -161,10 +192,13 @@ int main(int argc, char **argv)
 
     SysTick->VAL = 77U;
     uint32_t previous_ms = profiler_elapsed_ms();
+    uint32_t previous_records[PROFILER_STORAGE_WORDS];
+    memcpy(previous_records, (const void *)statistical_samples.records, sizeof(previous_records));
     assert(profiler_init());
     assert(SysTick->VAL == 77U &&
            profiler_elapsed_ms() == previous_ms); /* Application timer is untouched on recapture. */
     assert(!statistical_samples.header.count && !statistical_samples.header.complete);
+    assert(!memcmp(previous_records, (const void *)statistical_samples.records, sizeof(previous_records)));
     profiler_enable();
     sample(NULL, 0xFFFFFFF9U);
     sample((const uint32_t *)((uintptr_t)fake_stack + 1U), 0xFFFFFFF9U);

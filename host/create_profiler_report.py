@@ -18,7 +18,6 @@
 
 import argparse
 import hashlib
-import html
 from importlib import metadata
 import json
 from pathlib import Path
@@ -40,6 +39,9 @@ def main():
     p.add_argument("--samples", type=Path, required=True)
     p.add_argument("--elf", type=Path, required=True)
     p.add_argument("--output", type=Path, required=True, help="New or empty report directory")
+    p.add_argument("--board", required=True, help="Actual board or simulator used for capture")
+    p.add_argument("--application", required=True, help="Application name")
+    p.add_argument("--platform", type=Path, help="Verified platform.json to copy into the report")
     p.add_argument("--stack-root")
     p.add_argument("--html", action="store_true", help="Also render the Plotly dashboard")
     p.add_argument("--flamegraph", type=Path, help="Local flamegraph.pl; requires Perl")
@@ -68,6 +70,8 @@ def main():
         # Snapshot first: every downstream tool and hash sees these exact bytes.
         shutil.copyfile(args.samples, inputs / "samples.bin")
         shutil.copyfile(args.elf, inputs / "firmware.elf")
+        if args.platform:
+            shutil.copyfile(args.platform, args.output / "platform.json")
         commands = []
 
         def run(command, **kwargs):
@@ -147,6 +151,8 @@ def main():
         # Separate measured artifact hashes from caller-supplied build labels.
         # Together they make a report reproducible, not authenticated to a device.
         manifest = dict(
+            board=args.board,
+            application=args.application,
             plotly=plotly_version,
             python=platform.python_version(),
             host_revision=revision,
@@ -168,26 +174,52 @@ def main():
         )
         if args.flamegraph and args.flamegraph.is_file():
             manifest["flamegraph_sha256"] = sha256(args.flamegraph)
-        (args.output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
-        # Escape symbol-derived text and filenames before embedding them in HTML.
-        links = [
-            f'<li><a href="{html.escape(f.name)}">{html.escape(f.name)}</a></li>'
-            for f in sorted(args.output.iterdir())
-            if f.is_file()
+        if args.platform:
+            manifest["hashes"]["platform.json"] = sha256(args.output / "platform.json")
+        index_command = [
+            str(value)
+            for value in (
+                sys.executable,
+                HERE / "generate_report_index.py",
+                "--run-dir",
+                args.output,
+                "--board",
+                args.board,
+                "--application",
+                args.application,
+            )
         ]
+        commands.append(index_command)
+        header = summary["header"]
         note = graph["subtitle"] if graph else "PC/PMU sampling; no backtraces."
-        page = '<!doctype html><meta charset="utf-8"><title>Profiler report</title><h1>Profiler report</h1>'
-        page += (
-            "<p>"
-            + html.escape(note)
-            + "</p><p>Stack inclusion and reaching a selected root do not prove stack accuracy.</p>"
-        )
-        page += "".join("<p>" + html.escape(problem) + "</p>" for problem in problems)
-        page += (
-            "<ul>" + "".join(links) + '<li><a href="inputs/">Exact capture and ELF</a></li></ul>'
-        )
-        (args.output / "index.html").write_text(page)
-        print(args.output / "index.html")
+        report = [
+            f"# {args.application} · profiling report",
+            "",
+            f"Board / target: {args.board}",
+            "",
+            f"Sampling rate: {header['sample_hz']} Hz; samples: {header['count']}.",
+            f"Capture complete={header['complete']}, active={header['active']}, "
+            f"full={header['full']}, validation_passed={header['validation_passed']}.",
+            f"Timing valid: {summary['timing_valid']}; rejected frames: {header['rejected']}; "
+            f"unresolved PCs: {summary['unknown_samples']}.",
+            "",
+            summary["notes"],
+            "",
+            note,
+            "",
+            "Stack inclusion and reaching a selected root do not prove stack accuracy.",
+            "",
+            "Exact inputs: [capture](inputs/samples.bin), [ELF](inputs/firmware.elf).",
+            "[Decoded metadata](summary.json) and [provenance](manifest.json) retain "
+            "configuration, hashes, tool versions and caller-supplied build labels.",
+            "",
+        ]
+        if problems:
+            report += ["## Incomplete optional outputs", "", *problems, ""]
+        (args.output / "REPORT.md").write_text("\n".join(report))
+        (args.output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+        # All optional artifacts and their diagnostics are ready before indexing.
+        subprocess.run(index_command, check=True)
         if problems:
             p.exit(1, "\n".join(problems) + "\n")
     except (OSError, ValueError, subprocess.CalledProcessError) as error:

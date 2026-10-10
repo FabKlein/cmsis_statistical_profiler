@@ -10,6 +10,8 @@ captures.
 
 Commands below assume the current directory is the profiler repository root.
 
+Host Python/dependency requirements are listed in [host tools](HOST_TOOLS.md#python-and-dependencies).
+
 ## 1. Arrange the capture loop
 
 Choose the number of captures, sampling rate, buffer sizes, and stop condition
@@ -283,6 +285,9 @@ Group exact-PTE-aligned queue rows by TOSA operation with
 The [operator report guide](ETHOSU_OPERATOR_REPORTS.md) explains how to
 unwrap a Vela `COP1` register stream from the exact PTE, build the mapping,
 and render operator hotspot charts.
+
+For synchronized phase folds, commands, counter-slot columns and explicit idle
+classification, see the [host folding guide](HOST_TOOLS.md#folding-synchronized-mcu-and-ethos-u-captures).
 
 ## 5. Build an offline report index
 

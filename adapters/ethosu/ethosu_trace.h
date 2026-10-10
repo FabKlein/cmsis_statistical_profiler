@@ -93,6 +93,7 @@ extern volatile struct EthosuTraceBuffer ethosu_trace_samples;
  */
 int trace_ethosu_bind(struct ethosu_driver *driver);
 /** @brief Start capture, acquiring PMU counters if requested and available.
+ * @note Resets the header and stream table; record storage is not erased.
  * @note Collected PMU counters require exclusive ownership until stop returns,
  * including after buffer full. External PMU changes are not detected.
  * Set PROFILER_ETHOSU_PMU_COUNT=0 when the application owns the PMU.

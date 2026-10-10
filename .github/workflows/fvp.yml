@@ -55,7 +55,7 @@ jobs:
       - name: Check CMSIS compiler option scope
         run: |
           python3 -m pip install PyYAML==6.0.2
-          python3 tests/check_layer_scope.py --compiler AC6
+          python3 tests/check_layer_scope.py --compiler AC6 CLANG
       - name: Native and host tests
         run: python3 -B -m unittest discover -s tests -v
       - name: Build with CMSIS-Toolbox, run and check PMU capture

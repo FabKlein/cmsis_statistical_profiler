@@ -76,7 +76,7 @@ from collections import Counter
 from pathlib import Path
 from tempfile import mkdtemp
 
-from combine_perfetto_captures import capture_rows
+from report_helpers import capture_rows
 
 # Keep uncertain callers visually separate from recovered application roots.
 PC_ONLY = "[PC only: caller unavailable]"

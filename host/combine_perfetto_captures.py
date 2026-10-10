@@ -68,7 +68,6 @@
 # proportional to their total event count.
 
 import argparse
-import csv
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -76,26 +75,7 @@ from tempfile import TemporaryDirectory
 from analyze_profiler_buffer import timestamp_delta
 from ethosu_perfetto import trace_events as ethosu_trace_events
 from visualize_profiler_report import event_rates, read_report, write_perfetto
-
-
-def capture_rows(root):
-    """Return the ordered capture manifest, also used by the folding tools."""
-    with (root / "captures.csv").open(newline="") as source:
-        rows = list(csv.DictReader(source))
-    if not rows:
-        raise ValueError("captures.csv has no capture windows")
-    # Use manifest order rather than a directory glob: capture indices are
-    # referenced by merged CSVs, timing windows and event annotations.
-    for index, row in enumerate(rows):
-        if int(row["capture"]) != index:
-            raise ValueError("captures.csv must list consecutive captures from zero")
-        # The local manifest may point outside the aggregate output directory.
-        # Parent components are required for sibling captures; absolute paths
-        # remain disallowed so moving the whole directory tree preserves links.
-        directory = Path(row["capture_dir"])
-        if not row["capture_dir"].strip() or directory.is_absolute():
-            raise ValueError(f"capture directory must be a nonempty relative path: {directory}")
-    return rows
+from report_helpers import capture_rows
 
 
 def duration_us(header):

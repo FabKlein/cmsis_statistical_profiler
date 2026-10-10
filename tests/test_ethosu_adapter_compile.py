@@ -36,7 +36,7 @@ STUBS = {
 #define PROFILER_ETHOSU_PMU_EVENT2 ETHOSU_PMU_MAC_DPU_ACTIVE
 #define PROFILER_ETHOSU_PMU_EVENT3 ETHOSU_PMU_CYCLE
 """,
-    "sampling_profiler.h": """
+    "sampling_profiler_format.h": """
 #include <stdint.h>
 struct FakeCoreCapture { struct { uint32_t sample_hz, timestamp_hz; } header; };
 extern struct FakeCoreCapture statistical_samples;

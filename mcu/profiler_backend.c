@@ -312,7 +312,17 @@ int profiler_port_init(struct ProfilerClock *clock)
     tick_whole_ms = (uint32_t)(numerator / timer_clock_hz);
     tick_fraction = (uint32_t)(numerator % timer_clock_hz);
     ms_fraction = 0U;
-    profiler_timer_start();
+    if (!profiler_timer_start())
+    {
+        /* A vendor start may have partially enabled the timer or IRQ. */
+        profiler_timer_stop();
+        __DSB();
+        __ISB();
+        __set_PRIMASK(primask);
+        if (profiler_diagnostics()->reason == PROFILER_INIT_OK)
+            profiler_init_fail(PROFILER_INIT_TIMER, PROFILER_INIT_UNAVAILABLE, 0, 0);
+        return 0;
+    }
     __DSB();
     __ISB();
     __set_PRIMASK(primask);
@@ -366,7 +376,9 @@ __attribute__((used, noinline)) void statistical_sampling_tick(const uint32_t *f
 #endif
 
     /* Timer bookkeeping continues while capture is disabled or the buffer is
-     * full; only the sample extraction/storage path is gated. */
+     * full; only the sample extraction/storage path is gated. This is the sole
+     * CPU admission check. Lifecycle calls run in thread mode on this core and
+     * cannot close the gate between here and record/reject. */
     if (!PROFILER_SAMPLING_ENABLED || !statistical_sampling_gate)
         return;
 
@@ -494,7 +506,7 @@ __attribute__((used, noinline)) void statistical_sampling_tick(const uint32_t *f
     }
 #endif
 
-    /* Storage owns capacity checks and publication; this backend owns only
-     * hardware interpretation and validation of the sampled context. */
+    /* Storage owns capacity and full-buffer closure; this backend owns admission
+     * and validation of the sampled context. Stop orders the capture for export. */
     profiler_record(&sample);
 }
