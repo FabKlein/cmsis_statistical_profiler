@@ -95,7 +95,7 @@ int main(int argc, char **argv)
     fake_dwt.CYCCNT = 0x12345678U;
 #endif
     assert(profiler_init());
-    assert(statistical_samples.header.version == 2U &&
+    assert(statistical_samples.header.version == 1U &&
            statistical_samples.header.record_base_bytes == 24U + 4U * statistical_samples.header.pmu_count);
 #if defined(TEST_PMU) && PROFILER_PMU_COUNT
     assert(statistical_samples.header.pmu_status == 2U);
@@ -164,21 +164,16 @@ int main(int argc, char **argv)
     assert(profiler_init());
     assert(PMU->EVCNTR[0] == 0U && PMU->OVSSET == 0U);
     for (uint32_t event = 0; event < PROFILER_PMU_COUNT; ++event)
-    {
-        PMU->OVSSET = 1U << (2U * event + 1U);
-        statistical_samples.header.pmu_flags = 0;
-        profiler_pmu_snapshot(values);
-        assert(statistical_samples.header.pmu_flags == (1U << event));
-    }
-    PMU->OVSSET = 0U;
-    statistical_samples.header.pmu_flags = 0U;
+        PMU->OVSSET |= 1U << (2U * event + 1U);
+    profiler_pmu_snapshot(values);
+    assert(statistical_samples.header.pmu_flags == 0U); /* Backend latches until stop. */
     pmu_read_mode = 2U;
     pmu_read_count = 0U;
     profiler_pmu_snapshot(values);
-    assert(statistical_samples.header.pmu_flags == 16U);
-    assert(pmu_read_count == 9U + 3U * (PROFILER_PMU_COUNT - 1U)); /* 3 retries on pair 0; other pairs succeed. */
+    assert(pmu_read_count == 9U + 3U * (PROFILER_PMU_COUNT - 1U));
     pmu_read_mode = 0U;
     profiler_stop(1U, 1U);
+    assert(statistical_samples.header.pmu_flags == (16U | ((1U << PROFILER_PMU_COUNT) - 1U)));
     assert(fake_dwt.CYCCNT == 0x12345678U);
 #endif
     return 0;

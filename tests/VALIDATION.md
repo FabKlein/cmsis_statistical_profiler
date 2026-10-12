@@ -1,6 +1,41 @@
 # Validation
 
-Updated on 10 October 2026:
+## Resource ownership, build identity and timing (12 October 2026)
+
+| Check | Coverage / result |
+|---|---|
+| 183 native/Python tests | All passed with Plotly 6.3.0; PMU IRQ ownership/readback rollback, NXP clock-aware restart, validation normalization, invalid stack regions, generated configuration guards, wrong-image identity, actual-rate folds, staggered epochs and tick rollover |
+| GCC 13.2.1 / AC6 6.24 core matrices | All 12 Cortex-M targets; applicable security/custom timestamps; PMU 0/4; unwinding off/depth 16 |
+| Corstone real SDK adapter builds | CMSIS 6.3.0 / BSP 1.5.0; GCC and AC6; 125/333/2500 Hz, sampling enabled/disabled, two PMU counters |
+| Ethos-U real SDK | Core-driver 1.26.2 U55/U65/U85: PMU 0/1/4 compile; negative/sentinel/large event rejection; real PMU implementation against RAM registers checks armed IRQ/counter preservation, event readback, overflow/IRQ clear writes and balanced power references |
+| AC6 FVP 11.31.28 | PC/PMU: 84 samples; Unwind: 82 samples, all recover two callers and retain partial `no_progress` status; both valid workload/timing, zero rejected/unresolved and matching build tokens |
+| Configurable example builders | GCC and AC6 compile with automatically generated build token/layout guards; exact headers retained |
+| Build-token retention | Native linked probe with LTO and linker garbage collection retains the 16-byte read-only object; conflicting per-file layout options fail with and without LTO |
+| Wrong executable | Actual PC capture decoded against the Unwind ELF rejects identity mismatch before creating output |
+| Linked ISR inspection | PC and Unwind vector/backend/storage/PMU/bounds/unwind paths use integer instructions; vector preserves the original frame/EXC_RETURN and saves/restores callee registers for unwinding. Disassembly retained |
+| Layer scope and workflow | AC6/GCC/CLANG generated source-group scope checks passed; actionlint 1.7.12 passed with the declared optional RTOS runner label |
+| Phase-chart CLI smoke | Matplotlib 3.10.8 generated MCU, NPU and joint SVG/PNG from a synthetic rounded-clock/wrapped-tick fixture; both folds select two periods and six matching phases |
+| Formatting and reference docs | Ruff 0.17.0 and clang-format 22.1.0 gates; Doxygen generation without warnings |
+
+SCPF 1 uses a 192-byte header; EUTR 1 uses 144 bytes and includes the actual timer
+ratio. Both contain a generated firmware token. The decoders reject older formats
+and mismatched tokens; absent tokens remain explicitly unverified. These are
+incompatible prototype layout updates, with unchanged record layouts. The current
+version-1 layouts are the sole references for SCPF and EUTR; other versions and
+earlier prototype layouts are unsupported. Archive older captures with their
+original decoder.
+
+The standard AC6 scatter file emits two existing
+empty unwind-section warnings in the PC-only context; the enabled-Unwind context
+retains and preflights its tables.
+
+No new physical-board run or silicon ISR-time/stack high-water measurement was
+performed. RAM NPU registers observe alias writes without emulating W1C behavior
+or real interrupt/power delivery. The corrected M33 NXP compile harness was not
+rerun against a real SDK because that SDK was unavailable. RTX/FreeRTOS runtime
+checks require the licensed opt-in runner and were not rerun here.
+
+## Earlier evidence (10 October 2026)
 
 | Check | Coverage / result |
 |---|---|

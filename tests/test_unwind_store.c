@@ -35,20 +35,25 @@ void profiler_port_flush(const void *address, uint32_t bytes)
     (void)address;
     (void)bytes;
 }
-void profiler_pmu_init(void)
+void profiler_pmu_init(struct ProfilerPmuInfo *info)
 {
+    *info = (struct ProfilerPmuInfo){0};
 #if PROFILER_PMU_COUNT
-    statistical_samples.header.pmu_requested = PROFILER_PMU_COUNT;
+    info->requested = PROFILER_PMU_COUNT;
     #ifdef TEST_UNAVAILABLE
-    statistical_samples.header.pmu_status = 1;
+    info->status = 1;
     #else
-    statistical_samples.header.pmu_status = 2;
-    statistical_samples.header.pmu_count = PROFILER_PMU_COUNT;
-    statistical_samples.header.pmu_counter_bits = 32;
+    info->status = 2;
+    info->count = PROFILER_PMU_COUNT;
+    info->counter_bits = 32;
     #endif
 #endif
 }
-void profiler_pmu_stop(void) {}
+void profiler_pmu_stop(struct ProfilerPmuInfo *info)
+{
+    if (info)
+        profiler_pmu_init(info);
+}
 int main(int argc, char **argv)
 {
     assert(argc == 2);

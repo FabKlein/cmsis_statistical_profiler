@@ -51,6 +51,7 @@ def capture_configuration(cpu, npu):
     """Compare interpretation metadata, excluding per-capture counter values."""
     pmu = cpu["pmu"] if cpu else None
     return {
+        "firmware_id": cpu.get("firmware_id") if cpu else npu.get("firmware_id"),
         "cpu_pmu": {
             key: pmu[key]
             for key in ("count", "requested", "events", "status", "counter_bits", "scope")
@@ -74,7 +75,9 @@ def capture_configuration(cpu, npu):
         "cpu_clock": {key: cpu[key] for key in ("timestamp_hz", "timer_hz", "timer_period")}
         if cpu
         else None,
-        "ethosu_timestamp_hz": npu["timestamp_hz"] if npu else None,
+        "ethosu_clock": {key: npu[key] for key in ("timestamp_hz", "timer_hz", "timer_period")}
+        if npu
+        else None,
         "cpu_format": {key: cpu[key] for key in ("version", "features", "unwind_max_depth")}
         if cpu
         else None,
@@ -180,6 +183,14 @@ def aggregate(captures, output):
             else None,
             (npu["buffer_bytes"], npu["record_bytes"], npu["format"]) if npu else None,
         )
+        if (
+            ch
+            and npu
+            and any(ch[key] != npu[key] for key in ("timestamp_hz", "timer_hz", "timer_period"))
+        ):
+            raise ValueError("CPU/Ethos-U configuration differs: actual sample clocks")
+        if ch and npu and ch.get("firmware_id") != npu.get("firmware_id"):
+            raise ValueError("CPU/Ethos-U firmware identity differs")
         current_configuration = capture_configuration(ch, npu)
         if index == 0:
             elf_sha256 = cpu["elf_sha256"] if cpu else None
@@ -272,6 +283,10 @@ def aggregate(captures, output):
         "captures": len(captures),
         "capture_configuration": configuration,
         "sample_hz": sample_hz,
+        "actual_sample_hz": (configuration["cpu_clock"] or configuration["ethosu_clock"])[
+            "timer_hz"
+        ]
+        / (configuration["cpu_clock"] or configuration["ethosu_clock"])["timer_period"],
         "all_validation_passed": all(
             (not components[0] or row["cpu_validation_passed"])
             and (not components[1] or row["ethosu_validation_passed"])

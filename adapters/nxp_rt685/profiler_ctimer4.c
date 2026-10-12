@@ -46,7 +46,9 @@ int profiler_timer_init(struct ProfilerClock *clock)
     period = profiler_timer_period(hz, UINT32_MAX);
     if (period == 0U)
     {
-        CLOCK_DisableClock(kCLOCK_Ct32b4);
+        /* A lifetime reservation must remain accessible to repeated stop calls. */
+        if (owned == 0U)
+            CLOCK_DisableClock(kCLOCK_Ct32b4);
         return profiler_init_fail(PROFILER_INIT_TIMER, PROFILER_INIT_BAD_CLOCK, hz, PROFILER_SAMPLE_HZ);
     }
 

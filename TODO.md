@@ -10,7 +10,7 @@
 
 - [ ] Capture the unwind termination address; current records retain status and
   recovered prefix only. Root reached and complete unwind remain distinct.
-- [ ] Embed an immutable build ID in loadable read-only firmware data, copy it
+- [x] Embed an immutable build ID in loadable read-only firmware data, copy it
   into capture metadata and compare it with the supplied ELF during decoding.
   Generate it per build and retain it through linking; bump the capture format.
   Keep the full ELF SHA-256 separately for artifact integrity, avoiding a

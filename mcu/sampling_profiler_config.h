@@ -71,6 +71,9 @@
 #ifdef PROFILER_USER_CONFIG
     #include PROFILER_USER_CONFIG
 #endif
+#ifdef PROFILER_BUILD_CONFIG_HEADER
+    #include PROFILER_BUILD_CONFIG_HEADER
+#endif
 #ifndef PROFILER_DEVICE_HEADER
     #error "Select a board layer or define PROFILER_DEVICE_HEADER to your CMSIS device header"
 #endif
@@ -149,6 +152,21 @@
 #endif
 #if PROFILER_UNWIND_MAX_DEPTH < 1 || PROFILER_UNWIND_MAX_DEPTH > 255
     #error "PROFILER_UNWIND_MAX_DEPTH must be 1..255"
+#endif
+
+/** @brief Optional application-generated 128-bit build token; zero means unverified. */
+#ifndef PROFILER_FIRMWARE_ID
+    #define PROFILER_FIRMWARE_ID {0U, 0U, 0U, 0U}
+#endif
+/* Generated application settings pin the ABI across translation units. */
+#if defined(PROFILER_EXPECTED_PMU_COUNT) && PROFILER_PMU_COUNT != PROFILER_EXPECTED_PMU_COUNT
+    #error "Profiler PMU count differs from the shared build configuration"
+#endif
+#if defined(PROFILER_EXPECTED_STACK_UNWIND) && PROFILER_STACK_UNWIND != PROFILER_EXPECTED_STACK_UNWIND
+    #error "Profiler unwind setting differs from the shared build configuration"
+#endif
+#if defined(PROFILER_EXPECTED_UNWIND_MAX_DEPTH) && PROFILER_UNWIND_MAX_DEPTH != PROFILER_EXPECTED_UNWIND_MAX_DEPTH
+    #error "Profiler unwind depth differs from the shared build configuration"
 #endif
 
 #endif

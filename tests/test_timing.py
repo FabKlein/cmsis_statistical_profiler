@@ -90,7 +90,7 @@ class TimingTests(unittest.TestCase):
     def test_cli_preserves_pc_reports_and_blanks_time(self):
         count = 12
         fields = [analyzer.MAGIC, analyzer.FORMAT_VERSION, 24, analyzer.HEADER.size + 24 * count,
-                  24 * count, count, 0, 0, 1000000, 1000, 0, 0, 0, count, 0, 1, 1, 1, 1000, 1000000] + [0] * 22 + [analyzer.HEADER.size, 0]
+                  24 * count, count, 0, 0, 1000000, 1000, 0, 0, 0, count, 0, 1, 1, 1, 1000, 1000000] + [0] * 22 + [analyzer.HEADER.size, 0] + [0] * 4
         records = b"".join(analyzer.RECORD.pack(0, i, 0x10001004, 0x10002001, 1 << 24, 0xFFFFFFF9)
                            for i in range(1, count + 1))
         with tempfile.TemporaryDirectory() as tmp:
@@ -101,7 +101,7 @@ class TimingTests(unittest.TestCase):
             argv = ["analyze_profiler_buffer.py", "--samples", str(root / "capture.bin"),
                     "--elf", str(root / "app.elf"), "--output", str(output)]
             console = io.StringIO()
-            with patch("sys.argv", argv), patch.object(analyzer, "elf_functions", return_value=[(0x10001000, 32, "workload")]), redirect_stdout(console):
+            with patch("sys.argv", argv), patch.object(analyzer, "elf_firmware_identity", return_value=None), patch.object(analyzer, "elf_functions", return_value=[(0x10001000, 32, "workload")]), redirect_stdout(console):
                 analyzer.main()
             summary = json.loads((output / "summary.json").read_text())
             self.assertIs(summary["timing_valid"], False)

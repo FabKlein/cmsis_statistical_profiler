@@ -46,10 +46,10 @@ def trace(device=55, pmu_count=0, count=None, samples=None, streams=None):
         for sample in samples
     )
     stream_capacity = 2
-    offset = 128 + 8 * stream_capacity
+    offset = 144 + 8 * stream_capacity
     buffer_bytes = ((offset + max(36, len(payload)) + 31) // 32) * 32
-    header = [0] * 32
-    header[0:5] = [MODULE.MAGIC, 1, 128, 20 + 4 * pmu_count, buffer_bytes]
+    header = [0] * 36
+    header[0:5] = [MODULE.MAGIC, 1, 144, 20 + 4 * pmu_count, buffer_bytes]
     header[5] = len(samples) if count is None else count
     header[8] = 1
     header[9:11] = [2000, 400000000]
@@ -62,6 +62,7 @@ def trace(device=55, pmu_count=0, count=None, samples=None, streams=None):
         for _, _, status, qread, _ in samples
     )
     header[26] = device
+    header[30:32] = [100000000, 50000]
     header[27] = stream_capacity
     header[28] = sum(
         bool(status & 1) and not stream_id for _, _, status, _, stream_id in samples
@@ -69,7 +70,7 @@ def trace(device=55, pmu_count=0, count=None, samples=None, streams=None):
     descriptors = b"".join(struct.pack("<II", *stream) for stream in streams)
     descriptors += bytes((stream_capacity - len(streams)) * 8)
     return (
-        struct.pack("<32I", *header)
+        struct.pack("<36I", *header)
         + descriptors
         + payload
         + bytes(buffer_bytes - offset - len(payload))
@@ -101,6 +102,7 @@ class EthosuTraceTest(unittest.TestCase):
         for device in (55, 65, 85):
             for pmu_count in range(5):
                 summary, records = MODULE.decode(trace(device, pmu_count))
+                self.assertEqual(summary["version"], 1)
                 self.assertEqual(summary["device_type"], device)
                 self.assertEqual(summary["running_percent"], 100.0)
                 self.assertEqual(records[0]["qread"], 16)
@@ -193,11 +195,12 @@ class EthosuTraceTest(unittest.TestCase):
             with self.subTest(streams=streams), self.assertRaises(ValueError):
                 MODULE.decode(trace(streams=streams))
         data = bytearray(trace())
-        struct.pack_into("<I", data, 136, 1)
+        struct.pack_into("<I", data, 152, 1)
         with self.assertRaisesRegex(ValueError, "unused stream"):
             MODULE.decode(data)
-        with self.assertRaisesRegex(ValueError, "EUTR v1"):
-            MODULE.decode(change_header(trace(), version=2))
+        for version in (0, 2, 3):
+            with self.subTest(version=version), self.assertRaisesRegex(ValueError, "EUTR v1"):
+                MODULE.decode(change_header(trace(), version=version))
 
     def test_histogram_separates_streams_and_excludes_unknown(self):
         summary, records = MODULE.decode(
@@ -248,10 +251,10 @@ class EthosuTraceTest(unittest.TestCase):
         self.assertEqual(summary["running_percent"], 0.0)
         self.assertEqual(MODULE.qread_histogram(records), [])
 
-    def test_rejects_reserved_words_and_misaligned_allocation(self):
+    def test_rejects_invalid_timer_ratio_and_misaligned_allocation(self):
         data = bytearray(trace())
-        struct.pack_into("<I", data, 120, 1)
-        with self.assertRaisesRegex(ValueError, "reserved"):
+        struct.pack_into("<I", data, 120, 0)
+        with self.assertRaisesRegex(ValueError, "timer ratio"):
             MODULE.decode(data)
         data = trace() + bytes(4)
         with self.assertRaisesRegex(ValueError, "alignment"):

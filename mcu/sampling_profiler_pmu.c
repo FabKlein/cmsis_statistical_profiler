@@ -38,6 +38,8 @@ CHECK_EVENT(PROFILER_PMU_EVENT2);
     #if PROFILER_PMU_COUNT > 3
 CHECK_EVENT(PROFILER_PMU_EVENT3);
     #endif
+static struct ProfilerPmuInfo state;
+
 static const uint32_t events[PROFILER_PMU_COUNT] = {
     PROFILER_PMU_EVENT0,
     #if PROFILER_PMU_COUNT > 1
@@ -64,7 +66,7 @@ static void note_overflow(void)
 {
     uint32_t overflow = ARM_PMU_Get_CNTR_OVS();
     for (uint32_t event = 0; event < PROFILER_PMU_COUNT; ++event)
-        statistical_samples.header.pmu_flags |= ((overflow >> (2U * event + 1U)) & 1U) << event;
+        state.flags |= ((overflow >> (2U * event + 1U)) & 1U) << event;
 }
 
 /**
@@ -83,7 +85,7 @@ static uint32_t read_pair(uint32_t low)
         if (high == ARM_PMU_Get_EVCNTR(low + 1U))
             return (high << 16) | value;
     }
-    statistical_samples.header.pmu_flags |= 16U;
+    state.flags |= 16U;
     return 0U;
 }
     #endif
@@ -101,12 +103,13 @@ void profiler_pmu_snapshot(uint32_t *values)
     #endif
 }
 
-void profiler_pmu_init(void)
+static void initialize(void)
 {
-    statistical_samples.header.pmu_status = 1U;
-    statistical_samples.header.pmu_requested = PROFILER_PMU_COUNT;
+    state = (struct ProfilerPmuInfo){0};
+    state.status = PROFILER_PMU_UNAVAILABLE;
+    state.requested = PROFILER_PMU_COUNT;
     for (uint32_t event = 0; event < PROFILER_PMU_COUNT; ++event)
-        statistical_samples.header.pmu_events[event] = events[event];
+        state.events[event] = events[event];
     #if defined(__PMU_PRESENT) && (__PMU_PRESENT == 1U)
     uint32_t type = PMU->TYPE;
     /* TYPE.SIZE describes register spacing (31 = 32-bit words), not the
@@ -114,7 +117,7 @@ void profiler_pmu_init(void)
     uint32_t spacing = (type & PMU_TYPE_SIZE_CNTS_Msk) >> PMU_TYPE_SIZE_CNTS_Pos;
     if ((type & PMU_TYPE_NUM_CNTS_Msk) < 2U * PROFILER_PMU_COUNT || spacing != 31U || PMU_EVCNTR_CNT_Msk != 0xFFFFU)
     {
-        statistical_samples.header.pmu_status = 4U;
+        state.status = PROFILER_PMU_UNSUPPORTED;
         return;
     }
         #if defined(__ARM_FEATURE_CMSE) && (__ARM_FEATURE_CMSE == 3)
@@ -124,7 +127,7 @@ void profiler_pmu_init(void)
         #endif
     if (auth != 3U)
     {
-        statistical_samples.header.pmu_status = 5U;
+        state.status = PROFILER_PMU_DENIED;
         return;
     }
         /* Preserve any externally owned PMU configuration, including IRQs. The cycle
@@ -135,14 +138,14 @@ void profiler_pmu_init(void)
          (DWT_CTRL_CPIEVTENA_Msk | DWT_CTRL_EXCEVTENA_Msk | DWT_CTRL_SLEEPEVTENA_Msk | DWT_CTRL_LSUEVTENA_Msk |
           DWT_CTRL_FOLDEVTENA_Msk)))
     {
-        statistical_samples.header.pmu_status = 3U;
+        state.status = PROFILER_PMU_BUSY;
         return;
     }
         #endif
     if (!owned &&
         ((PMU->CTRL & ~PMU_CTRL_CYCCNT_DISABLE_Msk) || (PMU->CNTENSET & 0x7FFFFFFFU) || (PMU->INTENSET & 0x7FFFFFFFU)))
     {
-        statistical_samples.header.pmu_status = 3U;
+        state.status = PROFILER_PMU_BUSY;
         return;
     }
     owned = 1U;
@@ -157,9 +160,9 @@ void profiler_pmu_init(void)
         PMU->EVCNTR[2U * event + 1U] = 0U;
     }
     ARM_PMU_Set_CNTR_OVS(EVENT_MASK);
-    statistical_samples.header.pmu_count = PROFILER_PMU_COUNT;
-    statistical_samples.header.pmu_counter_bits = 32U;
-    statistical_samples.header.pmu_status = 2U;
+    state.count = PROFILER_PMU_COUNT;
+    state.counter_bits = 32U;
+    state.status = PROFILER_PMU_ACTIVE;
     running = 1U;
     ARM_PMU_Enable();
     ARM_PMU_CNTR_Enable(EVENT_MASK);
@@ -168,24 +171,36 @@ void profiler_pmu_init(void)
     uint32_t values[PROFILER_PMU_COUNT];
     profiler_pmu_snapshot(values);
     for (uint32_t event = 0; event < PROFILER_PMU_COUNT; ++event)
-        statistical_samples.header.pmu_start[event] = values[event];
+        state.start[event] = values[event];
     #endif
 }
 
-void profiler_pmu_stop(void)
+void profiler_pmu_init(struct ProfilerPmuInfo *info)
+{
+    initialize();
+    *info = state;
+}
+
+void profiler_pmu_stop(struct ProfilerPmuInfo *info)
 {
     #if defined(__PMU_PRESENT) && (__PMU_PRESENT == 1U)
     if (!running)
+    {
+        if (info)
+            *info = state;
         return;
+    }
     ARM_PMU_CNTR_Disable(EVENT_MASK);
     __DSB();
     __ISB();
     uint32_t values[PROFILER_PMU_COUNT];
     profiler_pmu_snapshot(values);
     for (uint32_t event = 0; event < PROFILER_PMU_COUNT; ++event)
-        statistical_samples.header.pmu_stop[event] = values[event];
+        state.stop[event] = values[event];
     running = 0U;
         /* Keep global PMU/cycle state and reservation; only our event counters stop. */
     #endif
+    if (info)
+        *info = state;
 }
 #endif

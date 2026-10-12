@@ -57,8 +57,13 @@ def trace_events(directory, cpu_header, cpu_samples):
         raise ValueError("Ethos-U capture is not finalized and validated")
     if len(records) != summary["count"]:
         raise ValueError("Ethos-U record count differs from summary")
-    if any(summary[key] != cpu_header[key] for key in ("sample_hz", "timestamp_hz")):
+    if any(
+        summary[key] != cpu_header[key]
+        for key in ("sample_hz", "timestamp_hz", "timer_hz", "timer_period")
+    ):
         raise ValueError("CPU/Ethos-U sample clocks differ")
+    if summary.get("firmware_id") != cpu_header.get("firmware_id"):
+        raise ValueError("CPU/Ethos-U firmware identity differs")
     count = summary["pmu_count"]
     if (
         not 0 <= count <= 4

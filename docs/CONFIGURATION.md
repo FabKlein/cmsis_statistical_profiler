@@ -25,7 +25,7 @@ timer interfaces load configuration through `sampling_profiler_port.h`.
 | `PROFILER_ALIF_UTIMER_CHANNEL` | HP: 0; HE: 1 | Alif per-image channel, 0-11; startup enables shared clocks |
 | `PROFILER_IRQ_PRIORITY` | Lowest | CMSIS unshifted sampling interrupt priority |
 | `PROFILER_SAMPLE_HZ` | 1000 | Requested sampling interrupt frequency in Hz |
-| `PROFILER_SAMPLE_BUFFER_BYTES` | 64 KiB | Allocation budget including the 176-byte header |
+| `PROFILER_SAMPLE_BUFFER_BYTES` | 64 KiB | Allocation budget including the 192-byte header |
 | `PROFILER_SAMPLING_ENABLED` | 1 | Supplied handler/example switch; 0 still maintains ticks |
 | `PROFILER_STACK_BASE`, `PROFILER_STACK_BYTES` | Required unless REGIONS is supplied | Application-supplied bounds for 1 readable stack RAM range |
 | `PROFILER_UNWIND_MAX_DEPTH` | 16 | Maximum recovered callers (1-255); bounds ISR work and temporary storage, not each stored record. See [stack/time budgets](ISR_BUDGET.md) |
@@ -36,6 +36,36 @@ timer interfaces load configuration through `sampling_profiler_port.h`.
 | `PROFILER_SRAM_REGION_BYTES` | Unset | Optional extra allocation limit for a dedicated region |
 | `PROFILER_DEVICE_HEADER` | Selected by board layer | CMSIS device include for backend/timer code |
 | `PROFILER_SAMPLE_DURATION_MS` | Example only: 30000 | Callback-loop timeout; core has no duration policy |
+| `PROFILER_BUILD_CONFIG_HEADER` | Unset | Project-wide generated header with build token and optional layout checks |
+| `PROFILER_FIRMWARE_ID` | Four zero words | 128-bit build token; zero explicitly leaves capture-to-ELF identity unverified |
+
+## Shared build configuration
+
+Generate a fresh header **before every firmware build**, retain it with that
+build's ELF, and supply its include path and definition to every profiler,
+adapter and application translation unit that consumes profiler settings:
+
+```sh
+python3 host/generate_profiler_build_config.py --output build/profiler_build_config.h \
+  --pmu-count 2 --unwind 1 --unwind-depth 16
+```
+
+Define `PROFILER_BUILD_CONFIG_HEADER="profiler_build_config.h"` project-wide.
+The header is included after `PROFILER_USER_CONFIG` and before optional defaults.
+Each supplied option emits a default and an expected-value check: conflicting
+per-file PMU count, backtrace enable or depth fails compilation, including with
+LTO. Choose these options for the actual application; unwind also needs precise
+bounds and table hooks. Apply the same header to every source, rather than
+regenerating it per file. Compiler definitions and the application header remain
+the place for clocks, memory and ownership settings.
+
+The capture core retains `profiler_firmware_id` as a read-only ELF object and
+copies it into CPU and Ethos-U headers. Decoding a nonzero token against a
+different ELF fails before report generation, including when only one input has
+a token. When both inputs have no token, identity is explicitly unavailable.
+This is an input association
+check, not a cryptographic firmware measurement. PTE and model-build associations
+remain caller supplied. Regenerating a token requires rebuilding every consumer.
 
 ## Build and ownership
 
@@ -71,7 +101,7 @@ RAM with BASE/BYTES or REGIONS, never both. Cover MSP and all task stacks using
 the actual application memory layout. No board layer supplies default bounds or
 probes DTCM size. The capture buffer defaults to aligned BSS.
 
-Initialization clears metadata only: 176 bytes for Cortex-M, or the 128-byte
+Initialization clears metadata only: 192 bytes for Cortex-M, or the 144-byte
 Ethos-U header plus its stream table. Record storage retains its previous contents;
 unused tails are not records. The full-buffer clears remain commented in the
 startup functions for applications that require erased exports.
@@ -133,8 +163,11 @@ denied, missing tables and malformed tables. PMU fallback remains in the header.
 For timer clock errors, context is input Hz/requested Hz (backend timing checks
 use input Hz/period); busy/denied errors identify the IRQ. Unwind validation
 identifies the offending region or index entry. Fix ownership/clocks/security,
-readable RAM bounds or linker ranges before retrying. These checks cannot prove
-MPU readability or protect against a bad application-supplied pointer.
+readable RAM bounds or linker ranges before retrying. Empty, zero-length or
+wrapping stack regions fail before timestamp/timer initialization. The
+stack/configuration diagnostic identifies the region index in `value0`.
+These checks cannot prove MPU readability or protect against a bad
+application-supplied pointer.
 
 Timer adapters implement `int profiler_timer_start(void)`: 1 means started,
 0 fails initialization. The backend stops a failed/partial start before restoring

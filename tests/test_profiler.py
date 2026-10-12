@@ -30,6 +30,16 @@ spec.loader.exec_module(analyzer)
 
 
 class ProfilerTests(unittest.TestCase):
+    def test_invalid_stack_regions_fail_before_timer_start(self):
+        for region in (1, 2):
+            with self.subTest(region=region), tempfile.TemporaryDirectory() as folder:
+                binary = Path(folder) / "test"
+                subprocess.run(["cc", "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-Imcu", "-Itests/fakes",
+                                '-DPROFILER_USER_CONFIG="profiler_test_config.h"', f"-DTEST_BAD_STACK_REGION={region}",
+                                "tests/test_capture.c", "mcu/sampling_profiler.c", "mcu/profiler_backend.c",
+                                "-o", str(binary)], cwd=ROOT, check=True)
+                subprocess.run([str(binary), str(Path(folder) / "capture.bin")], check=True)
+
     def test_native_capture_and_decoder(self):
         for cache, rate in itertools.product([0, 1], [1, 125, 333, 2500]):
             with self.subTest(cache=cache, rate=rate), tempfile.TemporaryDirectory() as tmp:
@@ -44,7 +54,7 @@ class ProfilerTests(unittest.TestCase):
                 subprocess.run([str(binary), str(capture)], check=True)
                 header, samples = analyzer.read_capture(capture.read_bytes())
                 self.assertEqual(header["count"], 3)
-                self.assertEqual(header["version"], 2)
+                self.assertEqual(header["version"], 1)
                 self.assertEqual(header["record_base_bytes"], 24)
                 self.assertEqual(len(samples[0]), 6)
                 self.assertEqual(header["sample_hz"], rate)
@@ -103,7 +113,7 @@ class ProfilerTests(unittest.TestCase):
                     header, samples = analyzer.read_capture(data)
                     active = bool(count and available)
                     stride = 24 + (4 * count if active else 0)
-                    capacity = (248 + 12 * count - analyzer.HEADER.size) // stride
+                    capacity = (264 + 12 * count - analyzer.HEADER.size) // stride
                     self.assertEqual(header["pmu"]["status"], "disabled" if not count else "active" if available else "unavailable")
                     self.assertEqual(header["pmu"]["requested"], count)
                     self.assertEqual(header["record_base_bytes"], stride)
@@ -228,7 +238,7 @@ int application(void)
     @staticmethod
     def capture_fields():
         return [analyzer.MAGIC, analyzer.FORMAT_VERSION, 24, analyzer.HEADER.size + 24, 24, 1, 0, 0,
-                1000000, 1000, 0, 0, 1000, 1, 1, 1, 1, 1, 1000, 1000000] + [0] * 22 + [analyzer.HEADER.size, 0]
+                1000000, 1000, 0, 0, 1000, 1, 1, 1, 1, 1, 1000, 1000000] + [0] * 22 + [analyzer.HEADER.size, 0] + [0] * 4
 
     def test_independent_timer_clock(self):
         fields = self.capture_fields()

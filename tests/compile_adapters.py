@@ -43,7 +43,7 @@ def main():
     if not any([args.corstone_bsp, args.stm32_cmsis, args.alif_dfp, args.nxp_rt685_dfp]):
         parser.error("Supply at least one board SDK")
     armclang = "armclang" in Path(args.cc).name
-    flags = ["-mcpu=cortex-m55", "-mthumb", "-mcmse", "-mfloat-abi=hard", "-O2", "-std=c11",
+    flags = ["-mthumb", "-O2", "-std=c11",
              "-Wall", "-Wextra", "-Werror", "-Imcu", "-Iexamples",
              "-DPROFILER_TIMER_CLOCK_HZ=100000000U",
              "-I" + str(args.cmsis.resolve() / "CMSIS/Core/Include")]
@@ -90,7 +90,11 @@ def main():
                 config += ["-DPROFILER_STACK_BYTES=DTCM_SIZE"]
             else:
                 config += ["-DPROFILER_STACK_BYTES=0x10000U"]
-            board_flags = flags + config + ["-I" + tmp, "-Iadapters/" + board] + includes
+            target = (["-mcpu=cortex-m33", "-mfpu=fpv5-sp-d16", "-mfloat-abi=hard", "-mcmse"]
+                      if board == "nxp_rt685" else
+                      ["-mcpu=cortex-m55", "-mfloat-abi=hard", "-mcmse"])
+            print(name + ": " + " ".join(target))
+            board_flags = flags + target + config + ["-I" + tmp, "-Iadapters/" + board] + includes
             for rate in args.sample_hz:
                 for enabled in [0, 1]:
                     objects = {}

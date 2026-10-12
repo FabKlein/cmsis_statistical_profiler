@@ -134,6 +134,9 @@ python3 host/create_profiler_report.py \
 ```
 
 Open `report/index.html`; keep `REPORT.md`, raw inputs and the exact ELF together.
+For capture-to-ELF checking, generate the shared firmware build header before
+each build; see [configuration](docs/CONFIGURATION.md#shared-build-configuration).
+Without a nonzero token, reports explicitly leave firmware identity unverified.
 Require complete/inactive capture, valid timing, correct workload output and no
 unexpected rejected frames or unresolved PCs. Keep clocks stable and avoid
 sleep/debugger pauses during capture. PC percentages estimate sampled execution
@@ -173,3 +176,5 @@ Run `python3 -B -m unittest discover -s tests -v` and
 `ruff format --check host/`. See [validation commands](tests/VALIDATION.md),
 [CI](.github/workflows/fvp.yml), [Doxygen](Documentation/README.md),
 [agent guide](AGENTS.md) and [TODO](TODO.md).
+Check production C/H formatting with `python3 tests/check_c_format.py` and
+clang-format 22.1.0.

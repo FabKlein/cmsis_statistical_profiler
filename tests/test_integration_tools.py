@@ -34,13 +34,13 @@ from test_report_index import Links
 from urllib.parse import unquote
 
 
-def elf(recipe=0x80B0B0B0, second_start=0x2000):
+def elf(recipe=0x80B0B0B0, second_start=0x2000, identity=None, writable_identity=False):
     """2 code allocations plus symbols/index; no compiler required for host tests."""
     data = bytearray(52)
     data[:7] = b"\x7fELF\x01\x01\x01"
     struct.pack_into("<HHI", data, 16, 2, 40, 1)
-    labels = b"\0.text\0.sram_text\0.ARM.exidx\0.strtab\0.symtab\0.shstrtab\0"
-    strings = b"\0leaf\0parent\0statistical_samples\0profiler_unwind_tables\0profiler_stack_bounds\0"
+    labels = b"\0.text\0.sram_text\0.ARM.exidx\0.strtab\0.symtab\0.shstrtab\0.profiler_firmware_id\0"
+    strings = b"\0leaf\0parent\0statistical_samples\0profiler_unwind_tables\0profiler_stack_bounds\0profiler_firmware_id\0"
     sections = [(0,) * 10]
 
     def section(name, kind, flags, address, blob, link=0, entsize=0):
@@ -81,8 +81,12 @@ def elf(recipe=0x80B0B0B0, second_start=0x2000):
             ("profiler_stack_bounds", 0x1010, 1),
         ]
     )
+    if identity is not None:
+        symbols += struct.pack("<IIIBBH", strings.index(b"profiler_firmware_id"), 0x4000, 16, 1, 0, 7)
     section(".symtab", 2, 0, 0, symbols, 4, 16)
     section(".shstrtab", 3, 0, 0, labels)
+    if identity is not None:
+        section(".profiler_firmware_id", 1, 3 if writable_identity else 2, 0x4000, identity)
     offset = len(data)
     data.extend(b"".join(struct.pack("<10I", *s) for s in sections))
     struct.pack_into("<I", data, 32, offset)
@@ -107,13 +111,14 @@ class IntegrationToolsTests(unittest.TestCase):
 
     def test_format_identity(self):
         capture = test_unwind.UnwindTests.capture(0, 1, [0x2005])
-        for index, value in [(1, 1), (42, 168), (43, 0), (43, 0x82)]:
+        self.assertEqual(analyzer.read_capture(capture)[0]["version"], 1)
+        for index, value in [(1, 2), (1, 3), (42, 168), (43, 0), (43, 0x82)]:
             data = bytearray(capture)
             struct.pack_into("<I", data, index * 4, value)
             with self.assertRaises(ValueError):
                 analyzer.read_capture(data)
         with self.assertRaisesRegex(ValueError, "rebuild and recapture"):
-            analyzer.read_capture(struct.pack("<II", analyzer.MAGIC, 1))
+            analyzer.read_capture(struct.pack("<II", analyzer.MAGIC, 2))
 
     def test_budget_and_depth_metrics(self):
         result = estimate(1048576, 2000, 4, 16, 8)
@@ -162,7 +167,7 @@ class IntegrationToolsTests(unittest.TestCase):
             self.assertEqual((report / "inputs/samples.bin").read_bytes(), capture)
             self.assertTrue((report / "samples.perfetto.json").is_file())
             self.assertIn(
-                "not embedded",
+                "caller supplied",
                 json.loads((report / "manifest.json").read_text())["provenance_note"],
             )
             self.assertIn("stacks.folded", (report / "index.html").read_text())

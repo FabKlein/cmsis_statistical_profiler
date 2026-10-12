@@ -164,6 +164,7 @@ struct StackRegion
 /* Readable RAM is the outer safety boundary. Optional precise bounds further
  * restrict reads to the interrupted task's allocation, not all of that RAM. */
 static const struct StackRegion stack_regions[] = PROFILER_STACK_REGIONS;
+_Static_assert(sizeof(stack_regions) != 0U, "At least one readable stack region is required");
 
 /* Written by the sampling IRQ and read by thread-mode timing queries. Counts
  * survive capture reinitialization and advance even while recording is gated off.
@@ -176,6 +177,16 @@ static uint32_t timer_clock_hz;
 static uint32_t tick_whole_ms;
 static uint32_t tick_fraction;
 static uint32_t ms_fraction;
+static struct ProfilerClock initialized_clock;
+static uint32_t timer_started;
+
+int profiler_port_clock(struct ProfilerClock *clock)
+{
+    if (!timer_started)
+        return 0;
+    *clock = initialized_clock;
+    return 1;
+}
 
 /**
  * @brief Advance timer-derived time using an exact fractional millisecond accumulator.
@@ -266,6 +277,7 @@ void profiler_port_stop(void)
     uint32_t primask = __get_PRIMASK();
     __disable_irq();
     profiler_timer_stop();
+    timer_started = 0U;
     __DSB();
     __ISB();
     __set_PRIMASK(primask);
@@ -274,6 +286,10 @@ void profiler_port_stop(void)
 int profiler_port_init(struct ProfilerClock *clock)
 {
     uint32_t timestamp_hz = 0U;
+    timer_started = 0U;
+    for (size_t i = 0; i < sizeof(stack_regions) / sizeof(stack_regions[0]); ++i)
+        if (!stack_regions[i].bytes || stack_regions[i].bytes - 1U > UINTPTR_MAX - stack_regions[i].address)
+            return profiler_init_fail(PROFILER_INIT_STACK, PROFILER_INIT_INVALID_CONFIG, (uint32_t)i, 0U);
 
     if (!profiler_timestamp_init(&timestamp_hz) || !timestamp_hz)
         return profiler_init_fail(PROFILER_INIT_TIMESTAMP, PROFILER_INIT_UNAVAILABLE, timestamp_hz, 0);
@@ -325,6 +341,8 @@ int profiler_port_init(struct ProfilerClock *clock)
     }
     __DSB();
     __ISB();
+    initialized_clock = *clock;
+    timer_started = 1U;
     __set_PRIMASK(primask);
     return 1;
 }

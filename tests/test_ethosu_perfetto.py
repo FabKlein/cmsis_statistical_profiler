@@ -70,6 +70,8 @@ class EthosuPerfettoTests(unittest.TestCase):
                 "device_type": 55,
                 "sample_hz": 1000,
                 "timestamp_hz": 1_000_000,
+                "timer_hz": header["timer_hz"],
+                "timer_period": header["timer_period"],
                 "pmu_count": 2,
                 "pmu_status": 1,
                 "pmu_event0": 5,
@@ -218,6 +220,8 @@ class EthosuPerfettoTests(unittest.TestCase):
             timer_period=400000,
         )
         summary.update(
+            timer_hz=hz,
+            timer_period=400000,
             timestamp_hz=hz,
             start_timestamp=100,
             stop_timestamp=(12 * hz - 50) & 0xFFFFFFFF,

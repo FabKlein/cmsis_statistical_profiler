@@ -39,8 +39,8 @@ import sys
 SHT_ARM_EXIDX = 0x70000001
 
 MAGIC = 0x46504353
-FORMAT_VERSION = 2
-HEADER = struct.Struct("<44I")
+FORMAT_VERSION = 1
+HEADER = struct.Struct("<48I")
 REJECTION_NAMES = ("invalid_exc_return", "unsupported_frame", "stack_bounds", "invalid_xpsr")
 RECORD = struct.Struct("<6I")
 PMU_STATES = {
@@ -117,6 +117,51 @@ def elf_functions(data):
     return sorted(set(functions))
 
 
+def elf_firmware_identity(data):
+    """Read the retained build object, requiring allocated, immutable ELF bytes.
+
+    Call after elf_functions validates the ELF32 container. Symbol addresses are
+    translated through their owning section; they are never treated as offsets.
+    """
+    offset = struct.unpack_from("<I", data, 32)[0]
+    count = struct.unpack_from("<H", data, 48)[0]
+    sections = [
+        struct.unpack("<10I", checked_slice(data, offset + i * 40, 40)) for i in range(count)
+    ]
+    identities = []
+    for table in sections:
+        if table[1] != 2:
+            continue
+        strings_section = sections[table[6]]
+        strings = checked_slice(data, strings_section[4], strings_section[5])
+        for name, address, size, info, _, section_index in struct.iter_unpack(
+            "<IIIBBH", checked_slice(data, table[4], table[5])
+        ):
+            end = strings.find(b"\0", name)
+            if name >= len(strings) or end < 0:
+                raise ValueError("Invalid ELF symbol name")
+            if strings[name:end] != b"profiler_firmware_id":
+                continue
+            if size != 16 or info & 15 != 1 or not 0 < section_index < count:
+                raise ValueError("invalid firmware identity symbol")
+            section = sections[section_index]
+            relative = address - section[3]
+            if section[1] != 1 or section[2] & 3 != 2 or relative < 0 or relative + 16 > section[5]:
+                raise ValueError("firmware identity must be an allocated read-only object")
+            identities.append(checked_slice(data, section[4] + relative, 16))
+    if len(identities) > 1:
+        raise ValueError("duplicate firmware identity symbol")
+    return identities[0].hex() if identities and any(identities[0]) else None
+
+
+def validate_firmware_identity(header, elf):
+    """Match a build token, or explicitly retain the caller-supplied association."""
+    identity = elf_firmware_identity(elf)
+    if identity != header["firmware_id"]:
+        raise ValueError("capture firmware identity differs from supplied ELF")
+    return {"status": "matched" if identity else "unavailable", "id": identity}
+
+
 def demangle_functions(functions, tool=None):
     """Demangle unique C++ symbols in 1 subprocess, preserving addresses and sizes."""
     names = sorted(
@@ -183,7 +228,11 @@ def read_capture(data):
         raise ValueError("Truncated capture header")
     fields = HEADER.unpack_from(data)
     header = dict(zip(HEADER_NAMES, fields[:20]))
-    header.update(header_bytes=fields[42], features=fields[43])
+    header.update(
+        header_bytes=fields[42],
+        features=fields[43],
+        firmware_id=struct.pack("<4I", *fields[44:48]).hex() if any(fields[44:48]) else None,
+    )
     if fields[42] != HEADER.size or fields[43] != (int(fields[25] != 0) | (2 if fields[41] else 0)):
         raise ValueError("Header length or feature flags disagree with capture format")
     reasons = dict(zip(REJECTION_NAMES, fields[20:24]))
@@ -657,6 +706,7 @@ def main():
         elf = args.elf.read_bytes()
         header, samples = read_capture(capture)
         functions = elf_functions(elf)
+        identity = validate_firmware_identity(header, elf)
         if not args.no_demangle:
             functions = demangle_functions(functions, args.cxxfilt)
         rows, timeline, unknown, timing = analyze(header, samples, functions)
@@ -723,6 +773,7 @@ def main():
             (args.output / "events.csv").unlink(missing_ok=True)
         summary = {
             "header": header,
+            "firmware_identity": identity,
             "unknown_samples": unknown,
             **timing,
             "nominal_sample_hz": nominal_sample_hz(header),
@@ -746,7 +797,7 @@ def main():
             "capture_sha256": hashlib.sha256(capture).hexdigest(),
             "notes": "Exclusive PC-hit percentages, not call counts or exact cycle shares. "
             "Fixed-period sampling can alias. LR is not a reconstructed call stack. "
-            "Caller must supply the matching AXF; its identity is not embedded in the capture.",
+            "Use the matching unstripped executable; build-token verification is reported separately.",
         }
         (args.output / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     except (OSError, ValueError, struct.error) as error:

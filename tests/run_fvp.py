@@ -54,6 +54,10 @@ def main():
 
     failures = []
     try:
+        run([sys.executable, ROOT / "host/generate_profiler_build_config.py", "--output",
+             ROOT / "examples/corstone300/profiler_build_config.generated.h", "--pmu-count", "2",
+             "--unwind", str(int(args.stack_unwind)), "--unwind-depth", "16"], "identity.log")
+        shutil.copy2(ROOT / "examples/corstone300/profiler_build_config.generated.h", output / "profiler_build_config.h")
         build_type = "Unwind" if args.stack_unwind else "FVP"
         toolbox_output = output / "toolbox"
         run([args.cbuild, ROOT / "examples/corstone300/profiler.csolution.yml",
@@ -62,6 +66,8 @@ def main():
         artifacts = toolbox_output / "out/profiler/Corstone300" / build_type
         shutil.copy2(artifacts / "profiler.axf", output / "profiler.elf")
         shutil.copy2(artifacts / "profiler.axf.map", output / "profiler.map")
+        run([sys.executable, ROOT / "host/check_profiler_elf.py", "--elf", output / "profiler.elf",
+             "--output", output / "preflight.json"], "preflight.log")
         command = [args.fvp, "-a", "profiler.elf", "--simlimit", "3"]
         parameters = ["core_clk.mul=32000000", "mps3_board.sse300.refcounter.base_frequency=100000000",
                       "cpu0.semihosting-enable=1", "mps3_board.visualisation.disable-visualisation=1"]

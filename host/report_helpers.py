@@ -54,9 +54,12 @@ def read_aggregate(root):
 
 
 def require_finalized(header, label):
-    if any(
-        header.get(key) != value
-        for key, value in (("active", 0), ("complete", 1), ("validation_passed", 1))
+    validation = header.get("validation_passed", 0)
+    if (
+        header.get("active") != 0
+        or header.get("complete") != 1
+        or type(validation) is not int
+        or not 0 < validation <= 0xFFFFFFFF
     ):
         raise ValueError(f"{label}: capture is not finalized and valid")
 

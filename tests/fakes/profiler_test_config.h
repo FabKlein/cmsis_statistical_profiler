@@ -18,10 +18,15 @@
 
 #ifndef TEST_PROFILER_CONFIG_H
 #define TEST_PROFILER_CONFIG_H
-#define PROFILER_DEVICE_HEADER "fake_device.h"
-#define PROFILER_SAMPLE_BUFFER_BYTES (248U + 12U * PROFILER_PMU_COUNT + 68U * PROFILER_STACK_UNWIND)
-#define PROFILER_STACK_REGIONS                                                                                         \
-    {                                                                                                                  \
-        {(uintptr_t)fake_stack, sizeof(fake_stack)}, {UINTPTR_MAX - 15U, 8U}, { 0U, 0U }                               \
-    }
+#define PROFILER_DEVICE_HEADER       "fake_device.h"
+#define PROFILER_SAMPLE_BUFFER_BYTES (264U + 12U * PROFILER_PMU_COUNT + 68U * PROFILER_STACK_UNWIND)
+#define PROFILER_STACK_REGIONS       {{(uintptr_t)fake_stack, sizeof(fake_stack)}, {UINTPTR_MAX - 15U, 8U}}
+#ifdef TEST_BAD_STACK_REGION
+    #undef PROFILER_STACK_REGIONS
+    #if TEST_BAD_STACK_REGION == 1
+        #define PROFILER_STACK_REGIONS {{0U, 0U}}
+    #else
+        #define PROFILER_STACK_REGIONS {{UINTPTR_MAX - 7U, 16U}}
+    #endif
+#endif
 #endif

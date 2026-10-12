@@ -53,7 +53,7 @@ enum ProfilerRejection
 };
 
 /**
- * @brief Capture metadata stored as 44 little-endian 32-bit words.
+ * @brief Capture metadata stored as 48 little-endian 32-bit words.
  * @details All counters wrap modulo 2^32. Read after profiler_stop().
  */
 struct ProfilerSamplingHeader
@@ -90,15 +90,16 @@ struct ProfilerSamplingHeader
     uint32_t unwind_max_depth; /**< 0: absent; otherwise maximum EHABI caller depth. */
     uint32_t header_bytes;     /**< Serialized header length; must match this format version. */
     uint32_t features;         /**< Bit 0: active PMU words; bit 1: EHABI backtraces. */
+    uint32_t firmware_id[4];   /**< Build token shared with the exact ELF; all zero means unavailable. */
 };
 
 /* 1 supported format: base words, active PMU words, optional depth/status and actual callers. */
 /** @brief Capture signature identifying SCPF(Statistical Capture Profiler Format) data. */
 #define PROFILER_CAPTURE_MAGIC 0x46504353U /* SCPF */
 /** @brief Identifier checked by the matching host decoder. */
-#define PROFILER_FORMAT_VERSION 2U
+#define PROFILER_FORMAT_VERSION 1U
 /** @brief Size of the capture header in bytes. */
-#define PROFILER_HEADER_BYTES 176U
+#define PROFILER_HEADER_BYTES 192U
 /** @brief Size of the 6 mandatory record words in bytes. */
 #define PROFILER_BASE_RECORD_BYTES 24U
 /** @brief Whole words available for packed records within the allocation budget. */

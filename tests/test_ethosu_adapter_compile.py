@@ -26,6 +26,7 @@ import unittest
 ADAPTER = Path(__file__).resolve().parents[1] / "adapters" / "ethosu"
 STUBS = {
     "sampling_profiler_config.h": """
+#define PROFILER_SAMPLE_HZ 1000U
 #define PROFILER_ETHOSU_TRACE 1
 #define PROFILER_ETHOSU_TRACE_BUFFER_BYTES 512U
 #ifndef PROFILER_ETHOSU_PMU_COUNT
@@ -43,6 +44,9 @@ extern struct FakeCoreCapture statistical_samples;
 """,
     "sampling_profiler_port.h": """
 #include <stdint.h>
+struct ProfilerClock { uint32_t timestamp_hz, timer_period, timer_hz; };
+extern const uint32_t profiler_firmware_id[4];
+int profiler_port_clock(struct ProfilerClock *);
 uint32_t profiler_port_timestamp(void);
 uint32_t profiler_port_ticks(void);
 void profiler_port_barrier(void);
@@ -60,8 +64,8 @@ void ethosu_release_power(struct ethosu_driver *);
 #include <stdint.h>
 struct ethosu_driver;
 enum ethosu_pmu_event_type {
-    ETHOSU_PMU_CYCLE, ETHOSU_PMU_NPU_ACTIVE,
-    ETHOSU_PMU_MAC_ACTIVE, ETHOSU_PMU_MAC_DPU_ACTIVE
+    ETHOSU_PMU_NO_EVENT, ETHOSU_PMU_CYCLE, ETHOSU_PMU_NPU_ACTIVE,
+    ETHOSU_PMU_MAC_ACTIVE, ETHOSU_PMU_MAC_DPU_ACTIVE, ETHOSU_PMU_SENTINEL
 };
 void ETHOSU_PMU_Enable(struct ethosu_driver *);
 void ETHOSU_PMU_Disable(struct ethosu_driver *);
@@ -73,6 +77,11 @@ uint32_t ETHOSU_PMU_CNTR_Status(struct ethosu_driver *);
 uint32_t ETHOSU_PMU_Get_EVCNTR(struct ethosu_driver *, uint32_t);
 uint32_t ETHOSU_PMU_Get_QREAD(struct ethosu_driver *);
 uint32_t ETHOSU_PMU_Get_STATUS(struct ethosu_driver *);
+uint32_t ETHOSU_PMU_Get_IRQ_Enable(struct ethosu_driver *);
+uint32_t ETHOSU_PMU_Get_NumEventCounters(void);
+enum ethosu_pmu_event_type ETHOSU_PMU_Get_EVTYPER(struct ethosu_driver *, uint32_t);
+void ETHOSU_PMU_Set_CNTR_IRQ_Disable(struct ethosu_driver *, uint32_t);
+void ETHOSU_PMU_Set_CNTR_OVS(struct ethosu_driver *, uint32_t);
 """,
 }
 
@@ -117,6 +126,7 @@ class EthosuAdapterCompileTest(unittest.TestCase):
                     )
                     subprocess.run([str(executable), str(capture)], check=True)
                     summary, records = MODULE.decode(capture.read_bytes())
+                    self.assertEqual(summary["version"], 1)
                     self.assertEqual(summary["stream_count"], 2)
                     self.assertEqual(summary["unknown_stream_samples"], 4)
                     self.assertEqual(summary["unregistered_streams"], 3)

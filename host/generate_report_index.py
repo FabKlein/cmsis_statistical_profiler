@@ -177,7 +177,10 @@ def metadata(root, summary, captures, board, application):
         facts.append(("Ethos-U clock (nominal)", format_frequency(ethosu["frequency_hz"])))
     facts.extend(
         [
-            ("Sampling rate", f"{summary.get('sample_hz', header.get('sample_hz', 'Unknown'))} Hz"),
+            (
+                "Sampling rate",
+                f"{summary.get('actual_sample_hz', summary.get('nominal_sample_hz', summary.get('sample_hz', header.get('sample_hz', 'Unknown'))))} Hz",
+            ),
             ("Captures", count),
             ("Cortex-M samples", summary.get("cpu_samples", header.get("count", "Not recorded"))),
         ]
@@ -205,6 +208,10 @@ def metadata(root, summary, captures, board, application):
                 ),
             ),
             ("ELF SHA-256", summary.get("elf_sha256", "Not recorded")),
+            (
+                "Firmware identity",
+                summary.get("firmware_identity", {}).get("status", "Not verified"),
+            ),
         ]
     )
     return tuple(facts)
@@ -340,6 +347,8 @@ def render(root, summary, captures, board, application):
         ("samples.perfetto.json", "Perfetto timeline"),
         ("hotspots.svg", "PC hotspots"),
         ("flamegraph.svg", "Flamegraph"),
+        ("instruction_hotspots.txt", "Instruction and source hotspots"),
+        ("instruction_annotation.txt", "Per-instruction annotation"),
         ("stacks.folded", "Folded stacks"),
         ("stacks.note.txt", "Stack inclusion and coverage"),
         ("functions.csv", "Function samples"),

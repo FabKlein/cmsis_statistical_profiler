@@ -14,7 +14,7 @@
 #
 # ----------------------------------------------------------------------
 
-"""Validate and export a separate Ethos-U EUTR v1 statistical trace."""
+"""Validate and export the current Ethos-U EUTR v1 statistical trace."""
 
 import argparse
 import csv
@@ -26,7 +26,8 @@ from pathlib import Path
 from ethosu_pmu_events import DRIVER_VERSION, describe_events
 
 MAGIC = 0x52545545
-HEADER_WORDS = 32
+FORMAT_VERSION = 1
+HEADER_WORDS = 36
 HEADER_BYTES = HEADER_WORDS * 4
 NO_QREAD = 0xFFFFFFFF
 HEADER_FIELDS = (
@@ -60,16 +61,22 @@ HEADER_FIELDS = (
     "stream_capacity",
     "unknown_stream_samples",
     "unregistered_streams",
+    "timer_hz",
+    "timer_period",
+    "firmware_id0",
+    "firmware_id1",
+    "firmware_id2",
+    "firmware_id3",
 )
 
 
 def decode(data):
     if len(data) < HEADER_BYTES or len(data) % 4:
-        raise ValueError("trace must contain a complete 128-byte, word-aligned header")
-    words = struct.unpack_from("<32I", data)
+        raise ValueError("trace must contain a complete 144-byte, word-aligned header")
+    words = struct.unpack_from("<36I", data)
     header = dict(zip(HEADER_FIELDS, words))
-    if header["magic"] != MAGIC or header["version"] != 1:
-        raise ValueError("not an Ethos-U EUTR v1 trace")
+    if header["magic"] != MAGIC or header["version"] != FORMAT_VERSION:
+        raise ValueError(f"not an Ethos-U EUTR v{FORMAT_VERSION} trace")
     if header["header_bytes"] != HEADER_BYTES or header["buffer_bytes"] != len(data):
         raise ValueError("trace header or buffer length does not match the dump")
     if header["device_type"] not in (55, 65, 85):
@@ -87,8 +94,14 @@ def decode(data):
         raise ValueError(
             "buffer allocation must match firmware's minimum size and 32-byte alignment"
         )
-    if any(words[len(HEADER_FIELDS) :]):
-        raise ValueError("reserved EUTR v1 header words must be zero")
+    if (
+        not 0 < header["sample_hz"] <= header["timer_hz"]
+        or header["timer_period"] < 2
+        or header["timer_period"]
+        != (header["timer_hz"] + header["sample_hz"] // 2) // header["sample_hz"]
+        or header["timer_period"] * header["timestamp_hz"] // header["timer_hz"] >= 0x40000000
+    ):
+        raise ValueError("invalid actual sampling timer ratio")
     stream_capacity = header["stream_capacity"]
     stream_count = header["stream_count"]
     if not 1 <= stream_capacity <= 64 or stream_count > stream_capacity:
@@ -169,6 +182,13 @@ def decode(data):
     if unknown_stream_samples != header["unknown_stream_samples"]:
         raise ValueError("unknown_stream_samples counter disagrees with records")
     summary = {key: header[key] for key in HEADER_FIELDS if key != "magic"}
+    identity = words[32:36]
+    summary["firmware_id"] = struct.pack("<4I", *identity).hex() if any(identity) else None
+    summary["firmware_identity"] = {
+        "status": "recorded_only" if summary["firmware_id"] else "unavailable",
+        "id": summary["firmware_id"],
+    }
+    summary["actual_sample_hz"] = header["timer_hz"] / header["timer_period"]
     summary["format"] = "EUTR"
     summary["pmu_events"] = describe_events(
         header["device_type"], [header[f"pmu_event{i}"] for i in range(pmu_count)]
@@ -214,11 +234,20 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--samples", type=Path, required=True, help="full EUTR buffer dump")
     parser.add_argument("--output", type=Path, required=True, help="output directory")
+    parser.add_argument(
+        "--elf", type=Path, help="Exact producer ELF for optional build identity verification"
+    )
     args = parser.parse_args()
     # Validate everything before creating output files, so a rejected dump
     # cannot publish plausible-looking partial reports.
     try:
         summary, records = decode(args.samples.read_bytes())
+        if args.elf:
+            from analyze_profiler_buffer import elf_functions, validate_firmware_identity
+
+            elf = args.elf.read_bytes()
+            elf_functions(elf)
+            summary["firmware_identity"] = validate_firmware_identity(summary, elf)
     except (OSError, ValueError, struct.error) as error:
         parser.exit(1, f"Error: {error}\n")
     args.output.mkdir(parents=True, exist_ok=True)

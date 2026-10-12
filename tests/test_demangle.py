@@ -63,7 +63,7 @@ class DemangleTests(unittest.TestCase):
 
     def test_cli_reports_and_opt_out(self):
         fields = [analyzer.MAGIC, analyzer.FORMAT_VERSION, 24, analyzer.HEADER.size + 24,
-                  24, 1, 0, 0, 1000000, 1000, 0, 0, 1000, 1, 1, 1, 1, 1, 1000, 1000000] + [0] * 22 + [analyzer.HEADER.size, 0]
+                  24, 1, 0, 0, 1000000, 1000, 0, 0, 1000, 1, 1, 1, 1, 1, 1000, 1000000] + [0] * 22 + [analyzer.HEADER.size, 0] + [0] * 4
         data = analyzer.HEADER.pack(*fields) + analyzer.RECORD.pack(1000, 1, 0x1004, 0x2001, 1 << 24, 0xFFFFFFF9)
         for options, expected in [([], "Foo::run(int)"), (["--cxxfilt", "/custom/c++filt"], "Foo::run(int)"),
                                   (["--no-demangle"], "_ZN3Foo3runEi")]:
@@ -73,7 +73,7 @@ class DemangleTests(unittest.TestCase):
                 (root / "app.elf").write_bytes(b"ELF fixture")
                 argv = ["analyze_profiler_buffer.py", "--samples", str(root / "capture.bin"),
                         "--elf", str(root / "app.elf"), "--output", str(root / "report")] + options
-                with patch("sys.argv", argv), patch.object(analyzer, "elf_functions", return_value=[(0x1000, 16, "_ZN3Foo3runEi")]), patch.object(
+                with patch("sys.argv", argv), patch.object(analyzer, "elf_firmware_identity", return_value=None), patch.object(analyzer, "elf_functions", return_value=[(0x1000, 16, "_ZN3Foo3runEi")]), patch.object(
                         analyzer.shutil, "which", return_value="/auto/c++filt"), patch.object(
                         analyzer.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, "Foo::run(int)\n", "")) as run, redirect_stdout(io.StringIO()) as console:
                     analyzer.main()

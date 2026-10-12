@@ -88,7 +88,7 @@ CPU-visible command addresses, which can differ from NPU QBASE after remapping.
 The EUTR format stores little-endian 32-bit words (see `ethosu_trace.h`):
 
 ```text
-128-byte header
+144-byte header
   + fixed stream table: MAX_STREAMS x 8 bytes (command address, byte length)
   + running: timestamp, tick, STATUS, QREAD,      stream_id,  optional PMU[0..3]
   + idle:    timestamp, tick, STATUS, 0xffffffff, idle_count, optional PMU[0..3]
@@ -96,8 +96,12 @@ The EUTR format stores little-endian 32-bit words (see `ethosu_trace.h`):
 
 The table consumes 128 bytes at the default 16-stream limit, inside the configured
 buffer allocation. Each record costs 20..36 bytes. IDs are 1-based table indices;
-unused descriptors are zero. This is the initial EUTR format (identifier 1);
-firmware and decoder use the same layout.
+unused descriptors are zero. The current EUTR version-1 layout stores the actual
+timer frequency and period at header words 30/31, and the shared firmware build
+token at words 32-35. Firmware and decoder use only this 144-byte header layout;
+older prototype layouts and other version identifiers are unsupported.
+The CPU format remains SCPF 1 with its current 192-byte layout. Both headers grew
+by 16 bytes within the existing allocation budgets; record layouts are unchanged.
 
 Startup clears the header and stream table only. Unused record bytes retain old
 contents and have no defined value. Export the full allocation after stop; the
@@ -110,7 +114,8 @@ A count of `UINT32_MAX` starts a new record on the next idle tick. An idle run
 can grow in the final buffer slot; capture becomes full when a new record is
 needed and cannot fit.
 
-The timer still samples at the configured rate. Intermediate idle snapshots are
+The timer samples at `timer_hz / timer_period`, which can differ from the
+requested `sample_hz`. Intermediate idle snapshots are
 discarded, including PMU values; multiple counter wraps across a long idle run
 cannot be recovered from its final snapshot. A short inference entirely between
 sampling ticks can still be missed. Stop before exporting the mutable buffer.
@@ -140,8 +145,14 @@ PMU snapshots are cumulative 32-bit counters; wrapped interval deltas cover all
 execution between samples and must not be attributed to a single operator.
 
 When PMU collection is requested, the adapter leaves it disabled if another
-counter is enabled or the NPU is running at start. Read `pmu_status` and
-`pmu_count` before interpreting records.
+counter is enabled, a PMU IRQ is armed, or the NPU is running at start. This busy
+fallback preserves the existing configuration and still permits QREAD capture.
+Selected events must be valid enum IDs for the compiled device; invalid constants
+fail compilation. Acquisition checks hardware capacity, stops the owned counter
+mask, disables its IRQs, clears its overflow flags and verifies event readback
+before counting. A readback failure fails start with the gate closed and releases
+the acquired power references. Read `pmu_status` and `pmu_count` before interpreting
+records. Cleanup follows internal ownership state, independent of header fields.
 
 **PMU collection requires exclusive ownership until `trace_ethosu_stop()` returns,**
 even if the buffer fills earlier. The application and other tools must not
@@ -155,7 +166,8 @@ If the application needs PMU ownership, set `PROFILER_ETHOSU_PMU_COUNT=0`.
 STATUS/QREAD sampling remains available without configuring or disabling PMU
 counters.
 
-Driver debug logging must be disabled for ISR-safe sampling (the core driver's default severity is WARN). Stop
+Build the driver with `ETHOSU_LOG_ENABLE=0` project-wide for ISR-safe sampling;
+its PMU getters are called from the timer interrupt. Stop
 profiling before exporting the entire `ethosu_trace_samples` symbol through the
 supported CMSIS debugger interface:
 
@@ -167,7 +179,7 @@ export_ethosu_trace_buffer ethosu_trace.bin
 Then run:
 
 ```sh
-python3 host/analyze_ethosu_trace.py --samples ethosu_trace.bin --output ethosu_report
+python3 host/analyze_ethosu_trace.py --samples ethosu_trace.bin --elf firmware.elf --output ethosu_report
 ```
 
 The decoder requires a stopped, complete capture and validates flags, clocks,
@@ -175,6 +187,10 @@ PMU metadata, allocation/count consistency and QREAD alignment/state. Invalid
 dumps fail before reports are written. Finalized full buffers and failed workload
 validation remain inspectable. Stream IDs, descriptor bounds and diagnostic
 counts are checked before output is written.
+`--elf` checks the capture build token against the same read-only object used by
+the CPU decoder. Without it, a nonzero token is recorded but not verified; zero
+is unavailable. Generate the shared header before building as described in
+[configuration](../../docs/CONFIGURATION.md#shared-build-configuration).
 
 The decoder creates `summary.json`, `streams.csv`, `samples.csv`, and
 `qread_histogram.csv`. The histogram groups by `(stream_id, qread_bytes)` and

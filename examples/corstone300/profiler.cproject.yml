@@ -22,6 +22,7 @@ project:
   language-C: c11
   define:
     - __MICROLIB
+    - PROFILER_BUILD_CONFIG_HEADER: '"profiler_build_config.generated.h"'
     - PROFILER_USER_CONFIG: '"profiler_config.h"'
     - PROFILER_SAMPLE_DURATION_MS: 250
     - PROFILER_SAMPLE_HZ: 333

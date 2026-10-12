@@ -65,6 +65,8 @@
 #   Validation/rendering failures preserve the previous report. Publication uses
 #   2 renames with rollback on errors, not a crash-atomic directory exchange.
 
+from report_helpers import require_finalized
+
 import argparse
 import csv
 import hashlib
@@ -284,11 +286,8 @@ def build_report(root, output, flamegraph):
         header = summary["header"]
         # This report deliberately requires validated captures with no rejected
         # exception frames. Validity here is stricter than simply being stopped.
-        if not (
-            header["complete"] == header["validation_passed"] == 1
-            and header["active"] == header["rejected"] == 0
-            and summary["timing_valid"]
-        ):
+        require_finalized(header, str(capture))
+        if header["rejected"] != 0 or not summary["timing_valid"]:
             raise ValueError(f"Invalid Cortex-M capture: {capture}")
         elfs.add(summary["elf_sha256"])
         # Both artifacts are needed. A folded file alone may be stale, and a

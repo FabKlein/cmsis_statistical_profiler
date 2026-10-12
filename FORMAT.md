@@ -2,7 +2,7 @@
 
 The firmware layout and export symbol are declared in
 [`mcu/sampling_profiler_format.h`](mcu/sampling_profiler_format.h).
-All fields are little-endian uint32. A 176-byte header precedes variable-length
+All fields are little-endian uint32. A 192-byte header precedes variable-length
 records. Each occupies `record_base_bytes + 4 * depth` bytes (depth is 0 without
 backtraces). Dump the whole
 `statistical_samples` object, including unused buffer space. Use the matching firmware and decoder.
@@ -11,15 +11,23 @@ Initialization clears the header only. Unused record bytes may retain earlier
 capture contents; they have no defined value and must not be decoded. Export the
 full allocation and use `count` and `bytes_used` to find the committed records.
 
-The current header contains no firmware build ID. External capture/ELF hashes
-identify archived files but cannot verify which firmware produced a capture.
+The header carries a 128-bit firmware build token. Generate it before each build
+with [generate_profiler_build_config.py](host/generate_profiler_build_config.py)
+and include the generated header project-wide as described in
+[configuration](docs/CONFIGURATION.md#shared-build-configuration).
+The decoder compares it with the read-only `profiler_firmware_id` ELF object
+before symbolizing PCs; a mismatch, including a token present on only one side,
+rejects decoding. When both sides have no token, identity is unavailable.
+Tokens associate inputs; they are not
+authentication or a digest of the firmware. Preserve the generated header and
+exact ELF with the capture.
 
 ## Header
 
 | Word | Field | Meaning |
 |---|---|---|
 | 0 | magic | `0x46504353`: ASCII `SCPF` in little-endian order, **Statistical Capture Profiler Format** |
-| 1 | version | `2`; only the current version is supported |
+| 1 | version | `1`; only the current 192-byte layout is supported |
 | 2 | record_base_bytes | `24 + 4 * pmu_count + (unwind_max_depth ? 4 : 0)` |
 | 3 | buffer_bytes | Allocated object size, rounded down to whole words |
 | 4 | bytes_used | Committed record bytes, excluding the header |
@@ -33,7 +41,7 @@ identify archived files but cannot verify which firmware produced a capture.
 | 14 | full | Next record could not fit, or less than a record base remains; no overwrite |
 | 15 | complete | Set by stop; dump after stop returns |
 | 16 | iterations | Application-reported workload iterations |
-| 17 | validation_passed | Nonzero if the application validated its workload |
+| 17 | validation_passed | Nonzero if the application validated its workload; current writers normalize API results to 0/1 |
 | 18 | sample_hz | Requested sample rate |
 | 19 | timer_hz | Actual sampling timer input frequency |
 | 20-23 | rejected_reason | Invalid EXC_RETURN, unsupported frame, stack bounds, invalid xPSR |
@@ -46,8 +54,9 @@ identify archived files but cannot verify which firmware produced a capture.
 | 36-39 | pmu_stop | Final snapshots after event counters stop; unused slots are 0 |
 | 40 | pmu_flags | Bits 0-3: corresponding event overflow; bit 4: incoherent read |
 | 41 | unwind_max_depth | 0: backtraces absent; 1-255: EHABI caller limit (default 16) |
-| 42 | header_bytes | 176 for this format |
+| 42 | header_bytes | 192 for this format |
 | 43 | features | Bit 0: active PMU words; bit 1: EHABI; other bits must be 0 |
+| 44-47 | firmware_id | 16-byte build token, displayed as little-endian bytes in hexadecimal; all zero means unavailable |
 
 Rejection counters reset at init. Exactly 1 reason per rejected sample is counted;
 their sum modulo 2^32 equals `rejected`. Gated-off/full/spurious events are excluded.
@@ -67,8 +76,8 @@ PMU count is 0-4 and fixed at init; caller depth varies per record. Disabled PMU
 Unavailable/busy/unsupported/denied PMU preserves status, requested count and event IDs,
 with 0 count, width, snapshots and flags. Those records have no PMU words.
 Unused bytes after `bytes_used` are not records. Minimum allocation is
-`200 + 4 * PROFILER_PMU_COUNT + 4 * PROFILER_STACK_UNWIND` bytes. A 64 KiB buffer holds 2,723 samples
-without PMU, 2,042 with 2 events or 1,634 with 4 events (backtraces disabled). Event ID `0x001E`
+`216 + 4 * PROFILER_PMU_COUNT + 4 * PROFILER_STACK_UNWIND` bytes. A 64 KiB buffer holds 2,722 samples
+without PMU, 2,042 with 2 events or 1,633 with 4 events (backtraces disabled). Event ID `0x001E`
 (CHAIN) increments an odd-numbered counter when the preceding even-numbered
 counter overflows. The backend pairs 2 16-bit counters per event to produce
 a 32-bit count: `(high << 16) | low`. CHAIN is reserved, not user-selectable. Insufficient hardware counters produce
@@ -118,6 +127,7 @@ records reject the capture because record boundaries cannot be trusted. See
   derived PMU counts; raw values and PC analysis remain. Invalid values are empty
   in CSV and null in JSON. Completed captures may contain 0 samples.
 
-Increment the format identifier whenever layout or interpretation changes incompatibly.
-No compatibility decoder is required, but never reuse an identifier for a different
-layout. Header length and feature flags must agree with the selected format.
+This unreleased software uses version 1 as its sole reference format. Earlier
+prototype layouts, including those also labelled version 1, are unsupported.
+Header length and feature flags must agree with the layout documented here.
+After release, increment the format identifier for incompatible changes.

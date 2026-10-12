@@ -21,7 +21,6 @@
 #if PROFILER_ETHOSU_TRACE
     #include "ethosu_driver.h"
     #include "pmu_ethosu.h"
-    #include "sampling_profiler_format.h"
     #include "sampling_profiler_port.h"
     #include <string.h>
 
@@ -45,7 +44,23 @@ static struct ethosu_driver *trace_driver;
 static volatile uint32_t trace_gate;
 static uint32_t trace_started;
 static volatile uint32_t current_stream_id;
+static uint32_t pmu_owned_mask;
     #if PROFILER_ETHOSU_PMU_COUNT
+        #define CHECK_EVENT(n)                                                                                         \
+            _Static_assert(PROFILER_ETHOSU_PMU_EVENT##n >= ETHOSU_PMU_NO_EVENT &&                                      \
+                               PROFILER_ETHOSU_PMU_EVENT##n < ETHOSU_PMU_SENTINEL,                                     \
+                           "Invalid Ethos-U PMU event " #n)
+CHECK_EVENT(0);
+        #if PROFILER_ETHOSU_PMU_COUNT > 1
+CHECK_EVENT(1);
+        #endif
+        #if PROFILER_ETHOSU_PMU_COUNT > 2
+CHECK_EVENT(2);
+        #endif
+        #if PROFILER_ETHOSU_PMU_COUNT > 3
+CHECK_EVENT(3);
+        #endif
+        #undef CHECK_EVENT
 static const enum ethosu_pmu_event_type configured_events[PROFILER_ETHOSU_PMU_COUNT] = {
         #if PROFILER_ETHOSU_PMU_COUNT > 0
     PROFILER_ETHOSU_PMU_EVENT0,
@@ -92,8 +107,15 @@ int trace_ethosu_start(void)
     header->version = ETHOSU_TRACE_VERSION;
     header->header_bytes = ETHOSU_TRACE_HEADER_BYTES;
     header->buffer_bytes = sizeof(ethosu_trace_samples);
-    header->sample_hz = statistical_samples.header.sample_hz;
-    header->timestamp_hz = statistical_samples.header.timestamp_hz;
+    struct ProfilerClock clock;
+    if (!profiler_port_clock(&clock))
+        return 0;
+    header->sample_hz = PROFILER_SAMPLE_HZ;
+    header->timestamp_hz = clock.timestamp_hz;
+    header->timer_hz = clock.timer_hz;
+    header->timer_period = clock.timer_period;
+    for (uint32_t i = 0; i < 4U; ++i)
+        header->firmware_id[i] = profiler_firmware_id[i];
     header->record_bytes = 4U * ETHOSU_TRACE_BASE_WORDS;
     #if defined(ETHOSU55)
     header->device_type = 55U;
@@ -106,34 +128,55 @@ int trace_ethosu_start(void)
     #endif
     if (!trace_driver || !header->timestamp_hz || ethosu_request_power(trace_driver) != 0)
         return 0;
-    trace_started = 1U;
+    pmu_owned_mask = 0U;
 
     #if PROFILER_ETHOSU_PMU_COUNT
     /* The driver soft-reset on the first power request makes these settings
      * stable across invocations while this trace retains the power reference.
      * Never seize counters that are already enabled by another owner. */
-    if ((ETHOSU_PMU_Get_STATUS(trace_driver) & 1U) != 0U || ETHOSU_PMU_CNTR_Status(trace_driver) != 0U)
+    if ((ETHOSU_PMU_Get_STATUS(trace_driver) & 1U) != 0U || ETHOSU_PMU_CNTR_Status(trace_driver) != 0U ||
+        ETHOSU_PMU_Get_IRQ_Enable(trace_driver) != 0U)
     {
         header->pmu_status = ETHOSU_TRACE_PMU_BUSY;
     }
     else
     {
-        header->pmu_status = ETHOSU_TRACE_PMU_ACTIVE;
-        header->pmu_count = PROFILER_ETHOSU_PMU_COUNT;
+        if (PROFILER_ETHOSU_PMU_COUNT > ETHOSU_PMU_Get_NumEventCounters())
+        {
+            ethosu_release_power(trace_driver);
+            return 0;
+        }
         ETHOSU_PMU_Enable(trace_driver);
+        pmu_owned_mask = (1U << PROFILER_ETHOSU_PMU_COUNT) - 1U;
+        ETHOSU_PMU_CNTR_Disable(trace_driver, pmu_owned_mask);
+        ETHOSU_PMU_Set_CNTR_IRQ_Disable(trace_driver, pmu_owned_mask);
+        ETHOSU_PMU_Set_CNTR_OVS(trace_driver, pmu_owned_mask);
         for (uint32_t i = 0; i < PROFILER_ETHOSU_PMU_COUNT; ++i)
         {
-            header->pmu_events[i] = (uint32_t)configured_events[i];
             ETHOSU_PMU_Set_EVTYPER(trace_driver, i, configured_events[i]);
+            if (ETHOSU_PMU_Get_EVTYPER(trace_driver, i) != configured_events[i])
+            {
+                /* No producer has been opened; unwind each acquired reference. */
+                ETHOSU_PMU_CNTR_Disable(trace_driver, pmu_owned_mask);
+                ETHOSU_PMU_Disable(trace_driver);
+                pmu_owned_mask = 0U;
+                ethosu_release_power(trace_driver);
+                return 0;
+            }
             ETHOSU_PMU_Set_EVCNTR(trace_driver, i, 0U);
         }
-        ETHOSU_PMU_CNTR_Enable(trace_driver, (1U << PROFILER_ETHOSU_PMU_COUNT) - 1U);
+        ETHOSU_PMU_CNTR_Enable(trace_driver, pmu_owned_mask);
+        for (uint32_t i = 0; i < PROFILER_ETHOSU_PMU_COUNT; ++i)
+            header->pmu_events[i] = (uint32_t)configured_events[i];
+        header->pmu_count = PROFILER_ETHOSU_PMU_COUNT;
+        header->pmu_status = ETHOSU_TRACE_PMU_ACTIVE;
     }
     #endif
     header->record_bytes += 4U * header->pmu_count;
     header->start_timestamp = profiler_port_timestamp();
     header->start_tick = profiler_port_ticks();
     header->active = 1U;
+    trace_started = 1U;
     profiler_port_barrier();
     trace_gate = 1U;
     return 1;
@@ -147,15 +190,16 @@ void trace_ethosu_stop(uint32_t iterations, uint32_t validation_passed)
         return;
     volatile struct EthosuTraceHeader *header = &ethosu_trace_samples.header;
     header->active = 0U;
-    if (header->pmu_count)
+    if (pmu_owned_mask)
     {
-        ETHOSU_PMU_CNTR_Disable(trace_driver, (1U << header->pmu_count) - 1U);
+        ETHOSU_PMU_CNTR_Disable(trace_driver, pmu_owned_mask);
         ETHOSU_PMU_Disable(trace_driver);
+        pmu_owned_mask = 0U;
     }
     header->stop_timestamp = profiler_port_timestamp();
     header->stop_tick = profiler_port_ticks();
     header->iterations = iterations;
-    header->validation_passed = validation_passed;
+    header->validation_passed = (validation_passed != 0U);
     header->complete = 1U;
     profiler_port_barrier();
     profiler_port_flush((const void *)&ethosu_trace_samples, sizeof(ethosu_trace_samples));

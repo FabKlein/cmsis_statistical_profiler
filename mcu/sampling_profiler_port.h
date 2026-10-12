@@ -63,9 +63,30 @@ struct ProfilerClock
     uint32_t timer_hz;     /**< Actual sampling timer input frequency in Hz. */
 };
 
+/** @brief Backend-owned PMU results copied into storage by the capture owner. */
+struct ProfilerPmuInfo
+{
+    uint32_t status, count, requested, counter_bits, flags;
+    uint32_t events[4], start[4], stop[4];
+};
+
+/** @brief On-wire PMU states; values remain stable across backend implementations. */
+enum ProfilerPmuStatus
+{
+    PROFILER_PMU_DISABLED = 0,
+    PROFILER_PMU_UNAVAILABLE = 1,
+    PROFILER_PMU_ACTIVE = 2,
+    PROFILER_PMU_BUSY = 3,
+    PROFILER_PMU_UNSUPPORTED = 4,
+    PROFILER_PMU_DENIED = 5
+};
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/** @brief Immutable build token retained in the ELF and copied to both captures. */
+extern const uint32_t profiler_firmware_id[4];
 
 /* Backend initialization starts the selected sampling timer, with capture gated off. */
 /**
@@ -74,10 +95,16 @@ extern "C" {
  * @return 1 on success, 0 if the configuration or hardware is unavailable.
  */
 int profiler_port_init(struct ProfilerClock *clock);
+/** @brief Copy actual clocks while the sampling timer is running.
+ * @param[out] clock Non-NULL destination, unchanged on failure.
+ * @return 1 when initialized and running, otherwise 0. Thread-mode use only.
+ */
+int profiler_port_clock(struct ProfilerClock *clock);
 /** @brief Record an init failure and return 0; never call from the sampling ISR.
  * @details Timer bad-clock context is input Hz/requested Hz; busy/denied context is IRQ/0.
  * A vendor timer-start failure records IRQ/vendor status with reason UNAVAILABLE.
- * Unwind context is entry or region index/0. Other context values are 0 unless documented.
+ * Stack configuration context is region index/0; unwind context is entry or region index/0.
+ * Other context values are 0 unless documented.
  */
 int profiler_init_fail(enum ProfilerInitStage stage, enum ProfilerInitReason reason, uint32_t value0, uint32_t value1);
 /**
@@ -110,20 +137,22 @@ void profiler_port_barrier(void);
 /* Optional PMU backend. PMU scope is init through stop, independent of gate. */
 /**
  * @brief Try to reserve and start the configured chained 32-bit PMU events.
- * @pre Capture header was cleared and sampling is gated off.
+ * @pre Sampling is gated off.
+ * @param[out] info Non-NULL destination for configuration and initial counters.
  * @details Records failure status without preventing PC sampling. Counting covers
  * init through stop, including interrupts and gated-off intervals.
  */
-void profiler_pmu_init(void);
+void profiler_pmu_init(struct ProfilerPmuInfo *info);
 /**
  * @brief Stop owned event counters and save final values without releasing ownership.
+ * @param[out] info Optional destination for final counters and diagnostic flags.
  * @note Safe when no PMU collection is running; preserves the shared cycle counter.
  */
-void profiler_pmu_stop(void);
+void profiler_pmu_stop(struct ProfilerPmuInfo *info);
 /**
  * @brief Read the configured chained event counters with bounded rollover retries.
  * @param[out] values Non-NULL PROFILER_PMU_COUNT-word destination; 0 when collection is inactive.
- * @details ISR-safe. Overflow or incoherent reads set capture validity flags.
+ * @details ISR-safe. Overflow or incoherent reads latch backend flags returned at stop.
  */
 void profiler_pmu_snapshot(uint32_t *values);
 /**

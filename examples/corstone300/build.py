@@ -20,6 +20,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 
 
 def build_ac6(args, root, output, flags, files):
@@ -39,6 +40,7 @@ def build_ac6(args, root, output, flags, files):
             config["define"].append({name: value} if sep else name)
     config["add-path"] = [os.path.relpath((example / path).resolve(), generated) if not path.startswith("$") else path
                           for path in config["add-path"]]
+    config["add-path"].append(os.path.relpath(output, generated))
     for layer in config["layers"]:
         layer["layer"] = os.path.relpath((example / layer["layer"]).resolve(), generated)
     config["linker"] = [{"script": os.path.relpath(example / ("linker_split.sct" if args.split_code else "linker.sct"), generated)}]
@@ -97,16 +99,20 @@ def main():
     args.stack_unwind = args.stack_unwind or args.call_tree
     if args.call_tree and args.float_workload:
         parser.error("--call-tree and --float-workload select different workloads")
-    if not 1 <= args.captures <= 100 or not 0 < args.timer_clock_hz <= 0xFFFFFFFF or not 0 < args.sample_hz <= 0xFFFFFFFF or not (200 + 4 * args.pmu_count + 4 * args.stack_unwind) <= args.buffer_bytes <= 0x7FFFFFFF:
-        parser.error("sample-hz must be a positive uint32; buffer-bytes must fit the 176-byte header plus 1 configured record, up to 2147483647")
+    if not 1 <= args.captures <= 100 or not 0 < args.timer_clock_hz <= 0xFFFFFFFF or not 0 < args.sample_hz <= 0xFFFFFFFF or not (216 + 4 * args.pmu_count + 4 * args.stack_unwind) <= args.buffer_bytes <= 0x7FFFFFFF:
+        parser.error("sample-hz must be a positive uint32; buffer-bytes must fit the 192-byte header plus 1 configured record, up to 2147483647")
     ac6 = "armclang" in Path(args.cc).name
     clang = "clang" in Path(args.cc).name
     root = Path(__file__).resolve().parents[2]
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
+    subprocess.run([sys.executable, str(root / "host/generate_profiler_build_config.py"),
+                    "--output", str(output / "profiler_build_config.h"), "--pmu-count", str(args.pmu_count),
+                    "--unwind", str(int(args.stack_unwind)), "--unwind-depth", "16"], check=True)
     flags = ["-mcpu=cortex-m55", "-mthumb", "-mcmse", "-mfloat-abi=hard", "-O2", "-g", "-std=c11",
              "-Wall", "-Wextra", "-Werror", "-ffunction-sections", "-fdata-sections",
              '-DPROFILER_USER_CONFIG="profiler_config.h"',
+             '-DPROFILER_BUILD_CONFIG_HEADER="profiler_build_config.h"',
              "-DPROFILER_SAMPLE_DURATION_MS=250U", f"-DPROFILER_SAMPLE_HZ={args.sample_hz}U",
              f"-DPROFILER_SAMPLE_BUFFER_BYTES={args.buffer_bytes}U",
              f"-DPROFILER_TIMER_CLOCK_HZ={args.timer_clock_hz}U",
@@ -133,7 +139,7 @@ def main():
         flags.append("-DPROFILER_EXAMPLE_SPLIT_CODE=1")
     if args.psp:
         flags.append("-DPROFILER_EXAMPLE_PSP=1")
-    for directory in [root / "mcu", root / "adapters/corstone300", root / "examples", root / "examples/corstone300",
+    for directory in [output, root / "mcu", root / "adapters/corstone300", root / "examples", root / "examples/corstone300",
                       args.cmsis / "CMSIS/Core/Include", args.bsp / "Device/Include"]:
         flags += ["-I", str(directory.resolve())]
     sources = [root / name for name in ["mcu/sampling_profiler.c", "mcu/profiler_backend.c", "mcu/sampling_profiler_pmu.c", "mcu/sampling_profiler_unwind.c",

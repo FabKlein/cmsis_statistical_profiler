@@ -2,6 +2,8 @@
   "description": "AC6 secure Corstone-300, 333 Hz, 250 ms, 2 PSP/FP captures, precise bounds and PMU.",
   "expected": {
     "header": {
+      "version": 1,
+      "header_bytes": 192,
       "record_base_bytes": 32,
       "unwind_max_depth": 0,
       "buffer_bytes": 65536,

@@ -28,7 +28,7 @@ struct ethosu_driver;
  * fields are little-endian 32-bit words. Export the whole object after stop. */
 #define ETHOSU_TRACE_MAGIC        0x52545545U /* EUTR */
 #define ETHOSU_TRACE_VERSION      1U
-#define ETHOSU_TRACE_HEADER_BYTES 128U
+#define ETHOSU_TRACE_HEADER_BYTES 144U
 #define ETHOSU_TRACE_BASE_WORDS   5U
 #define ETHOSU_TRACE_NO_QREAD     UINT32_MAX
 
@@ -50,7 +50,8 @@ struct EthosuTraceHeader
     uint32_t iterations, validation_passed;
     uint32_t device_type; /* 55, 65, or 85; event enum values depend on it. */
     uint32_t stream_capacity, unknown_stream_samples, unregistered_streams;
-    uint32_t reserved[2];
+    uint32_t timer_hz, timer_period; /* Actual timer ratio, independent of requested sample_hz. */
+    uint32_t firmware_id[4];         /* Same immutable build token as the CPU capture. */
 };
 
 /* IDs are 1-based table indices, valid only within this capture. Address is

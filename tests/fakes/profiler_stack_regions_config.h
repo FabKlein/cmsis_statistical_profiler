@@ -18,12 +18,12 @@
 
 #ifndef TEST_PROFILER_STACK_REGIONS_CONFIG_H
 #define TEST_PROFILER_STACK_REGIONS_CONFIG_H
-#define PROFILER_DEVICE_HEADER "fake_device.h"
-#define PROFILER_SAMPLE_BUFFER_BYTES (248U + 12U * PROFILER_PMU_COUNT)
+#define PROFILER_DEVICE_HEADER       "fake_device.h"
+#define PROFILER_SAMPLE_BUFFER_BYTES (264U + 12U * PROFILER_PMU_COUNT)
 #define PROFILER_STACK_REGIONS                                                                                         \
     {                                                                                                                  \
         {                                                                                                              \
-            (uintptr_t) fake_stack, sizeof(fake_stack)                                                                 \
+            (uintptr_t)fake_stack, sizeof(fake_stack)                                                                  \
         }                                                                                                              \
     }
 #endif

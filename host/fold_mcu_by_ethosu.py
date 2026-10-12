@@ -11,6 +11,8 @@ from collections import Counter, defaultdict
 from itertools import pairwise
 from pathlib import Path
 
+from capture_time import CaptureClock, synchronize, select_periods
+
 from report_helpers import (
     idle_classification,
     is_idle,
@@ -29,10 +31,9 @@ def fold(root, pre_ms=0.0, post_ms=40.0, idle_function=None, highlight_function=
     aggregate, captures = read_aggregate(root)
     classification = idle_classification(read_platform(root), idle_function)
     rate = int(aggregate["sample_hz"])
-    pre_ticks = round(pre_ms * rate / 1000)
-    post_ticks = round(post_ms * rate / 1000)
-    if pre_ticks < 0 or post_ticks < 1:
+    if not all(math.isfinite(value) for value in (pre_ms, post_ms)) or pre_ms < 0 or post_ms <= 0:
         raise ValueError("invalid phase window")
+    clock = None
 
     phase_idle = Counter()
     phase_functions = defaultdict(Counter)
@@ -59,13 +60,16 @@ def fold(root, pre_ms=0.0, post_ms=40.0, idle_function=None, highlight_function=
             ethos_summary["timestamp_hz"],
         ) or cpu_header["sample_hz"] != rate:
             raise ValueError(f"capture {capture_index}: CPU/Ethos-U sample clocks differ")
-        if (
-            cpu_header["start_tick"] != ethos_summary["start_tick"]
-            or abs(cpu_header["stop_tick"] - ethos_summary["stop_tick"]) > 1
-        ):
-            raise ValueError(f"capture {capture_index}: CPU/Ethos-U tick ranges differ")
-        if not cpu_summary["timing_valid"] or cpu_header.get("validation_passed") != 1:
-            raise ValueError(f"capture {capture_index}: CPU timing or validation failed")
+        current_clock = CaptureClock.from_header(cpu_header)
+        if clock is not None and current_clock != clock:
+            raise ValueError("actual sample clock changed between captures")
+        clock = current_clock
+        pre_ticks, post_ticks = clock.window_ticks(pre_ms), clock.window_ticks(post_ms)
+        if post_ticks < 1:
+            raise ValueError("invalid phase window")
+        cpu_header, cpu, ethos_summary, ethos = synchronize(cpu_header, cpu, ethos_summary, ethos)
+        if not cpu_summary["timing_valid"]:
+            raise ValueError(f"capture {capture_index}: CPU timing failed")
         pmu = cpu_header.get("pmu", {})
         events = cpu_summary.get("pmu_events", [])
         pmu_active = pmu.get("status") == "active" and pmu.get("count", 0) > 0
@@ -104,11 +108,11 @@ def fold(root, pre_ms=0.0, post_ms=40.0, idle_function=None, highlight_function=
                     raise ValueError(f"capture {capture_index}: CPU/Ethos-U timestamp mismatch")
                 matched_cpu_ticks += 1
 
-        groups = running_groups(ethos)
+        groups, selected = select_periods(ethos_summary, ethos, cpu_header, pre_ticks)
         running_ticks = {int(record["tick"]) for record in ethos if int(record["running"])}
-        excluded_edges += min(len(groups), 2)
+        excluded_edges += len(groups) - len(selected)
         # Match the Ethos-U PMU fold: both capture-edge running groups are excluded.
-        for group_index in range(1, len(groups) - 1):
+        for group_index in selected:
             first_tick = int(ethos[groups[group_index][0]]["tick"])
             next_tick = int(ethos[groups[group_index + 1][0]]["tick"])
             period = next_tick - first_tick
@@ -160,6 +164,8 @@ def fold(root, pre_ms=0.0, post_ms=40.0, idle_function=None, highlight_function=
                     "inference": group_index,
                     "start_tick": first_tick,
                     "next_start_tick": next_tick,
+                    "start_tick_raw": ethos[groups[group_index][0]]["tick_raw"],
+                    "next_start_tick_raw": ethos[groups[group_index + 1][0]]["tick_raw"],
                     "period_ticks": period,
                     "cpu_samples_in_window": observed,
                     **({"idle_samples_in_window": idle} if classification else {}),
@@ -173,7 +179,7 @@ def fold(root, pre_ms=0.0, post_ms=40.0, idle_function=None, highlight_function=
         functions = phase_functions[phase]
         observed = sum(functions.values())
         row = {
-            "phase_ms": phase * 1000 / rate,
+            "phase_ms": clock.milliseconds(phase),
             "inferences_eligible": phase_expected[phase],
             "ethosu_running_samples": phase_npu_running[phase],
             "ethosu_running_percent": 100 * phase_npu_running[phase] / phase_expected[phase],
@@ -211,15 +217,21 @@ def fold(root, pre_ms=0.0, post_ms=40.0, idle_function=None, highlight_function=
         "pre_ms": pre_ms,
         "post_ms": post_ms,
         "idle_classification": classification,
-        "median_period_ms": statistics.median(period_ticks) * 1000 / rate,
-        "min_period_ms": min(period_ticks) * 1000 / rate,
-        "max_period_ms": max(period_ticks) * 1000 / rate,
+        "median_period_ms": clock.milliseconds(statistics.median(period_ticks)),
+        "min_period_ms": clock.milliseconds(min(period_ticks)),
+        "max_period_ms": clock.milliseconds(max(period_ticks)),
         "cpu_pmu_events": cpu_events,
         "cpu_phase_observations": sum(row["cpu_samples_in_window"] for row in inference_rows),
         "pre_context_may_repeat_samples": pre_ticks > 0,
         "missing_cpu_phase_samples": sum(phase_expected.values())
         - sum(row["cpu_samples"] for row in phases),
     }
+    summary.update(clock.metadata())
+    summary["pre_ticks"] = pre_ticks
+    summary["post_ticks"] = post_ticks
+    summary["realized_pre_ms"] = clock.milliseconds(pre_ticks)
+    summary["realized_post_ms"] = clock.milliseconds(post_ticks)
+    summary["eligible_periods"] = [[row["capture"], row["inference"]] for row in inference_rows]
     if classification:
         summary["idle_phase_observations"] = sum(
             row["idle_samples_in_window"] for row in inference_rows
@@ -229,7 +241,7 @@ def fold(root, pre_ms=0.0, post_ms=40.0, idle_function=None, highlight_function=
         summary["highlight_function"] = highlight_function
         summary["highlight_sampled_runs_per_period"] = dict(sorted(highlighted_run_counts.items()))
         summary["highlight_two_run_median_gap_ms"] = (
-            statistics.median(highlighted_two_run_gaps) * 1000 / rate
+            clock.milliseconds(statistics.median(highlighted_two_run_gaps))
             if highlighted_two_run_gaps
             else None
         )
@@ -280,7 +292,7 @@ def plot(root, summary, phases, function_rows, highlight_function=None, highligh
             and by_phase[phase].get(highlight_function, 0) / row["cpu_samples"] >= 0.5
         ]
         if dominant:
-            step_ms = 1000 / summary["sample_hz"]
+            step_ms = 1000 / summary["actual_sample_hz"]
             runs = [[dominant[0]]]
             for phase in dominant[1:]:
                 if phase - runs[-1][-1] > step_ms * 1.5:

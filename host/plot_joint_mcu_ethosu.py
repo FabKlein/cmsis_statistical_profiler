@@ -35,7 +35,15 @@ def by_phase(rows, label):
 def combine(root):
     mcu_summary = json.loads((root / "mcu_folded_summary.json").read_text())
     ethos_summary = json.loads((root / "folded_summary.json").read_text())
-    for key in ("captures", "complete_inferences", "sample_hz"):
+    for key in (
+        "captures",
+        "complete_inferences",
+        "sample_hz",
+        "timer_hz",
+        "timer_period",
+        "timestamp_hz",
+        "eligible_periods",
+    ):
         if mcu_summary[key] != ethos_summary[key]:
             raise ValueError(f"MCU/Ethos-U {key} differs")
     mcu = by_phase(read_csv(root / "mcu_folded.csv"), "MCU")
@@ -45,11 +53,7 @@ def combine(root):
     )
     pmu_path = root / "folded_pmu.csv"
     pmu = by_phase(read_csv(pmu_path), "Ethos-U PMU") if pmu_path.is_file() else {}
-    events = ethos_summary.get("pmu_events")
-    if events is None:
-        # Reports made before the generic fold did not record event metadata.
-        legacy = ("npu_active", "mac_active", "ib_stall", "axi_read_request_stall")
-        events = [{"key": key, "label": key.replace("_", " ")} for key in legacy] if pmu else []
+    events = ethos_summary["pmu_events"]
     if bool(pmu) != bool(events):
         raise ValueError("Ethos-U PMU data and event metadata differ")
     if pmu and set(pmu) != set(ethos):
@@ -118,7 +122,7 @@ def plot(root, summary, rows, omitted_ethos_phases):
     cpu_events = summary.get("cpu_pmu_events", [])
     npu_events = summary.get("ethosu_pmu_events", [])
     npu_panels = math.ceil(len(npu_events) / 2)
-    interval_ms = 1000 / summary["sample_hz"]
+    interval_ms = 1000 / summary["actual_sample_hz"]
     fig, axes = plt.subplots(
         3 + len(cpu_events) + npu_panels,
         1,
@@ -158,7 +162,7 @@ def plot(root, summary, rows, omitted_ethos_phases):
             and by_phase[phase].get(highlight, 0) / row["mcu_pc_samples"] >= 0.5
         ]
         if dominant:
-            step_ms = 1000 / summary["sample_hz"]
+            step_ms = 1000 / summary["actual_sample_hz"]
             runs = [[dominant[0]]]
             for phase in dominant[1:]:
                 if phase - runs[-1][-1] > step_ms * 1.5:

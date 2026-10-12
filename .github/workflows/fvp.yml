@@ -48,16 +48,31 @@ jobs:
       - name: Cache CMSIS packs
         uses: actions/cache@v6
         with:
-          key: profiler-cmsis-6.3.0-sse300-1.5.0
+          key: profiler-cmsis-6.3.0-sse300-1.5.0-ethosu-1.26.2
           path: /home/runner/.cache/arm/packs
       - name: Install CMSIS and BSP
-        run: cpackget add ARM::CMSIS@6.3.0 ARM::V2M_MPS3_SSE_300_BSP@1.5.0 --agree-embedded-license
+        run: cpackget add ARM::CMSIS@6.3.0 ARM::V2M_MPS3_SSE_300_BSP@1.5.0 ARM::ethos-u-core-driver@1.26.2 --agree-embedded-license
+      - name: Install validation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends gcc-arm-none-eabi libnewlib-dev
+          python3 -m pip install ruff==0.17.0 clang-format==22.1.0 plotly==6.3.0 PyYAML==6.0.2
+      - name: Check source formatting
+        run: |
+          ruff format --check host/
+          python3 tests/check_c_format.py
       - name: Check CMSIS compiler option scope
         run: |
           python3 -m pip install PyYAML==6.0.2
           python3 tests/check_layer_scope.py --compiler AC6 CLANG
       - name: Native and host tests
         run: python3 -B -m unittest discover -s tests -v
+      - name: Cortex-M compile matrix
+        run: |
+          python3 tests/compile_cortex_m.py --cmsis "$CMSIS_PACK_ROOT/ARM/CMSIS/6.3.0" --optimization Os --pmu-count 0 4 --unwind-depth 0 16
+          python3 tests/compile_cortex_m.py --cmsis "$CMSIS_PACK_ROOT/ARM/CMSIS/6.3.0" --cc armclang --optimization Os --pmu-count 0 4 --unwind-depth 0 16
+      - name: Real Ethos-U SDK contracts
+        run: python3 tests/compile_ethosu.py --driver "$CMSIS_PACK_ROOT/ARM/ethos-u-core-driver/1.26.2/ethos_u_core_driver"
       - name: Build with CMSIS-Toolbox, run and check PMU capture
         shell: bash
         run: |
@@ -65,6 +80,16 @@ jobs:
           mkdir -p build/fvp
           python3 -u tests/run_fvp.py \
             --fvp FVP_Corstone_SSE-300 | tee build/fvp/run.log
+      - name: Backtrace FVP regression
+        run: python3 tests/run_fvp.py --stack-unwind --output build/fvp-unwind
+      - name: Package human and offline reports
+        run: |
+          python3 host/create_profiler_report.py --samples build/fvp/samples.bin --elf build/fvp/profiler.elf \
+            --output build/fvp/package --board "Corstone SSE-300 FVP 11.31.28" --application "Bare-metal PC/PMU regression" \
+            --compiler-id "AC6 6.24.0" --producer-revision "$GITHUB_SHA" --capture-command "tests/run_fvp.py"
+          python3 host/create_profiler_report.py --samples build/fvp-unwind/samples.bin --elf build/fvp-unwind/profiler.elf \
+            --output build/fvp-unwind/package --board "Corstone SSE-300 FVP 11.31.28" --application "Bare-metal backtrace regression" \
+            --compiler-id "AC6 6.24.0" --producer-revision "$GITHUB_SHA" --capture-command "tests/run_fvp.py --stack-unwind"
       - name: Publish result summary
         if: always()
         shell: bash
@@ -91,3 +116,28 @@ jobs:
             build/fvp/*.elf
             build/fvp/*.map
             build/fvp/report/
+            build/fvp/package/
+            build/fvp/profiler_build_config.h
+            build/fvp-unwind/
+
+  # Enable after assigning a runner with licensed CLANG 22.1.0 and FVP 11.31.28.
+  # The explicit opt-in keeps an unavailable runner from masquerading as coverage.
+  rtos:
+    if: vars.PROFILER_RTOS_CI == 'true' && github.event_name == 'workflow_dispatch'
+    runs-on: [self-hosted, linux, profiler-rtos]
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        kernel: [rtx, freertos]
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pinned RTOS packs
+        run: cpackget add ARM::CMSIS@6.3.0 ARM::V2M_MPS3_SSE_300_BSP@1.5.0 ARM::CMSIS-RTX@5.9.1 ARM::CMSIS-FreeRTOS@11.2.0 --agree-embedded-license
+      - name: Dual-thread backtrace capture
+        run: python3 tests/run_rtos_fvp.py --kernel ${{ matrix.kernel }} --output build/rtos-${{ matrix.kernel }}
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: corstone300-${{ matrix.kernel }}
+          path: build/rtos-${{ matrix.kernel }}/

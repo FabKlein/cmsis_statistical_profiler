@@ -91,6 +91,13 @@ static void sample(const uint32_t *words, uint32_t exc) { tick(words, exc); }
 int main(int argc, char **argv)
 {
     assert(argc == 2);
+#ifdef TEST_BAD_STACK_REGION
+    assert(!profiler_init());
+    assert(profiler_diagnostics()->stage == PROFILER_INIT_STACK);
+    assert(profiler_diagnostics()->reason == PROFILER_INIT_INVALID_CONFIG);
+    assert(!timer_running && !statistical_sampling_gate);
+    return 0;
+#endif
 #ifdef TEST_INVALID_RATE
     assert(!profiler_init());
     assert(SysTick->LOAD == 99999U && SysTick->CTRL == 7U);
@@ -172,7 +179,7 @@ int main(int argc, char **argv)
     assert(profiler_elapsed_ms() - millis_at_init == expected_ms);
     profiler_enable();
     assert(!statistical_sampling_gate);
-    profiler_stop(7U, 1U);
+    profiler_stop(7U, 0x80000000U);
     assert(!timer_running);
     uint32_t stopped_ticks = profiler_sample_ticks();
     sample(NULL, 0U);
@@ -230,6 +237,15 @@ int main(int argc, char **argv)
 #endif
     assert(SysTick->CTRL == 7U && SysTick->LOAD == 99999U && SysTick->VAL == 77U);
     assert(fake_priority == 3U && !fake_primask);
+    const uint32_t validations[] = {0U, 1U, 2U, 0x80000000U};
+    for (unsigned i = 0; i < sizeof(validations) / sizeof(validations[0]); ++i)
+    {
+        assert(profiler_init());
+        profiler_stop(1U, validations[i]);
+        assert(statistical_samples.header.validation_passed == (validations[i] != 0U));
+        profiler_stop(0U, !validations[i]);
+        assert(statistical_samples.header.validation_passed == (validations[i] != 0U));
+    }
     puts("Capture lifecycle, timebase, frame bounds, security and cache checks passed");
     return 0;
 }

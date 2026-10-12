@@ -11,6 +11,9 @@ Requires CMSIS-Toolbox 2.13, AC6 6.24 and the packs pinned in
 AC6's `bin` directory and put Toolbox on `PATH`. From the repository root:
 
 ```sh
+python3 host/generate_profiler_build_config.py \
+  --output examples/corstone300/profiler_build_config.generated.h \
+  --pmu-count 2 --unwind-depth 16
 cbuild examples/corstone300/profiler.csolution.yml \
   --context profiler.FVP+Corstone300 --packs --update-rte --output build/corstone300
 ```
@@ -27,7 +30,11 @@ python3 tests/run_fvp.py --output build/fvp
 # Add --stack-unwind for the Unwind context, or --fvp /path/to/FVP_Corstone_SSE-300.
 ```
 
-The runner copies the AXF to `build/fvp/profiler.elf` alongside the capture and reports.
+The runner generates a fresh shared build header, runs ELF preflight before
+capture, and copies the AXF to `build/fvp/profiler.elf` alongside the capture and
+reports. It retains `profiler_build_config.h` and verifies the captured token
+against the ELF. Regenerate the manual-build header before every new build and
+archive it with that executable.
 For a manual run of the direct cbuild output, use its `profiler.axf` path with `-a`.
 
 ## Configurable builds / GCC / ATfE
@@ -35,7 +42,8 @@ For a manual run of the direct cbuild output, use its `profiler.axf` path with `
 The Python wrapper preserves the options below. AC6 (`--cc /path/to/armclang`)
 also uses `cbuild` and requires PyYAML; generated project overrides stay in
 `OUTPUT/toolbox-source`. GCC (default) and ATfE (`--cc /path/to/ATfE/bin/clang`)
-continue to compile directly. The wrapper exports `OUTPUT/profiler.elf`.
+continue to compile directly. The wrapper generates its own shared header and
+exports `OUTPUT/profiler.elf` and `OUTPUT/profiler_build_config.h`.
 
 ```sh
 python3 examples/corstone300/build.py \
@@ -125,7 +133,8 @@ board setup. FPGA execution remains unverified.
 ## CI regression
 
 [GitHub Actions](../../.github/workflows/fvp.yml) builds the csolution with AC6 6.24 and runs FVP
-11.31.28 with PMU enabled. Use [the runner and reference](../../tests/VALIDATION.md#ci-reference)
+11.31.28 with PMU and backtraces, plus native tests, GCC/AC6 compile matrices and
+real U55/U65/U85 driver checks. Use [the runner and reference](../../tests/VALIDATION.md#ci-reference)
 for the same local pass/fail check.
 
 CI sets `PROFILER_TIMESTAMP_CUSTOM=1`: the low 32 bits of the free-running TIMER0

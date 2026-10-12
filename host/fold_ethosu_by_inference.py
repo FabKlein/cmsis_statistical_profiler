@@ -71,6 +71,9 @@ import statistics
 from collections import defaultdict
 from pathlib import Path
 
+from capture_time import CaptureClock, normalize, synchronize, select_periods
+from visualize_profiler_report import read_report
+
 from report_helpers import (
     mean_ci,
     percentile,
@@ -90,7 +93,7 @@ RATIOS = (
 )
 
 
-def fold(root, npu_clock_hz=None):
+def fold(root, npu_clock_hz=None, pre_ms=0.0):
     """Return summary, windows, activity phases, PMU windows and PMU phases.
 
     Captures are processed independently: debugger pauses and counter resets
@@ -99,6 +102,9 @@ def fold(root, npu_clock_hz=None):
     """
     if npu_clock_hz is not None and (not math.isfinite(npu_clock_hz) or npu_clock_hz <= 0):
         raise ValueError("NPU clock frequency must be finite and positive")
+    if not math.isfinite(pre_ms) or pre_ms < 0:
+        raise ValueError("invalid phase window")
+    clock = None
     aggregate, captures = read_aggregate(root)
     sample_hz = int(aggregate["sample_hz"])
     event_ids = None
@@ -145,13 +151,28 @@ def fold(root, npu_clock_hz=None):
             timestamp_hz = int(summary["timestamp_hz"])
         elif events != event_ids or int(summary["timestamp_hz"]) != timestamp_hz:
             raise ValueError(f"capture {capture_index}: PMU events or timestamp clock changed")
-        groups = running_groups(records)
+        current_clock = CaptureClock.from_header(summary)
+        if clock is not None and current_clock != clock:
+            raise ValueError("actual sample clock changed between captures")
+        clock = current_clock
+        cpu_header = None
+        cpu_directory = directory.parent / "cortex_m_report"
+        if (cpu_directory / "summary.json").is_file():
+            cpu_summary, cpu = read_report(cpu_directory)
+            if not cpu_summary["timing_valid"]:
+                raise ValueError("CPU timing failed")
+            cpu_header, _, summary, records = synchronize(
+                cpu_summary["header"], cpu, summary, records
+            )
+        else:
+            summary, records = normalize(summary, records, compressed=True)
+        groups, selected = select_periods(summary, records, cpu_header, clock.window_ticks(pre_ms))
         running_intervals += len(groups)
         # At least 3 bursts are needed to retain 1 period. The preceding idle
         # snapshot also supplies the baseline for the first PMU delta.
         # Groups are selected by index, not by a claim that every edge group is
         # actually partial; partial_intervals_excluded counts these exclusions.
-        for group_index in range(1, len(groups) - 1):
+        for group_index in selected:
             group = groups[group_index]
             first, last = group[0], group[-1]
             next_first = groups[group_index + 1][0]
@@ -174,6 +195,9 @@ def fold(root, npu_clock_hz=None):
                 "start_tick": start_tick,
                 "last_running_tick": last_tick,
                 "next_start_tick": next_tick,
+                "start_tick_raw": records[first]["tick_raw"],
+                "last_running_tick_raw": records[last]["tick_raw"],
+                "next_start_tick_raw": records[groups[group_index + 1][0]]["tick_raw"],
                 "period_ticks": period,
                 "start_qread_bytes": int(records[first]["qread"])
                 if int(records[first]["stream_id"]) and records[first]["qread"] != ""
@@ -252,7 +276,7 @@ def fold(root, npu_clock_hz=None):
     for phase in sorted(phase_running):
         running = phase_running[phase]
         row = {
-            "phase_ms": phase * 1000 / sample_hz,
+            "phase_ms": clock.milliseconds(phase),
             "inference_count": len(running),
             "running_samples": sum(running),
             "running_percent": 100 * sum(running) / len(running),
@@ -277,13 +301,17 @@ def fold(root, npu_clock_hz=None):
         "pmu_count": len(event_ids),
         "pmu_events": event_metadata,
         "pmu_catalog_driver_version": DRIVER_VERSION,
-        "median_start_period_ms": statistics.median(period_ticks) * 1000 / sample_hz,
-        "start_period_ms_p05": percentile(period_ticks, 5) * 1000 / sample_hz,
-        "start_period_ms_p95": percentile(period_ticks, 95) * 1000 / sample_hz,
+        "median_start_period_ms": clock.milliseconds(statistics.median(period_ticks)),
+        "start_period_ms_p05": clock.milliseconds(percentile(period_ticks, 5)),
+        "start_period_ms_p95": clock.milliseconds(percentile(period_ticks, 95)),
         "start_qread_bytes": sorted(
             {row["start_qread_bytes"] for row in windows if row["start_qread_bytes"] != ""}
         ),
     }
+    summary.update(clock.metadata())
+    summary["pre_ticks"] = clock.window_ticks(pre_ms)
+    summary["realized_pre_ms"] = clock.milliseconds(summary["pre_ticks"])
+    summary["eligible_periods"] = [[row["capture"], row["inference"]] for row in windows]
     summary["device_type"] = device_type
     summary["npu_clock_hz"] = npu_clock_hz
     # Timestamp frequency describes the CPU timebase, not the NPU cycle clock.
@@ -398,13 +426,21 @@ def main():
         type=float,
         help="Constant NPU cycle clock; enables active-time conversion to ms",
     )
+    parser.add_argument(
+        "--pre-ms",
+        type=float,
+        default=0.0,
+        help="Required lookback for shared period selection; match the MCU fold",
+    )
     args = parser.parse_args()
     root = args.run_dir.resolve()
     destination = (args.output_dir or root).resolve()
     try:
         # Invalid analysis inputs fail before output is created. Rendering is
         # later, so a plotting failure may still leave useful CSV/JSON artifacts.
-        summary, windows, phases, pmu_windows, pmu_phases = fold(root, args.npu_clock_hz)
+        summary, windows, phases, pmu_windows, pmu_phases = fold(
+            root, args.npu_clock_hz, args.pre_ms
+        )
         destination.mkdir(parents=True, exist_ok=True)
         write_csv(destination / "ethosu_inference_windows.csv", windows)
         write_csv(destination / "ethosu_folded.csv", phases)

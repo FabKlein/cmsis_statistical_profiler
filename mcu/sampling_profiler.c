@@ -41,6 +41,8 @@
 #include "sampling_profiler_port.h"
 #include <string.h>
 
+_Static_assert(sizeof((uint32_t[])PROFILER_FIRMWARE_ID) == 16U, "Firmware identity requires four words");
+
 /* Check the on-wire header layout and ensure even the first record can fit. */
 _Static_assert(sizeof(struct ProfilerSamplingHeader) == PROFILER_HEADER_BYTES, "Header format");
 _Static_assert(PROFILER_SAMPLE_BUFFER_BYTES >= PROFILER_HEADER_BYTES + PROFILER_BASE_RECORD_BYTES +
@@ -59,6 +61,8 @@ _Static_assert(PROFILER_SAMPLE_HZ > 0U && PROFILER_SAMPLE_HZ <= UINT32_MAX,
  * coherence, which is handled explicitly when the capture is finalized.
  */
 PROFILER_BUFFER_ATTRIBUTES volatile struct ProfilerSamplingBuffer statistical_samples;
+/* Volatile reads below keep this read-only symbol reachable under linker GC/LTO. */
+__attribute__((used, section(".profiler_firmware_id"))) const uint32_t profiler_firmware_id[4] = PROFILER_FIRMWARE_ID;
 
 /** Fast recording permission checked by the sampling ISR: 0 = closed, 1 = open.
  * Closing this gate prevents buffer updates without stopping the timer. A full
@@ -87,6 +91,25 @@ int profiler_init_fail(enum ProfilerInitStage stage, enum ProfilerInitReason rea
     return 0;
 }
 
+#if PROFILER_PMU_COUNT
+/* The backend owns hardware state; only storage translates it to wire fields. */
+static void save_pmu(const struct ProfilerPmuInfo *info)
+{
+    volatile struct ProfilerSamplingHeader *header = &statistical_samples.header;
+    header->pmu_status = info->status;
+    header->pmu_count = info->count;
+    header->pmu_requested = info->requested;
+    header->pmu_counter_bits = info->counter_bits;
+    header->pmu_flags = info->flags;
+    for (uint32_t i = 0; i < 4U; ++i)
+    {
+        header->pmu_events[i] = info->events[i];
+        header->pmu_start[i] = info->start[i];
+        header->pmu_stop[i] = info->stop[i];
+    }
+}
+#endif
+
 int profiler_init(void)
 {
     /* Stop producers before clearing a previous capture. Reinitialization
@@ -94,7 +117,7 @@ int profiler_init(void)
     profiler_disable();
     profiler_port_stop();
 #if PROFILER_PMU_COUNT
-    profiler_pmu_stop();
+    profiler_pmu_stop(NULL);
 #endif
 
     /* Begin a fresh capture and clear any failure reported by the previous init. */
@@ -113,6 +136,8 @@ int profiler_init(void)
     statistical_samples.header.record_base_bytes = PROFILER_BASE_RECORD_BYTES;
     statistical_samples.header.buffer_bytes = sizeof(statistical_samples);
     statistical_samples.header.sample_hz = PROFILER_SAMPLE_HZ;
+    for (uint32_t i = 0; i < 4U; ++i)
+        statistical_samples.header.firmware_id[i] = ((const volatile uint32_t *)profiler_firmware_id)[i];
 
     /* Start the backend timer with the recording gate still closed. The actual
      * timer and timestamp frequencies may differ from each other. */
@@ -132,7 +157,9 @@ int profiler_init(void)
 #if PROFILER_PMU_COUNT
     /* Optional Performance Monitoring Unit (PMU) counters can be unavailable.
      * Their active count, not the requested count, determines record storage. */
-    profiler_pmu_init();
+    struct ProfilerPmuInfo pmu;
+    profiler_pmu_init(&pmu);
+    save_pmu(&pmu);
 #endif
 
     /* Fixed record portion: 6 base words, active PMU words, and optional unwind
@@ -188,14 +215,16 @@ void profiler_stop(uint32_t iterations, uint32_t validation_passed)
 
     profiler_port_stop();
 #if PROFILER_PMU_COUNT
-    profiler_pmu_stop();
+    struct ProfilerPmuInfo pmu;
+    profiler_pmu_stop(&pmu);
+    save_pmu(&pmu);
 #endif
 
     /* Application-supplied workload results are stored alongside the stop epoch. */
     statistical_samples.header.stop_timestamp = profiler_port_timestamp();
     statistical_samples.header.stop_tick = profiler_port_ticks();
     statistical_samples.header.iterations = iterations;
-    statistical_samples.header.validation_passed = validation_passed;
+    statistical_samples.header.validation_passed = (validation_passed != 0U);
 
     /* Mark the capture ready and make it visible to an external debugger.
      * Export only after this function returns, including the cache flush. */

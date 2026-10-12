@@ -24,7 +24,7 @@ def write_csv(path, rows):
 
 class JointFoldTests(unittest.TestCase):
     def make_run(self, root):
-        common = {"captures": 2, "complete_inferences": 4, "sample_hz": 2000}
+        common = {"captures": 2, "complete_inferences": 4, "sample_hz": 2000, "actual_sample_hz": 2000, "timestamp_hz": 1000000, "timer_hz": 1000000, "timer_period": 500, "eligible_periods": [[0,1],[0,2],[1,1],[1,2]], "pmu_events": [{"key": key, "label": key} for key in ("npu_active", "mac_active", "ib_stall", "axi_read_request_stall")]}
         (root / "mcu_folded_summary.json").write_text(
             json.dumps(
                 {
@@ -156,6 +156,9 @@ class JointFoldTests(unittest.TestCase):
                     for phase, running in ((0.0, 4), (0.5, 2), (1.0, 0))
                 ],
             )
+            npu_summary = json.loads((root / "folded_summary.json").read_text())
+            npu_summary["pmu_events"] = []
+            (root / "folded_summary.json").write_text(json.dumps(npu_summary))
             merged_summary, combined, omitted = joint.combine(root)
             self.assertEqual(merged_summary["ethosu_pmu_events"], [])
             self.assertEqual(combined[1]["ethosu_running_percent"], 50)

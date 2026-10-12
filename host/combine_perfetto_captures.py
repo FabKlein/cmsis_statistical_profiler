@@ -67,6 +67,8 @@
 # final consistency check passes. Very large runs therefore need memory
 # proportional to their total event count.
 
+from report_helpers import require_finalized
+
 import argparse
 import json
 from pathlib import Path
@@ -144,11 +146,7 @@ def combine(root, destination, include_ethosu=False):
                 raise ValueError(f"capture {index}: ELF hash differs from aggregate")
             if int(header["sample_hz"]) != int(aggregate["sample_hz"]):
                 raise ValueError(f"capture {index}: sample rate differs from aggregate")
-            if any(
-                header.get(field) != value
-                for field, value in (("complete", 1), ("active", 0), ("validation_passed", 1))
-            ):
-                raise ValueError(f"capture {index}: buffer was not finalized and validated")
+            require_finalized(header, f"capture {index}")
             if len(samples) != int(row["cpu_samples"]):
                 raise ValueError(f"capture {index}: sample count differs from captures.csv")
             # read_report() requires nonempty, ordered samples with valid times.

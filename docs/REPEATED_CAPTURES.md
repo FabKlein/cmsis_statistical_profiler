@@ -67,7 +67,7 @@ allocation's start:
 
 | Format | Required prefix length |
 |---|---|
-| Cortex-M SCPF v2, `statistical_samples` | `header_bytes + bytes_used` |
+| Cortex-M SCPF v1, `statistical_samples` | `header_bytes + bytes_used` |
 | Ethos-U EUTR v1, `ethosu_trace_samples` | `header_bytes + 8 × stream_capacity + count × record_bytes` |
 
 The prefix includes the complete header and, for Ethos-U, the complete stream
@@ -401,9 +401,15 @@ python3 host/generate_report_index.py \
   --application "<application name>"
 ```
 
-The tool validates capture clocks and matching timestamps, discards the first
-and last running group of every buffer, and calculates phase from the shared
-tick: `(MCU tick - first NPU running tick) / sample_hz`. It does not join PMU
+The tools validate actual capture clocks, firmware tokens and matching shared
+timestamps, and discard the first and last running group of every buffer.
+Sequential CPU/NPU start and stop calls may produce different epochs; selection
+uses their common observed window and requires complete periods plus the preceding
+PMU baseline. Tick differences are normalized modulo 2^32 before ordering;
+backward or ambiguous half-range windows are rejected. Phase in seconds is
+`relative_tick * timer_period / timer_hz`, using the actual rate rather than the
+requested `sample_hz`. Timestamp intervals and cumulative epochs must agree
+with this clock. The tools do not join PMU
 intervals across capture boundaries or count debugger pauses. By default one
 period starts at phase zero, so no sample from the previous period is shown.
 An optional `--pre-ms` lead-in appears at negative phases and may reuse MCU
@@ -437,6 +443,11 @@ first and last running group in each capture, because either can be cut by the
 buffer boundary. Running groups without a sampled idle gap cannot be separated
 into distinct inferences. PMU phase values are interval deltas; compressed
 idle runs place the accumulated idle delta at the first idle phase.
+When the run contains CPU reports, the NPU tool also validates synchronization
+and uses the same complete-period selection as the MCU tool. Its `--pre-ms`
+option reserves matching selection context; NPU phase output still starts at
+zero. Both summaries record `eligible_periods`, actual clock metadata and phase
+coverage. Use `--pre-ms 0` for the shared chart shown here.
 
 If the MCU fold was also generated from the same captures, make a combined graph:
 
@@ -453,7 +464,8 @@ Ethos-U PMU events. All panels use one horizontal phase scale set by the
 capture sampling rate, so corresponding peaks and
 idle spans line up vertically. `joint_folded.csv` records the paired values,
 including Ethos-U running share for numerical inspection. The tool requires matching
-capture count, sample rate, complete-period count, and per-phase inference
+capture count, actual clock, selected capture/inference identities,
+complete-period count, and per-phase inference
 coverage. It keeps only phases present in both folds; a trailing NPU-only
 phase is omitted when the MCU window ends first. The running share is counted
 from Ethos-U running samples at each tick, including the ticks represented by

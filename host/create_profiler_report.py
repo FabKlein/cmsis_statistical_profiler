@@ -159,6 +159,7 @@ def main():
             host_dirty=dirty,
             producer_revision=args.producer_revision,
             compiler_id=args.compiler_id,
+            firmware_identity=summary["firmware_identity"],
             capture_command=args.capture_command,
             commands=commands,
             configuration=summary["header"],
@@ -170,7 +171,7 @@ def main():
                 "firmware.elf": sha256(inputs / "firmware.elf"),
             },
             host_tools={f.name: sha256(f) for f in HERE.glob("*.py")},
-            provenance_note="Compiler, producer revision and capture command are caller supplied, not embedded firmware identity.",
+            provenance_note="Build-token comparison associates the capture with the ELF; it does not authenticate deployed firmware. Compiler, producer revision and capture command are caller supplied.",
         )
         if args.flamegraph and args.flamegraph.is_file():
             manifest["flamegraph_sha256"] = sha256(args.flamegraph)
@@ -197,7 +198,9 @@ def main():
             "",
             f"Board / target: {args.board}",
             "",
-            f"Sampling rate: {header['sample_hz']} Hz; samples: {header['count']}.",
+            f"Sampling rate: {summary['nominal_sample_hz']:.9g} Hz (requested {header['sample_hz']} Hz); samples: {header['count']}.",
+            f"Firmware identity: {summary['firmware_identity']['status']}; "
+            f"build token: {summary['firmware_identity']['id'] or 'unavailable'}.",
             f"Capture complete={header['complete']}, active={header['active']}, "
             f"full={header['full']}, validation_passed={header['validation_passed']}.",
             f"Timing valid: {summary['timing_valid']}; rejected frames: {header['rejected']}; "

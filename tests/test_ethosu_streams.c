@@ -18,12 +18,13 @@
 #include "ethosu_driver.h"
 #include "ethosu_trace.h"
 #include "pmu_ethosu.h"
-#include "sampling_profiler_format.h"
+#include "sampling_profiler_port.h"
 #include <assert.h>
 #include <stdio.h>
 
-struct FakeCoreCapture statistical_samples = {{1000U, 1000000U}};
-static uint32_t status, qread, ticks, enabled;
+const uint32_t profiler_firmware_id[4] = {1U, 2U, 3U, 4U};
+static uint32_t status, qread, ticks, enabled, interrupts, overflow, bad_readback;
+static enum ethosu_pmu_event_type events[4];
 static int power_references;
 static struct ethosu_driver driver;
 /* COP1, NOP padding, COMMAND_STREAM(length=4 words), command bytes. */
@@ -57,8 +58,7 @@ void ETHOSU_PMU_Disable(struct ethosu_driver *drv) { ethosu_release_power(drv); 
 void ETHOSU_PMU_Set_EVTYPER(struct ethosu_driver *drv, uint32_t n, enum ethosu_pmu_event_type event)
 {
     (void)drv;
-    (void)n;
-    (void)event;
+    events[n] = event;
 }
 void ETHOSU_PMU_Set_EVCNTR(struct ethosu_driver *drv, uint32_t n, uint32_t value)
 {
@@ -96,6 +96,32 @@ uint32_t ETHOSU_PMU_Get_STATUS(struct ethosu_driver *drv)
     assert(drv == &driver);
     return status;
 }
+uint32_t ETHOSU_PMU_Get_IRQ_Enable(struct ethosu_driver *drv)
+{
+    (void)drv;
+    return interrupts;
+}
+uint32_t ETHOSU_PMU_Get_NumEventCounters(void) { return 4U; }
+enum ethosu_pmu_event_type ETHOSU_PMU_Get_EVTYPER(struct ethosu_driver *drv, uint32_t n)
+{
+    (void)drv;
+    return bad_readback ? ETHOSU_PMU_SENTINEL : events[n];
+}
+void ETHOSU_PMU_Set_CNTR_IRQ_Disable(struct ethosu_driver *drv, uint32_t mask)
+{
+    (void)drv;
+    interrupts &= ~mask;
+}
+void ETHOSU_PMU_Set_CNTR_OVS(struct ethosu_driver *drv, uint32_t mask)
+{
+    (void)drv;
+    overflow &= ~mask;
+}
+int profiler_port_clock(struct ProfilerClock *clock)
+{
+    *clock = (struct ProfilerClock){1000000U, 1000U, 1000000U};
+    return 1;
+}
 uint32_t profiler_port_timestamp(void) { return ticks * 1000U; }
 uint32_t profiler_port_ticks(void) { return ticks; }
 void profiler_port_barrier(void) {}
@@ -131,6 +157,29 @@ int main(int argc, char **argv)
     for (uint32_t i = 0; i < PROFILER_ETHOSU_MAX_STREAMS; ++i)
         ethosu_trace_samples.streams[i] = (struct EthosuTraceStream){0x1000U, 16U};
     assert(trace_ethosu_bind(&driver));
+#if PROFILER_ETHOSU_PMU_COUNT
+    for (uint32_t busy = 0U; busy < 2U; ++busy)
+    {
+        enabled = busy == 0U ? 1U : 0U;
+        interrupts = busy == 1U ? 1U : 0U;
+        overflow = 1U;
+        assert(trace_ethosu_start());
+        assert(ethosu_trace_samples.header.pmu_status == ETHOSU_TRACE_PMU_BUSY);
+        assert(!ethosu_trace_samples.header.pmu_count);
+        trace_ethosu_stop(0U, 2U);
+        assert(enabled == (busy == 0U ? 1U : 0U));
+        assert(interrupts == (busy == 1U ? 1U : 0U) && overflow == 1U);
+        assert(!power_references);
+    }
+    enabled = interrupts = 0U;
+    bad_readback = 1U;
+    assert(!trace_ethosu_start());
+    assert(!power_references && !enabled && !ethosu_trace_samples.header.active);
+    assert(!ethosu_trace_samples.header.pmu_count && !ethosu_trace_samples.header.complete);
+    trace_ethosu_stop(0U, 0U);
+    assert(!power_references);
+    bad_readback = 0U;
+#endif
     assert(trace_ethosu_start());
     for (uint32_t i = 0; i < sizeof(ethosu_trace_samples.records) / sizeof(uint32_t); ++i)
         assert(ethosu_trace_samples.records[i] == 0xA5A5A5A5U);
@@ -188,7 +237,7 @@ int main(int argc, char **argv)
     assert(trace_ethosu_full());
     assert(!trace_ethosu_bind(&other_driver));
     assert(!trace_ethosu_bind(NULL));
-    trace_ethosu_stop(1, 1);
+    trace_ethosu_stop(1, 0x80000000U);
     assert(power_references == 0 && enabled == 0U);
     FILE *output = fopen(argv[1], "wb");
     assert(output);
