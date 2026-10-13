@@ -1,174 +1,130 @@
 # Agent guide
 
-Start with [README.md](README.md). Use [configuration](docs/CONFIGURATION.md),
-[adapter template](adapters/template/README.md) and the
-[Corstone FVP example](examples/corstone300/README.md) for integration.
+## Start here
 
-For new applications, follow the [3-stage checklist](docs/INTEGRATION.md): establish
-timer/clocks/stack/code regions, validate PC capture, then PMU, then backtraces.
-Keep settings in the application. Run [ELF preflight](host/check_profiler_elf.py)
-before capture; [package reports](host/create_profiler_report.py) with exact inputs
-and provenance. Do not guess bounds or ownership. Report validation limits.
+1. Read [README.md](README.md) for the project overview and public workflow.
+2. Run `git status --short` and inspect existing changes before editing. Preserve
+   unrelated work; do not assume the working tree is clean.
+3. Identify the affected component below, then read its guide before editing.
+4. Make the change, run the applicable checks at the end of this file, and report
+   what passed and what remains unverified.
 
-For repeated Cortex-M and/or Ethos-U captures, follow the
-[repeated-capture runbook](docs/REPEATED_CAPTURES.md). Stop after both buffers
-are finalized and before either is reused; verify `complete=1`, `active=0`
-in each enabled processor's header. Preserve one full allocation per processor and capture, with
-chunk addresses and lengths checked before zero-padding only the unused tail.
-Decode each capture with the matching profiler revision and exact ELF/AXF,
-then combine decoded reports with [aggregate_profiler_captures.py](host/aggregate_profiler_captures.py).
-Never concatenate raw captures or count debugger pauses as sample time.
-Use [generate_aggregate_mcu_report.py](host/generate_aggregate_mcu_report.py)
-for aggregate CPU hotspots and optional backtrace flamegraphs. Supply Brendan
-Gregg's `flamegraph.pl` when backtraces exist; never substitute a homegrown
-flamegraph renderer. Use the same stack-root selection across captures; the
-all-PC view keeps missing roots separate from unreliable callers. PMU totals
-are keyed by counter slot. Capture paths are relative to the aggregate manifest;
-preserve the layout when relocating a run. Generation replaces the owned
-`mcu_report/` directory only after staging succeeds. Use
-[summarize_tosa_operators.py](host/summarize_tosa_operators.py) only after
-exact PTE/Vela alignment has passed.
-For NPU attribution, build a map from a matching Vela debug database and
-command listing with [build_vela_qread_map.py](host/build_vela_qread_map.py),
-then use [align_vela_qread.py](host/align_vela_qread.py) to check listing bytes
-against the supplied PTE and map metadata against the supplied database.
-Capture-to-PTE and database-to-model-build associations remain caller supplied;
-recorded input hashes identify files, not deployed firmware. TOSA alone cannot label QREAD;
-operator sample counts are sampled command positions, while `est_cycles` is
-Vela's estimate.
-For every completed profiling report, keep the human Markdown summary and
-generate a companion offline `index.html` with
-[generate_report_index.py](host/generate_report_index.py) after the optional
-artifacts are written. Supply the actual board/target and application name;
-use an optional run-local `platform.json` for verified core identity, role,
-nominal clocks, and explicit idle function or PC ranges. Never equate the
-profiler timer or timestamp frequency with the CPU or NPU clock without
-separate evidence. Label sampled non-idle PC share as an estimate, not cycle
-utilization; omit it without an explicit idle classification. Take capture
-count, sampling frequency, sample totals, and validation from
-the decoded/aggregate metadata. For repeated captures, generate one combined
-Perfetto timeline with explicit window boundaries and debugger pauses omitted;
-add `--include-ethosu` to `combine_perfetto_captures.py` when every capture has
-synchronized CPU/NPU reports. The resulting `combined.perfetto.json` includes
-NPU snapshots and PMU rates; shared ticks/timestamps must verify alignment.
-Compressed idle snapshots are observations, not measured inference durations.
-NPU PMU tracks display zero during sampled idle; snapshot details retain measured
-interval rates. Do not interpret display zeros as hardware counter measurements.
-Show aggregate results in the index. Include available MCU hotspots,
-flamegraphs, instruction reports, Ethos-U operator/command-stream views, PMU
-charts, and combined tables. Preserve raw capture buffers and decoded reports
-for verification. Omit missing outputs,
-verify every local link, and rerun the index generator when artifacts change.
-When a combined Perfetto trace exists, keep the index's automatic Perfetto
-control and document the localhost server needed to use it; `file://` cannot
-transfer the trace to Perfetto through the browser message API.
-For synchronized MCU and Ethos-U captures, use
-[fold_mcu_by_ethosu.py](host/fold_mcu_by_ethosu.py) to fold CPU PC and PMU
-samples against the first running Ethos-U tick. Validate shared ticks and
-timestamps, exclude capture-edge periods, and report per-phase coverage.
-Use [fold_ethosu_by_inference.py](host/fold_ethosu_by_inference.py) for
-complete-period Ethos-U activity and optional PMU events. When both processor
-folds are available, use
-[plot_joint_mcu_ethosu.py](host/plot_joint_mcu_ethosu.py) to stack the MCU
-function/activity panels and optional PMU panels for both processors on one shared horizontal phase
-scale. Preserve the original function mix and separate PMU counters; require
-matching capture and per-phase inference counts. Keep PMU interval values
-separate from sampled PC/QREAD attribution.
-Separated PC segments can be one function call interrupted by a higher-priority
-thread. Check raw call chains and scheduling context before counting calls;
-preserve the gap in CPU activity charts and label any inferred call span.
-Use [unwrap_ethosu_pte.py](host/unwrap_ethosu_pte.py) to extract a register
-listing from the exact PTE, then
-[plot_ethosu_operators.py](host/plot_ethosu_operators.py) on the aligner's
-CSV and `vela_alignment.json`. Follow the human-facing
-[operator report guide](docs/ETHOSU_OPERATOR_REPORTS.md). Do not infer
-operator boundaries from a different PTE or an unverified Vela compile.
-If capture-local Ethos-U samples and complete inference windows are available,
-pass `--timing-run-dir` to add each operator's median sampled phase and keep
-`ethosu_operator_timing.csv`. Check raw per-operator QREAD counts against the
-aligned histogram; label these phases as sampled positions, not exact operator
-start or end times.
+| Component / task | Files | Guide |
+|---|---|---|
+| Capture/storage and binary layout | `mcu/sampling_profiler.c`, `mcu/sampling_profiler_format.h` | [Format](FORMAT.md) |
+| Cortex-M backend, PMU and unwinding | `mcu/profiler_backend.c`, `mcu/sampling_profiler_pmu.c`, `mcu/sampling_profiler_unwind.c` | [Configuration](docs/CONFIGURATION.md), [unwinding](docs/UNWINDING.md) |
+| Timer integration / new board | `adapters/`, `integrations/systick/` | Relevant adapter README, [adapter template](adapters/template/README.md) |
+| Ethos-U capture | `adapters/ethosu/` | [Ethos-U adapter](adapters/ethosu/README.md) |
+| New application | `examples/`, application-owned settings | [Integration checklist](docs/INTEGRATION.md), [Corstone example](examples/corstone300/README.md) |
+| Decode, capture or report | `host/`, `tools/` | [Host tools](docs/HOST_TOOLS.md), [repeated captures](docs/REPEATED_CAPTURES.md), [operator reports](docs/ETHOSU_OPERATOR_REPORTS.md) as applicable |
 
-- Keep a 3 layers SW structure: capture/storage, Cortex-M backend, timer integration.
-  Vendor dependencies belong in adapters, not the capture core. The generic
-  SysTick integration needs no board adapter when the application supplies the
-  device header, clock and stack configuration.
-- Use 1 timer source. Prefer a dedicated timer when HAL/RTOS code owns SysTick.
-  The application supplies clocks, startup, linker placement and readable stack
-  bounds; TCM is optional.
-- For AMP, keep buffers/state physically separate per image and reserve distinct
-  timer channels. Serialize shared peripheral clock setup; decode with each core's ELF.
-- Use the public `profiler_*` API from `sampling_profiler.h`; application timing
-  queries are `profiler_sample_ticks()` and `profiler_elapsed_ms()`. Keep
-  `profiler_port_*` internal and `profiler_timer_*` in timer adapters.
-- Run lifecycle calls serially in privileged thread mode on 1 core. Always stop
-  before dumping the whole buffer with [export_profiler_buffer.gdb](tools/export_profiler_buffer.gdb);
-  decode with [analyze_profiler_buffer.py](host/analyze_profiler_buffer.py) and the exact
-  unstripped executable. Plot reports with [visualize_profiler_report.py](host/visualize_profiler_report.py).
-- Annotate decoded PC hotspots with [annotate_profiler_report.py](host/annotate_profiler_report.py):
-  `--report report --elf firmware.elf --top 5 --group-instructions 8`.
-  GNU Arm/LLVM objdump is auto-detected; `--objdump PATH` overrides. Groups count
-  instructions, not bytes or basic blocks; use the exact ELF and report unmatched PCs.
-  Add `--source` for debug-mapped source snippets; `--addr2line PATH` and
-  `--source-map OLD=NEW` support custom tools and relocated source trees.
-- Ethos-U uses a separate [EUTR buffer](adapters/ethosu/README.md). Discover immutable
-  command streams in the inference callback; records reference a bounded stream table.
-  Keep decoder/firmware formats synchronized and histogram by `(stream_id, QREAD)`;
-  unknown stream IDs must not be merged into hotspots. No application registration.
-  Consecutive idle ticks share 1 EUTR record: word 4 is idle_count when STATUS
-  running=0, otherwise stream_id. Weight host statistics by represented ticks;
-  idle runs retain only their latest timestamp/tick/PMU snapshot.
-  Use the `trace_ethosu_*` API. Existing driver callbacks must forward once to
-  `trace_ethosu_inference_begin`; set `PROFILER_ETHOSU_DRIVER_CALLBACK=0` project-wide.
-  Ethos-U PMU collection requires exclusive ownership until stop returns, even
-  after buffer full. Use `PROFILER_ETHOSU_PMU_COUNT=0` if the application owns it;
-  later PMU reconfiguration is not detected.
-  Reuse [ethosu_pmu_events.py](host/ethosu_pmu_events.py) for event labels and
-  encodings. EUTR stores device-specific driver enum IDs, not raw TRM codes.
-  The catalog matches Arm core-driver 1.26.2; capture headers do not verify the
-  driver version. Preserve numeric labels for unknown IDs and separate repeated counters.
-- Keep ISR code bounded and integer-only: no allocation, blocking, logging, FP or
-  vector instructions. Preserve the original exception frame.
-- On Armv8-M, determine the interrupted frame security state from the captured
-  `EXC_RETURN`, not from debugger SCS visibility or project labels. If secure
-  frames are observed, compile the profiler backend/ISR sources with `-mcmse`;
-  do not apply it globally unless the application itself is a CMSE build.
-- Maintain 1 [format](FORMAT.md): 6 base words plus `pmu_count` words, 24–40
-  bytes for 0–4 events, plus optional EHABI depth/status and only the recovered caller words.
-  `PROFILER_UNWIND_MAX_DEPTH` defaults to 16; use header `bytes_used` and each
-  record's depth, never assume a fixed stride/capacity with backtraces. Change firmware, decoder and tests together; bump the format identifier for incompatible changes, without legacy compatibility branches.
-  PMU deltas are not per-function counts.
-- For [backtraces](docs/UNWINDING.md), bound every read and retain partial-trace status.
-  Require precise task-stack bounds; never call exception personality routines.
-- For FlameGraph, enable `PROFILER_STACK_UNWIND` and `PROFILER_PRECISE_STACK_BOUNDS`;
-  follow the [integration checklist and examples](docs/UNWINDING.md#integration-checklist-and-examples).
-  Apply `-funwind-tables` to profiled sources, retain tables using the
-  [AC6](docs/UNWINDING.md#ac6-scatter-file-integration) or
-  [GCC/LLVM](docs/UNWINDING.md#gcc--llvm-linker-script-integration) instructions,
-  and supply both table-range and precise stack-bounds hooks. Defines alone are insufficient.
-  For large AC6 images, use [selective 2-pass retention](docs/UNWINDING.md#ac6-table-retention)
-  to avoid retaining unused code; recheck the final ELF after the second link.
-  Adapt the existing memory map; verify final ELF recipes and known caller chains.
-  The decoder writes `stacks.folded`; render with Brendan Gregg's external
-  `FlameGraph/flamegraph.pl` rather than writing another flamegraph SVG renderer. Use
-  `stacks.note.txt` as the subtitle. `--stack-root NAME` selects the graph base.
-  Unreliable/root-missing chains are excluded and counted; PC/PMU statistics remain intact.
-  State the included-stack denominator and reconcile flamegraph PC counts with
-  all-sample hotspots, especially idle-thread samples that may lack callers.
-  See the [RTX](examples/corstone300_rtos2/CALL_TREE.md) and
-  [FreeRTOS](examples/corstone300_freertos/README.md) dual-thread FVP tests.
-  Build their shared `call_tree.csolution.yml` with CMSIS-Toolbox;
-  `tests/run_rtos_fvp.py --kernel rtx|freertos` builds, checks and runs the capture.
-- Preserve SPDX/project headers and Doxygen contracts. Use `.clang-format` for C/H;
-  preserve protected device include order.
-- Format host Python with `ruff format host/` (`python3 -m pip install ruff`).
-  Check with `ruff format --check host/`; explain binary layouts and validation
-  decisions in comments, rather than paraphrasing individual statements.
-- Build the bare-metal AC6 FVP example with
-  [its csolution](examples/corstone300/profiler.csolution.yml), contexts
-  `profiler.FVP+Corstone300` or `profiler.Unwind+Corstone300`.
-  `tests/run_fvp.py` uses `cbuild`, exports the buffer and checks the decoded report.
-  Configure `AC6_TOOLCHAIN_6_24_0` and installed packs; see the example README.
-- For behavior changes, run `python3 -B -m unittest discover -s tests -v`.
-  For backend/adapter changes, also use the relevant [compile/FVP checks](tests/VALIDATION.md).
-  State hardware validation limits accurately.
+For new integrations, establish timer, clocks, stack and code regions first.
+Validate PC capture, then PMU, then backtraces. Keep settings in the application.
+Never guess bounds, clocks or ownership.
+
+## Architecture and embedded code
+
+- Keep three layers: capture/storage, Cortex-M backend, timer integration.
+  Use the paths above. Vendor dependencies belong in adapters.
+- Generic SysTick needs no board adapter
+  when the application supplies device, clocks, stacks, startup and linker setup.
+- Compile one timer source; prefer a dedicated timer when HAL/RTOS owns SysTick.
+- For AMP, separate state/buffers physically per image, reserve distinct channels,
+  serialize shared clock setup and decode with each core's ELF. TCM is optional.
+- Applications use `profiler_*` from `sampling_profiler.h`, including
+  `profiler_sample_ticks()` and `profiler_elapsed_ms()`. Keep `profiler_port_*`
+  internal and `profiler_timer_*` in timer adapters.
+- Run lifecycle calls serially in privileged thread mode on one core.
+  Stop before exporting the whole buffer; a full buffer still requires stop.
+- Preserve the exception frame. ISR code must be bounded and integer-only:
+  no allocation, blocking, logging, FP/vector instructions or personality calls.
+- On Armv8-M, use captured `EXC_RETURN` to determine frame security; compile
+  backend/ISR sources with `-mcmse` for Secure frames. Apply it globally only for
+  an intentionally CMSE application.
+- Follow [FORMAT.md](FORMAT.md): one current version-1 layout, no legacy branches.
+  CPU records have six base words, 0–4 PMU words and optional depth/status plus
+  only recovered callers. Default unwind depth is 16. Use `bytes_used` and each
+  record's depth, never fixed backtrace stride/capacity. Change firmware, decoder
+  and tests together; after release bump incompatible format identifiers.
+- Follow [unwinding](docs/UNWINDING.md): bound every read, retain partial status,
+  and never call exception personality routines.
+- When enabling backtraces, supply precise task-stack bounds and both table-range
+  and stack-bounds hooks. Defines alone are insufficient.
+  Apply `-funwind-tables` to profiled sources, retain tables
+  using the documented AC6 or GCC/LLVM recipe and check the final ELF. For large
+  AC6 images use fresh selective two-pass retention, then recheck the final link.
+- Ethos-U uses a separate [EUTR buffer](adapters/ethosu/README.md) and
+  `trace_ethosu_*` API. Discover immutable streams in the driver callback; no
+  application registration.
+- When the application already implements the driver callback, forward exactly
+  once to `trace_ethosu_inference_begin` and set
+  `PROFILER_ETHOSU_DRIVER_CALLBACK=0` project-wide.
+- Ethos-U PMU ownership lasts until stop returns, including after buffer full.
+  Set `PROFILER_ETHOSU_PMU_COUNT=0` when the application owns the PMU.
+- Weight compressed Ethos-U idle records by represented ticks. Group hotspots by
+  `(stream_id, QREAD)`; keep unknown streams separate.
+- Reuse [the event catalog](host/ethosu_pmu_events.py): driver 1.26.2 enum IDs differ
+  from TRM codes, unknown IDs stay numeric and repeated counter slots stay distinct.
+
+## Capture and reporting
+
+Apply this section when producing captures/reports or changing host tools.
+Use the task guides above for commands and detailed validation.
+
+- Run ELF preflight before capture; retain exact ELF/AXF, revision, raw buffers,
+  decoded reports and provenance. Finalize every enabled capture, verify `complete=1`
+  and `active=0`, and export before reuse. Check chunk addresses/lengths; pad only
+  the unused tail. Never concatenate raw captures or count debugger pauses as time.
+- Package every completed report with human Markdown and an offline `index.html`
+  generated after optional artifacts. Supply actual board/application and verified
+  platform metadata. Verify local links and regenerate when artifacts change.
+  Preserve aggregate manifest-relative paths; owned `mcu_report/` replacement
+  must succeed through staging. Include available artifacts; omit missing outputs.
+- Use Brendan Gregg's external `flamegraph.pl`, with `stacks.note.txt` subtitle
+  and one stack-root selection across captures. State included-stack denominators;
+  keep missing roots/unreliable callers separate in the all-PC view. Annotate
+  hotspots with the exact ELF, `--top 5 --group-instructions 8`, and report
+  unmatched PCs; source/tool overrides are documented in the host guide.
+- For repeated captures generate a combined Perfetto timeline with window boundaries
+  and pauses omitted; include Ethos-U only when every capture synchronizes both
+  reports. Keep the index's automatic Perfetto control and localhost instructions.
+- Validate shared ticks/timestamps before MCU/NPU folds; exclude capture-edge
+  periods and report phase coverage. Joint plots require matching captures and
+  per-phase inference counts, preserve the CPU function mix and separate PMU slots.
+  Check chains/scheduling before counting separated PC segments as calls; preserve
+  gaps and label inferred spans.
+- Exact PTE/listing bytes and matching Vela debug metadata must align before TOSA
+  summaries or operator charts. Capture-to-PTE and database-to-build associations
+  are caller supplied; hashes do not prove deployment. Check raw operator QREAD
+  counts before optional median-phase charts. QREAD phases and idle snapshots
+  are observations, not exact operator boundaries or inference durations.
+- Never infer CPU/NPU frequency from the profiler timer. Non-idle PC share needs
+  explicit idle classification and is an estimate, not cycle utilization. Take
+  rates, totals and validation from decoded metadata. PMU intervals are separate
+  from PC/QREAD attribution; idle display zeros are not measured counter zeros.
+
+## Checks and style
+
+Preserve SPDX/project headers and Doxygen contracts. Use `.clang-format` for C/H
+and preserve protected device include order. Format host Python with
+`ruff format host/`; check with `ruff format --check host/`. Comments should
+explain binary layouts and validation decisions.
+
+Use every applicable row below. Commands run from the repository root.
+
+| Change | Required checks |
+|---|---|
+| Behavior in firmware or host tools | `python3 -B -m unittest discover -s tests -v` |
+| Cortex-M backend, PMU or unwinding | Unit suite plus relevant Cortex-M compile matrix and FVP checks from [validation](tests/VALIDATION.md) |
+| Timer integration or board adapter | Unit suite plus relevant adapter compilation and available target/FVP checks from [validation](tests/VALIDATION.md) |
+| Ethos-U adapter | Unit suite plus `tests/compile_ethosu.py` with the matching driver SDK; see [validation](tests/VALIDATION.md) for options and limits |
+| C/H files | `python3 tests/check_c_format.py` (clang-format 22.1.0) |
+| Host Python | `ruff format --check host/` |
+| Markdown only | Check local links, command names/options and agreement with the referenced code; behavior tests are unnecessary |
+
+The bare-metal AC6 solution uses `profiler.FVP+Corstone300` or
+`profiler.Unwind+Corstone300`, configured packs and `AC6_TOOLCHAIN_6_24_0`.
+Use `tests/run_fvp.py`. RTOS tests use their shared Toolbox solution through
+`tests/run_rtos_fvp.py --kernel rtx` or `--kernel freertos`.
+If a required check cannot run, state which check and why. Distinguish native
+tests, compilation, FVP execution and physical hardware evidence.

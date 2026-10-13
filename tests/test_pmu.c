@@ -70,9 +70,24 @@ static void record(void)
 #endif
     profiler_record(&sample);
 }
+#if PROFILER_PMU_COUNT
+static void check_inactive_snapshot(void)
+{
+    uint32_t values[PROFILER_PMU_COUNT + 2U];
+    for (uint32_t i = 0; i < PROFILER_PMU_COUNT + 2U; ++i)
+        values[i] = UINT32_MAX;
+    profiler_pmu_snapshot(values + 1U);
+    for (uint32_t i = 1U; i <= PROFILER_PMU_COUNT; ++i)
+        assert(values[i] == 0U);
+    assert(values[0] == UINT32_MAX && values[PROFILER_PMU_COUNT + 1U] == UINT32_MAX);
+}
+#endif
 int main(int argc, char **argv)
 {
     assert(argc == 2);
+#if PROFILER_PMU_COUNT
+    check_inactive_snapshot();
+#endif
     profiler_stop(99U, 0U);
     assert(!stop_count && !flush_count && !statistical_samples.header.complete);
 #if defined(TEST_PMU) && PROFILER_PMU_COUNT
@@ -114,6 +129,9 @@ int main(int argc, char **argv)
 #else
     assert(statistical_samples.header.pmu_status == (PROFILER_PMU_COUNT ? 1U : 0U) &&
            !statistical_samples.header.pmu_count);
+    #if PROFILER_PMU_COUNT
+    check_inactive_snapshot();
+    #endif
 #endif
     profiler_enable();
     uint32_t capacity =
@@ -132,6 +150,9 @@ int main(int argc, char **argv)
     assert(profiler_full());
     assert(statistical_samples.header.bytes_used == capacity * statistical_samples.header.record_base_bytes);
     profiler_stop(1U, 1U);
+#if PROFILER_PMU_COUNT
+    check_inactive_snapshot();
+#endif
 #if defined(TEST_PMU) && PROFILER_PMU_COUNT
     assert(PMU->CNTENSET == (1U << 31));
     assert(!statistical_samples.header.pmu_flags);

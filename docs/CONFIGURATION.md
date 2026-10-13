@@ -5,9 +5,8 @@ layer. Alternatively define `PROFILER_USER_CONFIG="profiler_app_config.h"` and a
 its include directory. Use `#ifndef` around settings in that header: compiler
 settings then take precedence, followed by the application header and finally
 `mcu/sampling_profiler_config.h` for optional settings. Stack bounds have no default.
-No `#undef` overrides are needed.
-Apply settings consistently to every translation unit. Start with the
-[3 integration stages](INTEGRATION.md).
+Apply settings consistently to every translation unit; follow the
+[integration stages](INTEGRATION.md).
 
 `sampling_profiler.h` exposes the application API without loading settings.
 Application code that reads settings must include `sampling_profiler_config.h`;
@@ -69,18 +68,19 @@ remain caller supplied. Regenerating a token requires rebuilding every consumer.
 
 ## Build and ownership
 
+Use the public `profiler_*` API. Enable/disable gates recording; the first stop
+finalizes and repeated stops preserve it until reinitialization. Lifecycle calls
+must be serial, privileged and on the sampled core. `profiler_sample_ticks()` and
+`profiler_elapsed_ms()` are cumulative; subtract readings for an interval.
+
 Non-CMSIS builds compile the 4 `mcu/*.c` files and exactly 1 adapter timer.
 Include `mcu/`, the adapter, CMSIS-Core and SDK headers; use C11, the correct CPU,
 and security-aware code generation matching the exception frames delivered to
 the profiler. Supply the device header through the board layer or application,
 and stack RAM bounds through the application.
 
-On Armv8-M, inspect an actual IRQ `EXC_RETURN` rather than inferring security state
-from debugger SCS access or project labels. If the profiler receives Secure frames,
-compile its backend/ISR source groups with `-mcmse`. This may be a selective source
-option when startup and the application remain non-CMSE; do not make it a global
-flag unless the complete firmware is intentionally a CMSE build. The option does
-not configure SAU/IDAU attribution or security routing.
+On Armv8-M, choose backend/ISR security flags from captured EXC_RETURN;
+see [frame-state validation](INTEGRATION.md#confirm-the-armv8-m-exception-frame-security-state).
 
 The common and timer layers restrict vectorization flags to their own source groups.
 For manual builds, apply them only to profiler/ISR sources.
@@ -124,7 +124,9 @@ keep both stable. Avoid sleep, debugger halts and long interrupt masking.
 ## PMU and diagnostics
 
 Each requested PMU event needs 2 16-bit counters chained into 1 32-bit counter;
-1-4 events use 2-8 hardware counters.
+1-4 events use 2-8 hardware counters. Event `0x001E` (CHAIN) is reserved:
+the odd counter increments when its preceding even counter overflows, forming
+`(high << 16) | low`. Insufficient capacity falls back with `unsupported` status.
 The backend reserves the event bank, preserves the shared cycle counter and uses
 no PMU IRQ. Busy configuration, event IRQs or legacy DWT profiling prevent collection.
 Startup must permit privileged register access; failure leaves PC sampling available.
@@ -138,12 +140,6 @@ The host reports invalid EXC_RETURN, unsupported frame, stack bounds or invalid
 xPSR as the first rejection reason. Gated-off/full/spurious events are excluded.
 Always call stop to finalize a capture, including when full.
 
-If almost all samples report `unsupported_frame`, inspect the first runtime
-`EXC_RETURN` at `statistical_sampling_tick()`. A systematic failure usually means
-the backend was compiled for the wrong Armv8-M exception-frame security encoding,
-not that the stack range is too small. Correct the backend build mode and repeat
-PC-only validation before enabling unwinding.
-
 ## Multiple cores (AMP)
 
 Link an independent profiler and physically separate buffer into each firmware.
@@ -154,7 +150,7 @@ See [Alif setup and debugger retrieval](../adapters/alif_e8/README.md).
 
 ## Initialization failures
 
-`profiler_init()` still returns 0 on failure. Inspect
+`profiler_init()` returns 0 on failure. Inspect
 `*profiler_diagnostics()` in application code or GDB; it is reset by each
 init. `stage` distinguishes backend, stack, timestamp, unwind and timer failures.
 `reason` distinguishes unavailable, invalid configuration, busy, bad clock,
@@ -169,8 +165,6 @@ stack/configuration diagnostic identifies the region index in `value0`.
 These checks cannot prove MPU readability or protect against a bad
 application-supplied pointer.
 
-Timer adapters implement `int profiler_timer_start(void)`: 1 means started,
-0 fails initialization. The backend stops a failed/partial start before restoring
-interrupts. Himax vendor-start failures report timer/unavailable with IRQ/vendor
-status in `value0/value1`; adapters without specific diagnostics get the generic
-timer/unavailable result. Update custom adapters that used a void start hook.
+Timer-start failure stops partial setup before restoring interrupts. See the
+[adapter contract](../adapters/template/README.md#timer-hooks); Himax supplies
+IRQ/vendor status in `value0/value1`, otherwise diagnostics are timer/unavailable.

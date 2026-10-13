@@ -92,15 +92,17 @@ static uint32_t read_pair(uint32_t low)
 
 void profiler_pmu_snapshot(uint32_t *values)
 {
+    #if defined(__PMU_PRESENT) && (__PMU_PRESENT == 1U)
+    if (running)
+    {
+        for (uint32_t event = 0; event < PROFILER_PMU_COUNT; ++event)
+            values[event] = read_pair(2U * event);
+        note_overflow();
+        return;
+    }
+    #endif
     for (uint32_t event = 0; event < PROFILER_PMU_COUNT; ++event)
         values[event] = 0U;
-    #if defined(__PMU_PRESENT) && (__PMU_PRESENT == 1U)
-    if (!running)
-        return;
-    for (uint32_t event = 0; event < PROFILER_PMU_COUNT; ++event)
-        values[event] = read_pair(2U * event);
-    note_overflow();
-    #endif
 }
 
 static void initialize(void)
@@ -168,10 +170,7 @@ static void initialize(void)
     ARM_PMU_CNTR_Enable(EVENT_MASK);
     __DSB();
     __ISB();
-    uint32_t values[PROFILER_PMU_COUNT];
-    profiler_pmu_snapshot(values);
-    for (uint32_t event = 0; event < PROFILER_PMU_COUNT; ++event)
-        state.start[event] = values[event];
+    profiler_pmu_snapshot(state.start);
     #endif
 }
 
@@ -193,10 +192,7 @@ void profiler_pmu_stop(struct ProfilerPmuInfo *info)
     ARM_PMU_CNTR_Disable(EVENT_MASK);
     __DSB();
     __ISB();
-    uint32_t values[PROFILER_PMU_COUNT];
-    profiler_pmu_snapshot(values);
-    for (uint32_t event = 0; event < PROFILER_PMU_COUNT; ++event)
-        state.stop[event] = values[event];
+    profiler_pmu_snapshot(state.stop);
     running = 0U;
         /* Keep global PMU/cycle state and reservation; only our event counters stop. */
     #endif

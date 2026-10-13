@@ -1,12 +1,12 @@
 # Ethos-U statistical trace
 
-This optional companion layer samples Ethos-U55, U65, or U85 from the Cortex-M
-profiler timer interrupt. It uses the public `ethosu_driver.h` and
-`pmu_ethosu.h` APIs from the matching Arm core-driver pack. It has a separate
-buffer and does not use Cortex-M sample capacity.
+Optional U55/U65/U85 sampling from the Cortex-M profiler timer, using the matching
+Arm core-driver's `ethosu_driver.h`/`pmu_ethosu.h`. Add `ethosu_trace.clayer.yml`
+to the NPU-owning image. The trace has a separate buffer and CPU capacity.
 
-Add `ethosu_trace.clayer.yml` to the image that owns the NPU driver. Set these
-application definitions in its `PROFILER_USER_CONFIG` header:
+## Configuration
+
+Set definitions project-wide in the application's `PROFILER_USER_CONFIG`:
 
 ```c
 #define PROFILER_ETHOSU_TRACE 1
@@ -14,193 +14,135 @@ application definitions in its `PROFILER_USER_CONFIG` header:
 #define PROFILER_ETHOSU_TRACE_BUFFER_BYTES (128U * 1024U)
 #define PROFILER_ETHOSU_BUFFER_ATTRIBUTES __attribute__((section(".bss.ethosu_trace"), aligned(32)))
 #define PROFILER_ETHOSU_PMU_COUNT 0 /* 0..4 */
-#define PROFILER_ETHOSU_MAX_STREAMS 16 /* Default; 1..64 distinct streams per capture. */
-/* For PMU collection, select events using ethosu_pmu_event_type names.
- * These four names exist on U55, U65, and U85. */
+#define PROFILER_ETHOSU_MAX_STREAMS 16 /* 1..64 */
 #define PROFILER_ETHOSU_PMU_EVENT0 ETHOSU_PMU_NPU_ACTIVE
 #define PROFILER_ETHOSU_PMU_EVENT1 ETHOSU_PMU_MAC_ACTIVE
 #define PROFILER_ETHOSU_PMU_EVENT2 ETHOSU_PMU_MAC_DPU_ACTIVE
 #define PROFILER_ETHOSU_PMU_EVENT3 ETHOSU_PMU_CYCLE
 ```
 
-Event selections are **driver enum IDs**, not TRM register encodings. The shared
-[host catalog](../../host/ethosu_pmu_events.py) maps U55/U65/U85 IDs to official
-symbols and hardware encodings from Arm core-driver 1.26.2, with links to the TRMs.
-The decoder and inference fold use this catalog for any selected combination;
-unknown IDs retain numeric labels. Captures do not identify the driver version,
-so check that the catalog matches your firmware's driver.
+Events are device-specific **driver enum IDs**, not TRM encodings. Reuse the
+[host catalog](../../host/ethosu_pmu_events.py), based on core-driver 1.26.2;
+headers do not verify driver version. Unknown IDs remain numeric and repeated
+counter slots remain distinct. Build the driver with `ETHOSU_LOG_ENABLE=0`
+project-wide: its PMU getters run in the sampling ISR.
 
-Reserve the buffer's linker section in memory accessible to the sampling core
-and debugger. Do not overlap the Cortex-M profiler buffer, stack, heap, another
-core's allocation, or the NPU's scratch memory. Call `trace_ethosu_bind(drv)`
-after driver setup, `trace_ethosu_start()` after `profiler_init()`, and
-`trace_ethosu_stop(iterations, validation_passed)` before stopping/exporting the
-CPU profiler. The adapter holds an Ethos-U power reference while active so its
-register state survives inference calls. This changes power behavior during a
-capture. By default, the adapter supplies `ethosu_inference_begin`, forwarding
-to `trace_ethosu_inference_begin` before each command-stream submission.
+Reserve accessible, debugger-readable linker storage separate from CPU buffers,
+stacks, heap, other cores and NPU scratch memory. Generate the shared
+[build header](../../docs/CONFIGURATION.md#shared-build-configuration) for CPU/NPU identity.
 
-Serialize bind/start/stop calls in privileged thread mode on 1 core.
-`trace_ethosu_bind()` returns 1 on success or 0 while started, leaving the
-original driver selected. Stop before rebinding, even when the buffer is full:
-power references and PMU resources still belong to the original device until
-stop releases them. Passing `NULL` detaches the driver only while stopped.
-This guard does not provide locking between concurrent callers.
+## Lifecycle and callback
 
-If the application already owns that driver callback, set this in its shared
-`PROFILER_USER_CONFIG` header (so the adapter sees it too):
+In privileged thread mode on one core, serially:
 
-```c
-#define PROFILER_ETHOSU_DRIVER_CALLBACK 0
-```
+1. Set up the driver, then `trace_ethosu_bind(drv)`.
+2. Call `profiler_init()`, `trace_ethosu_start()`, then enable sampling.
+3. Run the workload, call `trace_ethosu_stop(iterations, validation_passed)`,
+   then stop the CPU profiler before export.
 
-Then forward exactly once from the existing callback:
+The active adapter holds a power reference, changing capture power behavior.
+Bind returns 0 while started, preserving the original driver. Full does not
+release resources; stop before rebinding. Bind `NULL` detaches only while stopped.
+These guards do not synchronize concurrent callers.
+
+Stop finalizes sampling; it does not stop NPU execution. For debugger uploads
+and capture restarts, see [capture-boundary limitations](../../docs/REPEATED_CAPTURES.md#ethos-u-execution-during-debugger-uploads).
+
+By default the adapter defines `ethosu_inference_begin`. If an application already
+owns it, set `PROFILER_ETHOSU_DRIVER_CALLBACK=0` project-wide and forward once:
 
 ```c
 #include "ethosu_trace.h"
-
 void ethosu_inference_begin(struct ethosu_driver *drv, void *user_arg)
 {
-    /* Keep existing application callback work here. */
+    /* Existing application callback work. */
     trace_ethosu_inference_begin(drv, user_arg);
 }
 ```
 
-The public trace API uses `trace_ethosu_bind/start/stop/full/inference_begin`.
-The driver callback and `profiler_aux_sample` retain their required integration
-names. There must be only 1 definition of the driver callback.
+Use `trace_ethosu_*`; driver callback/auxiliary-hook integration names remain fixed.
+There must be exactly one callback definition. Callback-time COP1 discovery
+registers immutable command addresses/lengths automatically; no application
+registration. Repeated address/length pairs reuse capture-local IDs. Never replace
+stream contents in place: addresses identify allocations, not contents, models or
+inference invocations. CPU-visible addresses can differ from remapped NPU QBASE.
 
-Streams are discovered automatically from the runtime's submitted COP1 payloads.
-The application does not need their pointers or sizes. Repeated submissions of
-an identical command-stream address and length reuse the same capture-local ID:
+## EUTR format and interpretation
 
-```text
-runtime submits A -> ID 1 -> sample: stream 1, QREAD 128
-runtime submits B -> ID 2 -> sample: stream 2, QREAD 128
-runtime submits A -> ID 1 -> sample: stream 1, QREAD 256
-```
-
-**Keep command-stream memory unchanged during capture.** Addresses identify
-allocations, not contents; replacing a stream in place cannot be detected. IDs
-do not identify network names or individual inference runs. The table records
-CPU-visible command addresses, which can differ from NPU QBASE after remapping.
-
-The EUTR format stores little-endian 32-bit words (see `ethosu_trace.h`):
+Little-endian words; current version 1 is the sole supported layout:
 
 ```text
 144-byte header
-  + fixed stream table: MAX_STREAMS x 8 bytes (command address, byte length)
-  + running: timestamp, tick, STATUS, QREAD,      stream_id,  optional PMU[0..3]
-  + idle:    timestamp, tick, STATUS, 0xffffffff, idle_count, optional PMU[0..3]
+  + stream table: MAX_STREAMS * 8 bytes (command address, length)
+  + running record: timestamp, tick, STATUS, QREAD,      stream_id,  optional PMU
+  + idle record:    timestamp, tick, STATUS, 0xffffffff, idle_count, optional PMU
 ```
 
-The table consumes 128 bytes at the default 16-stream limit, inside the configured
-buffer allocation. Each record costs 20..36 bytes. IDs are 1-based table indices;
-unused descriptors are zero. The current EUTR version-1 layout stores the actual
-timer frequency and period at header words 30/31, and the shared firmware build
-token at words 32-35. Firmware and decoder use only this 144-byte header layout;
-older prototype layouts and other version identifiers are unsupported.
-The CPU format remains SCPF 1 with its current 192-byte layout. Both headers grew
-by 16 bytes within the existing allocation budgets; record layouts are unchanged.
+The default table costs 128 bytes within the allocation. Records cost 20–36 bytes;
+IDs are one-based indices, unused descriptors zero. Header words 30/31 hold actual
+timer Hz/period; words 32–35 hold the build token. Startup clears header/table only;
+old record tails remain undefined. Export the full allocation after stop; `count`
+and `record_bytes` bound committed records. See [ethosu_trace.h](ethosu_trace.h).
 
-Startup clears the header and stream table only. Unused record bytes retain old
-contents and have no defined value. Export the full allocation after stop; the
-decoder uses `count` and `record_bytes` to bound records.
+STATUS bit 0 selects running/idle. Consecutive idle ticks share one record updated
+to the latest timestamp/tick/PMU snapshot; `idle_count=UINT32_MAX` starts another.
+Idle can grow in the final slot; full occurs when a new record cannot fit.
+`count` counts records, not ticks. CSV has `idle_count` and represented
+`sample_count`; totals/percentages weight represented ticks. Eighty idle ticks
+plus twenty running ticks use 21 records and report 20% running.
 
-Consecutive idle samples always share 1 record. STATUS bit 0 selects the meaning
-of word 4: stream ID when running, nonzero idle count otherwise. Every idle tick
-updates the last record with the latest timestamp, tick, STATUS and PMU values.
-A count of `UINT32_MAX` starts a new record on the next idle tick. An idle run
-can grow in the final buffer slot; capture becomes full when a new record is
-needed and cannot fit.
+Sampling uses actual `timer_hz / timer_period`. Intermediate idle snapshots are
+lost; multiple PMU wraps cannot be recovered. Entire short inferences between
+ticks can be missed. Timestamp/tick share the CPU profiler sources. QREAD is a
+command byte position, not a PC/operator; it can pass a faulting command.
+`0xffffffff` denotes idle/invalid QREAD.
 
-The timer samples at `timer_hz / timer_period`, which can differ from the
-requested `sample_hz`. Intermediate idle snapshots are
-discarded, including PMU values; multiple counter wraps across a long idle run
-cannot be recovered from its final snapshot. A short inference entirely between
-sampling ticks can still be missed. Stop before exporting the mutable buffer.
+Running stream ID 0 means unknown: mid-inference start, payload failure, full table
+or changed submission during the snapshot. Unknown samples stay in totals but
+not hotspots. `unregistered_streams` counts failed registrations; existing IDs
+remain usable until restart clears the table. Registration runs in the callback,
+not ISR. Known stream lengths bound QREAD; unknown offsets retain alignment
+validation without an invented upper bound.
 
-`header.count` counts stored records, not sampling ticks. The host keeps 1 CSV
-row per record, with `idle_count` (0 when running) and `sample_count` (1 when
-running, otherwise the idle count). Summary fields `total_samples`,
-`idle_samples` and `running_samples` count represented ticks; utilization and
-histogram percentages use those weights. For example, 80 idle ticks followed by
-20 running ticks use 21 records and report 20% running.
+## PMU ownership
 
-For running records, `stream_id=0` means unknown: capture began mid-inference, payload parsing
-failed, the table filled, or submission changed during the register snapshot.
-Unknown running samples are counted in `unknown_stream_samples` and excluded
-from QREAD hotspots. `unregistered_streams` counts submissions that could not be
-registered. Existing IDs remain usable when the table fills; capture restart
-clears the table. Lookup and registration run in the driver callback, not the
-sampling ISR; sampling reads an already published ID and its descriptor.
+Collection needs exclusive ownership until `trace_ethosu_stop()` returns, including
+after full. Do not reconfigure/reset/enable/disable the PMU during that interval;
+later interference is undetected and can mislabel events or resemble huge wraps.
+Set `PROFILER_ETHOSU_PMU_COUNT=0` when application-owned; QREAD remains available.
 
-`timestamp` uses the CPU profiler timestamp source; `tick` is the timer tick count.
-QREAD is a command-stream byte offset, not a program counter or operator ID.
-It may pass the faulting command before an error is reported. `0xffffffff` means
-idle or invalid QREAD. Known IDs allow validation against that stream's length;
-aligned raw QREAD is retained for unknown IDs without an inferred upper bound.
-The header records the device type (55/65/85) because event enum values differ.
-PMU snapshots are cumulative 32-bit counters; wrapped interval deltas cover all
-execution between samples and must not be attributed to a single operator.
+Enabled counters, armed PMU IRQs or a running NPU cause busy fallback without
+altering existing configuration. Invalid event constants fail compilation.
+Acquisition checks capacity, stops the owned mask, disables its IRQs, clears
+its overflows and checks event readback. Failure closes the gate and releases
+power references. Stop cleans up according to internal ownership, independent
+of exported header fields; it does not preserve intervening application changes.
+Inspect `pmu_status`/`pmu_count` before interpreting cumulative 32-bit snapshots.
+Deltas cover all intervening execution, not individual operators.
 
-When PMU collection is requested, the adapter leaves it disabled if another
-counter is enabled, a PMU IRQ is armed, or the NPU is running at start. This busy
-fallback preserves the existing configuration and still permits QREAD capture.
-Selected events must be valid enum IDs for the compiled device; invalid constants
-fail compilation. Acquisition checks hardware capacity, stops the owned counter
-mask, disables its IRQs, clears its overflow flags and verifies event readback
-before counting. A readback failure fails start with the gate closed and releases
-the acquired power references. Read `pmu_status` and `pmu_count` before interpreting
-records. Cleanup follows internal ownership state, independent of header fields.
+## Export and decode
 
-**PMU collection requires exclusive ownership until `trace_ethosu_stop()` returns,**
-even if the buffer fills earlier. The application and other tools must not
-reconfigure, reset, enable or disable the Ethos-U PMU during that interval.
-The adapter checks availability only at start; later changes are not detected.
-They can leave counts labelled with the wrong events or make resets look like
-large wraparound deltas. Stop disables the counters acquired by the profiler;
-it does not preserve an application's intervening configuration.
-
-If the application needs PMU ownership, set `PROFILER_ETHOSU_PMU_COUNT=0`.
-STATUS/QREAD sampling remains available without configuring or disabling PMU
-counters.
-
-Build the driver with `ETHOSU_LOG_ENABLE=0` project-wide for ISR-safe sampling;
-its PMU getters are called from the timer interrupt. Stop
-profiling before exporting the entire `ethosu_trace_samples` symbol through the
-supported CMSIS debugger interface:
+After both CPU/NPU captures are finalized, export the entire allocation:
 
 ```gdb
 source tools/export_ethosu_trace_buffer.gdb
 export_ethosu_trace_buffer ethosu_trace.bin
 ```
 
-Then run:
-
 ```sh
-python3 host/analyze_ethosu_trace.py --samples ethosu_trace.bin --elf firmware.elf --output ethosu_report
+python3 host/analyze_ethosu_trace.py \
+  --samples ethosu_trace.bin --elf firmware.elf --output ethosu_report
 ```
 
-The decoder requires a stopped, complete capture and validates flags, clocks,
-PMU metadata, allocation/count consistency and QREAD alignment/state. Invalid
-dumps fail before reports are written. Finalized full buffers and failed workload
-validation remain inspectable. Stream IDs, descriptor bounds and diagnostic
-counts are checked before output is written.
-`--elf` checks the capture build token against the same read-only object used by
-the CPU decoder. Without it, a nonzero token is recorded but not verified; zero
-is unavailable. Generate the shared header before building as described in
-[configuration](../../docs/CONFIGURATION.md#shared-build-configuration).
+The decoder checks stopped/complete state, clocks/flags, PMU metadata,
+allocation/count consistency, streams and QREAD before output. Full buffers and
+failed workload validation remain inspectable. `--elf` verifies the shared token;
+omitting it records a nonzero token as unverified, zero as unavailable.
 
-The decoder creates `summary.json`, `streams.csv`, `samples.csv`, and
-`qread_histogram.csv`. The histogram groups by `(stream_id, qread_bytes)` and
-sorts by sample count, keeping identical offsets in different streams separate.
-Idle samples, unknown streams and invalid QREAD values are excluded. Percentages
-use all running samples or all samples as denominators, including excluded ones.
-Sampling percentages approximate time at a steady timer rate,
-but QREAD is a command-stream position, not an operator name. `complete=1`,
-`active=0`, `full=0`, and `invalid_qread=0` indicate a well-formed complete
-capture; they do not establish that the requested duration ran or that the
-sampled offsets identify operators. Match the dump to the exact firmware image
-and use the Vela command-stream metadata separately when correlating offsets
-with operators.
+Outputs: `summary.json`, `streams.csv`, `samples.csv`, `qread_histogram.csv`.
+Histograms group by `(stream_id, qread_bytes)`, keeping identical offsets in
+different streams separate; idle/unknown/invalid QREAD is excluded while all
+running/all ticks remain percentage denominators. Finalization and valid offsets
+do not prove duration or operator identity. Follow
+[repeated captures](../../docs/REPEATED_CAPTURES.md) and
+[exact PTE/Vela alignment](../../docs/ETHOSU_OPERATOR_REPORTS.md) for attribution.

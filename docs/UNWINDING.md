@@ -13,7 +13,7 @@ Disabled by default. Each enabled record adds 4 bytes for depth/status plus
 bounds ISR work and temporary caller storage; unused slots are never exported.
 The existing PC identifies the current function. Header `unwind_max_depth=0`
 means no backtraces; a nonzero value identifies EHABI and the compiled limit.
-Rebuild firmware and use the matching decoder after this format change.
+Rebuild firmware and decode with the matching revision and exact ELF.
 
 Budget the interrupt stack separately from the capture buffer. See the
 [ISR stack and time budgets](ISR_BUDGET.md) for compiler measurements, caller-depth
@@ -25,8 +25,8 @@ tradeoffs, complete call-path accounting and target timing checks.
    `-funwind-tables` on AC6/GCC/ATfE Clang. Apply this to the code being profiled, including
    C++ sources, rather than only the profiler group. Frame pointers are not required.
    Assembly functions need unwind annotations; missing metadata stops the trace.
-2. Retain `.ARM.exidx` and `.ARM.extab` in CPU-readable, immutable memory. GNU
-   use the [GCC/LLVM section placement](#gcc--llvm-linker-script-integration) or
+2. Retain `.ARM.exidx` and `.ARM.extab` in CPU-readable, immutable memory using
+   [GCC/LLVM section placement](#gcc--llvm-linker-script-integration) or
    the [AC6 retention strategy](#ac6-table-retention) below.
    Toolchains may pull in their exception runtime through table references,
    increasing image size even though this profiler never calls that runtime.
@@ -192,13 +192,11 @@ references; it is not a profiler requirement or a heap allocator.
 
 ### Integration checklist and examples
 
-1. Enable `PROFILER_STACK_UNWIND=1`, `PROFILER_PRECISE_STACK_BOUNDS=1` and
-   `PROFILER_UNWIND_MAX_DEPTH=16` consistently across application/profiler sources.
-   The common clayer includes `mcu/sampling_profiler_unwind.c`; manual builds must
-   add it. Keep the layer's ISR compiler restrictions.
-2. Generate/retain the tables using the toolchain instructions above. Link exactly
-   1 `profiler_unwind_tables()` and 1 precise `profiler_stack_bounds()` implementation.
-   The board timer must use `PROFILER_DEFINE_IRQ_HANDLER` to preserve registers.
+1. Apply the definitions and hooks from [build and integration](#build-and-integration)
+   project-wide. Manual builds include `mcu/sampling_profiler_unwind.c`; common
+   layers already do. Keep ISR compiler restrictions and the naked timer entry.
+2. Generate/retain tables using the recipe above. Link exactly one implementation
+   of each hook.
 3. Inspect the final ELF/map: a nonempty `.ARM.exidx`, resolved hook boundaries,
    and unwind recipes for the workload. With GCC use `arm-none-eabi-readelf --unwind firmware.elf`; with LLVM use `llvm-readelf --unwind firmware.elf`. Table presence
    alone is insufficient if the workload entries are all `CANTUNWIND`.
@@ -223,7 +221,9 @@ combines them with the hardware frame and reconstructs the pre-exception SP,
 including FP-frame reservation and alignment padding. No raw frame pointers or
 stack bytes are added to the exported records.
 
-The integer-only walker supports compact EHABI personalities 0/1/2, common core
+The integer-only walker follows the
+[EHABI frame instructions](https://github.com/ARM-software/abi-aa/blob/main/ehabi32/ehabi32.rst#103-frame-unwinding-instructions)
+for compact personalities 0/1/2, common core
 register recipes and VFP stack-size adjustments. It never calls a personality
 routine or restores FP registers. Generic personalities, PAC, other unsupported
 opcodes, missing metadata and invalid reads stop the trace with a status.
@@ -242,68 +242,15 @@ boundaries are not unwound. Task IDs are not recorded; RTOS traces aggregate tas
 
 ## Host output and FlameGraph
 
-Run `host/analyze_profiler_buffer.py` normally. With backtraces present it adds:
-
-- `stacks.folded`: root-to-leaf stacks with sample counts, ready for FlameGraph.
-- `stacks.note.txt`: inclusion counts and partial-stack note for the SVG subtitle.
-- `samples.csv`: `unwind_status`, `callers_raw`, `callchain` and `flamegraph_status`.
-- `summary.json`: `unwind_status_counts` and `flamegraph` inclusion/exclusion totals.
-
-The host checks record lengths, depth/status and executable address ranges in the
-matching ELF. Caller addresses are symbolized at `(return_address & ~1) - 2`,
-so a return address at the next function boundary belongs to the preceding call.
-Recursion is permitted. Unresolved executable addresses remain explicit.
-Samples exactly at an ELF function entry receive host status `function_entry`:
-the caller chain is excluded from the flamegraph. Raw callers and PC/PMU statistics remain
-available. An entry is retained when the ELF confirms the exact inline EHABI
-finish-only recipe (`0x80b0b0b0`) and its first recovered caller equals the
-captured LR: this recipe does not touch the stack and is valid at entry too.
-Other recipes remain conservative. The filter does not detect later prologue
-instructions, epilogues or entries missing from the ELF.
-
-Valid partial chains remain without diagnostic frames. Unreliable chains
-(`invalid_trace` and `function_entry`) are excluded, with counts in the subtitle
-and summary. Widths use included samples only; PC/PMU statistics use all samples.
-`complete` means a zero return address, not proof of a correct logical root.
-
-Use `--stack-root osThreadEntry` to select the graph base. It matches an exact
-displayed symbol name (including the address suffix for duplicate names), keeps
-the outermost occurrence for recursion and trims older frames. Chains without
-that root are excluded and counted as `root_missing`; no frames are invented.
-An unmatched root produces an empty folded file and reports 0 included samples.
-Full decoded chains and unwind statuses remain in CSV. Omit the option to retain
-all recovered outer frames. This display choice does not change unwind validity.
-
-With [FlameGraph](https://github.com/brendangregg/FlameGraph) installed locally:
-
-```sh
-perl /path/to/FlameGraph/flamegraph.pl --countname samples --subtitle "$(cat report/stacks.note.txt)" report/stacks.folded > report/flamegraph.svg
-```
-
-The existing HTML/Perfetto visualization remains a PC/PMU view. Flamegraph widths
-represent sample counts, not per-function PMU counts. See the
-[Arm EHABI frame unwinding instructions](https://github.com/ARM-software/abi-aa/blob/main/ehabi32/ehabi32.rst#103-frame-unwinding-instructions)
-for how unwind recipes describe stack-pointer adjustments and register recovery
-to reconstruct caller frames.
+See [host inclusion rules and rendering](HOST_TOOLS.md#optional-backtraces-and-flamegraph)
+for folded stacks, status columns, entry filtering, root selection and external
+FlameGraph. PC/PMU statistics retain samples excluded from caller graphs.
 
 ## Split executable regions
 
-Existing application hooks using `code_base`/`code_bytes` must migrate to
-`code`/`code_count` before rebuilding. For a previously contiguous range:
-
-```c
-/* Before: tables->code_base = base; tables->code_bytes = bytes; */
-/* Inside profiler_unwind_tables(), with linker-derived base and bytes: */
-static struct ProfilerCodeRegion code[1];
-code[0] = (struct ProfilerCodeRegion){base, bytes};
-tables->code = code;
-tables->code_count = 1;
-/* Keep the existing exidx/extab assignments. */
-```
-
-For split placement, supply a sorted entry per executable allocation instead of
-1 broad span. Existing captures remain decodable with their saved matching
-decoder and ELF; rebuilding does not convert old captures to the current format.
+Supply a sorted, immutable `ProfilerCodeRegion` array through `code`/`code_count`
+in `profiler_unwind_tables()`. Describe each executable allocation separately;
+never bridge a gap with one broad range.
 
 Use `build.py --call-tree --split-code` in the Corstone example. It places A-E in
 ITCM and F in separate code SRAM, with 1 sorted index and 2 regions in
@@ -325,8 +272,8 @@ immutable throughout capture. An absent recipe at a new region stops unwinding.
 ## Check the ELF before capture
 
 [ELF preflight](../host/check_profiler_elf.py) checks the compiled firmware without
-running it. **1 command checks the unwind tables and coverage of all sized function
-symbols in executable sections. You do not need to list functions individually.**
+running it. It checks table structure and metadata coverage for all sized
+function symbols in executable sections.
 
 ```sh
 python3 host/check_profiler_elf.py --elf firmware.elf --require-unwind --output preflight.json

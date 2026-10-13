@@ -11,16 +11,10 @@ Initialization clears the header only. Unused record bytes may retain earlier
 capture contents; they have no defined value and must not be decoded. Export the
 full allocation and use `count` and `bytes_used` to find the committed records.
 
-The header carries a 128-bit firmware build token. Generate it before each build
-with [generate_profiler_build_config.py](host/generate_profiler_build_config.py)
-and include the generated header project-wide as described in
-[configuration](docs/CONFIGURATION.md#shared-build-configuration).
-The decoder compares it with the read-only `profiler_firmware_id` ELF object
-before symbolizing PCs; a mismatch, including a token present on only one side,
-rejects decoding. When both sides have no token, identity is unavailable.
-Tokens associate inputs; they are not
-authentication or a digest of the firmware. Preserve the generated header and
-exact ELF with the capture.
+The header carries a 128-bit build token; see
+[build generation and capture-to-ELF checks](docs/CONFIGURATION.md#shared-build-configuration).
+Retain the generated header and exact ELF. Tokens associate inputs, not deployed
+firmware authenticity; absent tokens leave identity unverified.
 
 ## Header
 
@@ -77,11 +71,9 @@ Unavailable/busy/unsupported/denied PMU preserves status, requested count and ev
 with 0 count, width, snapshots and flags. Those records have no PMU words.
 Unused bytes after `bytes_used` are not records. Minimum allocation is
 `216 + 4 * PROFILER_PMU_COUNT + 4 * PROFILER_STACK_UNWIND` bytes. A 64 KiB buffer holds 2,722 samples
-without PMU, 2,042 with 2 events or 1,633 with 4 events (backtraces disabled). Event ID `0x001E`
-(CHAIN) increments an odd-numbered counter when the preceding even-numbered
-counter overflows. The backend pairs 2 16-bit counters per event to produce
-a 32-bit count: `(high << 16) | low`. CHAIN is reserved, not user-selectable. Insufficient hardware counters produce
-`unsupported` status and records without PMU words.
+without PMU, 2,042 with 2 events or 1,633 with 4 events (backtraces disabled).
+See [PMU configuration](docs/CONFIGURATION.md#pmu-and-diagnostics) for ownership
+and chaining.
 
 ## Backtrace extension
 

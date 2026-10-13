@@ -105,67 +105,32 @@ This is AMP support, not a shared-buffer/SMP collector.
 
 ## DevKit-E8 validation notes
 
-Dual-core capture was validated on DevKit-E8 with the HP profiler on UTIMER
-channel 2 and HE on channel 1. Each image had its own fixed SRAM region, stack
-bounds, four PMU events and an exact matching Release AXF. HP collected 8,039
-samples over approximately four seconds; the smaller HE buffer filled after
-4,306 samples. Both captures finalized with zero rejected samples and active
-four-event PMU metadata. The HE buffer filling early is expected with
-variable-length backtrace records; size from the actual record stream, not a
-fixed samples-per-byte estimate.
+Dual-core captures used HP channel 2 and HE channel 1, separate SRAM buffers,
+four PMU events and matching Release AXFs. See the [hardware evidence](../../tests/VALIDATION.md#physical-hardware)
+for counts and scope. Larger backtrace buffers still fill according to actual
+variable-length records; a full HE buffer must be stopped before export.
 
-In a later run, a 304 KiB HE buffer held 5,095 samples before filling; the
-512 KiB HP buffer held 8,136 samples without filling. The completed HE trace,
-decoded with its matching AXF, reached `tiling::worker_main()` in 4,951 samples
-(97.2%). Most `no_table` outcomes occurred only after unwinding through
-`worker_main` and `main` into AC6 runtime `__rt_entry_main`. Reaching the
-selected application root matters more than a raw `no_table` count: unwinding
-beyond that root is not needed for its FlameGraph. The matching-AXF decode had
-zero rejected frames and zero unresolved PCs.
+Application-specific findings:
 
-Practical integration issues:
+- Broad startup `(+RO)` selectors can consume EXIDX before dedicated scatter
+  regions. Follow [selective AC6 retention](../../docs/UNWINDING.md#ac6-table-retention),
+  check the actual `--via` path and preflight each final AXF after changes.
+- HP `app_main` initially used an unsupported generic C++ recipe. Compiling only
+  that source with `-fno-exceptions` reduced unsupported traces from 6,644 to 4;
+  this is valid only when exception propagation is unnecessary. Root coverage
+  remained near 80% because vendor/runtime calls had CANTUNWIND. On HE, 4,951 of
+  5,095 samples reached `tiling::worker_main()`; stops above the application root
+  in `__rt_entry_main` remained useful partial chains. See [host interpretation](../../docs/HOST_TOOLS.md#optional-backtraces-and-flamegraph).
+- Camera I2C initialization dominated the initial HP capture and delayed its
+  thread-mode stop check. A generated-texture renderer isolated the intended
+  workload. Verify both headers are complete before export.
+- HP could read both buffers in shared SRAM. Use each current map/symbol and
+  allocation length; application addresses are not adapter defaults. For 4 KiB
+  debugger read limits follow [chunk reconstruction](../../docs/REPEATED_CAPTURES.md#2-reconstruct-and-decode-full-allocations).
+- Keep CMSIS Load and debug launch on the same physical probe. A Load task selecting
+  `cmsisdap:` while launch selected J-Link waited for the wrong probe. Confirm
+  loading completed on both images before treating debug responsiveness as new firmware.
 
-- For AC6 flamegraphs, compile profiled code with `-funwind-tables`, put
-  `.ARM.exidx` and `.ARM.extab` into contiguous dedicated scatter regions, and
-  use [selective two-pass retention](../../docs/UNWINDING.md#ac6-table-retention)
-  for large images. Broad startup `(+RO)` selectors can consume `.ARM.exidx`
-  before its dedicated region does. Regenerate retention rules from the current
-  map and rebuild both images whenever their code changes. Check that each
-  project's `--via` response-file path resolves to the generated file in the
-  actual linker invocation, then check the final AXFs. Valid PC and PMU samples
-  do not imply complete call stacks: this run still contained partial traces
-  and missing/unsupported unwind recipes.
-- On HP, the original AXF gave `app_main` a generic C++ personality recipe,
-  which the bounded compact-EHABI walker does not interpret. Compiling only
-  that source with `-fno-exceptions` produced a compact recipe and reduced
-  `unsupported` outcomes from 6,644 to 4 in the next capture. Use this only
-  when the affected code does not require C++ exception propagation; check
-  the final AXF with `host/check_profiler_elf.py --elf firmware.axf --function app_main --require-unwind`
-  and validate on hardware. HP root coverage remained near 80% because
-  vendor/runtime functions such as `display_wait_frame`, `__rt_memcpy_w`, and
-  `ethosu_semaphore_take` have `cantunwind` metadata. Do not treat these
-  rootless samples as an `app_main` failure.
-- A slow or stuck peripheral call can dominate a short capture and prevent a
-  thread-mode `profiler_stop()` check from running. In the validated workload,
-  camera I2C initialization dominated the first HP run. A generated texture
-  was selected for the renderer profiling run. Scope the workload deliberately
-  and confirm `complete=1` on both headers before export.
-- Allocate separate host dumps for the two buffers and decode each against its
-  own AXF. The HP debugger could read both shared-SRAM ranges: initially
-  `0x02340000`/512 KiB for HP and `0x023C0000`/256 KiB for HE; after enlarging
-  HE, `0x02334000`/512 KiB for HP and `0x023B4000`/304 KiB for HE. These are
-  application linker addresses, not adapter defaults; read the current map or
-  symbol before each export. With a 4 KiB debugger read limit, assemble chunks
-  in address order and export the entire allocated buffer, including unused
-  tail bytes. `create_profiler_report.py --html` needs
-  `host/requirements-visualization.txt`; FlameGraph SVG generation needs a
-  separate `flamegraph.pl` installation.
-- Keep the CMSIS Load task and debug launch on the same physical probe. A
-  generated Load task selecting `cmsisdap:` while the launch selected J-Link
-  waited for the wrong probe. Confirm Load completed for both images before
-  treating a briefly responsive debug session as evidence of new firmware.
-
-Native isolation tests and GCC/AC6 SDK builds also cover the adapter defaults
-and channel overrides. Hardware validation establishes capture and export on
-this application; it does not establish synchronized cross-core timestamps or
-complete EHABI unwinding of every library function.
+Native channel isolation and GCC/AC6 SDK builds cover defaults/overrides.
+Hardware runs do not establish synchronized cross-core timestamps or complete
+unwinding of every library function.

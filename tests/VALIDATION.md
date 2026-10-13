@@ -1,238 +1,112 @@
-# Validation
+# Validation evidence and reproduction
 
-## Resource ownership, build identity and timing (12 October 2026)
+Results below distinguish current regression checks, earlier target runs and
+unverified configurations. FVP demonstrates capture behavior, not cycle-accurate
+silicon performance. Format and lifecycle contracts live in [FORMAT.md](../FORMAT.md)
+and [configuration](../docs/CONFIGURATION.md); historical captures require their
+original decoder and ELF.
 
-| Check | Coverage / result |
+## Current checks (13 October 2026)
+
+| Check | Evidence |
 |---|---|
-| 183 native/Python tests | All passed with Plotly 6.3.0; PMU IRQ ownership/readback rollback, NXP clock-aware restart, validation normalization, invalid stack regions, generated configuration guards, wrong-image identity, actual-rate folds, staggered epochs and tick rollover |
-| GCC 13.2.1 / AC6 6.24 core matrices | All 12 Cortex-M targets; applicable security/custom timestamps; PMU 0/4; unwinding off/depth 16 |
-| Corstone real SDK adapter builds | CMSIS 6.3.0 / BSP 1.5.0; GCC and AC6; 125/333/2500 Hz, sampling enabled/disabled, two PMU counters |
-| Ethos-U real SDK | Core-driver 1.26.2 U55/U65/U85: PMU 0/1/4 compile; negative/sentinel/large event rejection; real PMU implementation against RAM registers checks armed IRQ/counter preservation, event readback, overflow/IRQ clear writes and balanced power references |
-| AC6 FVP 11.31.28 | PC/PMU: 84 samples; Unwind: 82 samples, all recover two callers and retain partial `no_progress` status; both valid workload/timing, zero rejected/unresolved and matching build tokens |
-| Configurable example builders | GCC and AC6 compile with automatically generated build token/layout guards; exact headers retained |
-| Build-token retention | Native linked probe with LTO and linker garbage collection retains the 16-byte read-only object; conflicting per-file layout options fail with and without LTO |
-| Wrong executable | Actual PC capture decoded against the Unwind ELF rejects identity mismatch before creating output |
-| Linked ISR inspection | PC and Unwind vector/backend/storage/PMU/bounds/unwind paths use integer instructions; vector preserves the original frame/EXC_RETURN and saves/restores callee registers for unwinding. Disassembly retained |
-| Layer scope and workflow | AC6/GCC/CLANG generated source-group scope checks passed; actionlint 1.7.12 passed with the declared optional RTOS runner label |
-| Phase-chart CLI smoke | Matplotlib 3.10.8 generated MCU, NPU and joint SVG/PNG from a synthetic rounded-clock/wrapped-tick fixture; both folds select two periods and six matching phases |
-| Formatting and reference docs | Ruff 0.17.0 and clang-format 22.1.0 gates; Doxygen generation without warnings |
+| Native/host suite | 183 tests passed, no skips, Plotly installed |
+| Cortex-M matrix | GCC 13.2.1 and AC6 6.24: all 12 supported cores, applicable security/timestamp modes, PMU 0/4, unwind off/depth 16, `-O2` |
+| Corstone SDK compilation | CMSIS 6.3.0 / BSP 1.5.0; 125/333/2500 Hz, sampling on/off |
+| Ethos-U SDK compilation/probes | Core-driver 1.26.2, U55/U65/U85, PMU 0/1/4; GCC/AC6 Cortex-M55 builds with callback on/off; native invalid-event and RAM-register ownership/readback probes |
+| Fresh AC6/FVP captures at final review | PC/PMU: 83 samples; unwind: 83, 82 with two recovered callers, all partial `no_progress`; complete/inactive, valid timing/workload, zero rejected/unresolved, exact-ELF tokens match |
+| Build identity | Read-only 16-byte ELF object retained with LTO/section GC; per-file layout overrides rejected; wrong-ELF decoding fails before output |
+| Linked ISR inspection | Integer-only vector/backend/storage/PMU/bounds/unwind paths; frame/EXC_RETURN and callee registers preserved |
+| Generated CMSIS layers | AC6/GCC/CLANG option scope preserves application flags and protects profiler/timer groups; NXP layer needs its own device pack |
+| Host charts/packaging | Synchronized synthetic wrap/rounded-period inputs, MCU/NPU/joint SVG/PNG, repeated PMU slots, optional-render failure preservation; 53 offline index links verified |
+| Style/docs/CI syntax | Ruff, clang-format 22.1.0, Doxygen, actionlint 1.7.12 and whitespace checks |
 
-SCPF 1 uses a 192-byte header; EUTR 1 uses 144 bytes and includes the actual timer
-ratio. Both contain a generated firmware token. The decoders reject older formats
-and mismatched tokens; absent tokens remain explicitly unverified. These are
-incompatible prototype layout updates, with unchanged record layouts. The current
-version-1 layouts are the sole references for SCPF and EUTR; other versions and
-earlier prototype layouts are unsupported. Archive older captures with their
-original decoder.
+The suite covers bounded EHABI reads and partial prefixes, mixed-depth records,
+MSP/PSP/FP/alignment frames, lifecycle restart/idempotent stop, PMU chaining and
+rollover, stack-region rejection, startup rollback/PRIMASK restoration, build
+identity, capture/aggregate schemas, explicit idle classification and cumulative
+clock/epoch checks. Ethos-U probes cover busy counters/IRQs, invalid events,
+readback failure and owned-resource cleanup. Alif probes cover all 12 channels,
+shared-clock preservation and other-channel isolation. Cleanup regressions also
+check inactive PMU snapshots, failure at each Ethos-U event slot, insufficient
+capacity, and truncated/oversized/unsupported COP1 payloads without stale IDs.
 
-The standard AC6 scatter file emits two existing
-empty unwind-section warnings in the PC-only context; the enabled-Unwind context
-retains and preflights its tables.
+The PC-only AC6 scatter context emits two existing empty unwind-section warnings;
+the Unwind context retains and preflights nonempty tables.
 
-No new physical-board run or silicon ISR-time/stack high-water measurement was
-performed. RAM NPU registers observe alias writes without emulating W1C behavior
-or real interrupt/power delivery. The corrected M33 NXP compile harness was not
-rerun against a real SDK because that SDK was unavailable. RTX/FreeRTOS runtime
-checks require the licensed opt-in runner and were not rerun here.
+**Limits:** no new silicon ISR-time/stack-high-water measurement, physical NPU
+IRQ/power/W1C validation or licensed RTX/FreeRTOS runtime run. RAM-register probes
+cannot establish those hardware behaviors. The corrected NXP Cortex-M33 compile
+path was checked, but a fresh NXP SDK build was unavailable. Remote GitHub CI was
+not triggered by the local review.
 
-## Earlier evidence (10 October 2026)
+## Earlier runtime and integration evidence
 
-| Check | Coverage / result |
+| Configuration | Observed result and scope |
 |---|---|
-| 171 native/Python tests | Lifecycle, frames/bounds, PMU/backtraces, adapter contracts, decoded-report validation, repeated captures, slot-preserving folds, index generation and malformed/empty captures; all pass with optional Plotly installed |
-| EHABI backtraces | Native compact recipes, bounds, register reconstruction, basic/FP/padded MSP/PSP frames, wrong-task rejection, all PMU counts, variable record lengths, configurable depth limits, atomic full-buffer handling and folded-stack filtering; AC6/GCC architecture matrix includes the enabled IRQ entry |
-| Backtrace FVP | AC6/GCC PSP/FP captures recover `capture_on_psp;profile_workload;run_once`; 84 samples and valid timing. AC6 MSP also recovers callers and stops at missing runtime metadata. Physical hardware remains untested |
-| Host C++ symbols | Batched demangling, overloads, C names, unavailable/failed tools, CLI reports and opt-out |
-| PMU tests | All counts 0–4, capacity checks, availability, authentication, ownership, chaining, read retries, overflow, restart and shared cycle-counter preservation; compact records for every active count and when inactive |
-| A–F call-tree FVP | ATfE 22.1, 333 Hz, 16-caller limit: 151 samples, valid timing and workload counts; all 10 F samples reach Reset_Handler (10 callers). No depth truncation; host entry filtering isolates the 3 skipped-caller traces; finish-only F entries are retained. Root boundary stops with invalid_pc; SVG generated |
-| ATfE Clang 22.1.0 | Cortex-M architecture matrix passed with unwinding enabled; LLD-linked PSP/FP FVP capture: 84 samples, 0 rejected/unresolved, 97.62% recover 2 callers; timing and acceptance checks passed |
-| GCC 13.2.1 / AC6 6.24 | M0/M0+/M1/M3/M4/M7/M23/M33/M35P/M52/M55/M85; applicable security and custom timestamp settings |
-| Alif AMP adapter | Native tests cover all 12 channel selections, shared-clock preservation, other-channel isolation, busy/security rejection and restart; GCC/AC6 check HP/HE defaults and overrides |
-| Real SDK adapters | STM32N6, Corstone-300, Alif HP/HE and NXP MIMXRT685; dedicated vectors, no SysTick/HAL ownership; GCC relocatable links |
-| NXP MIMXRT685-EVK | CTIMER4 at 1 kHz/48 MHz: 2,253 accepted samples, 0 rejected/unresolved, 2,252 trustworthy rooted A-F stacks, no faults; 128 KiB buffer and PMU disabled on Cortex-M33 |
-| Corstone FVP | 125/333/2500 Hz, MSP and PSP/FP, precise bounds, restart and application SysTick continuity |
-| 4-event FVP | AC6: 84 samples, 100% workload hits, valid timing, all 4 event reports decoded; functional model totals are 0 |
-| PMU on/off FVP | 2 333 Hz captures each; final capture: 84 samples, validation passed, no rejected/unresolved PCs |
-| PMU software-increment diagnostic | 2,020,000 events on each chained pair, crossing low-half rollovers |
-| CMSIS-FreeRTOS call-tree FVP | Toolbox 2.13.0 / ATfE 22.1 / CMSIS-FreeRTOS 11.2.0: 664 samples, valid timing, 0 rejected frames, both static PSP workers validated; 660 plotted chains, 4 excluded. [Reproduce](../examples/corstone300_freertos/README.md) |
-| CMSIS-RTX call-tree FVP | Toolbox 2.13.0 / ATfE 22.1 / RTX 5.9.1: 2 preemptively scheduled workers with separate static PSP stacks; 665 samples, valid timing, 0 rejected/unresolved, separate A–F/A1–F1 chains and successful workload validation. [Reproduce](../examples/corstone300_rtos2/CALL_TREE.md) |
-| CMSIS-RTOS2 illustration | GCC/AC6 compilation and exception-symbol checks only; no kernel linked/run |
-| Toolbox RTOS builds | Both contexts build from a clean copy without generated RTE files; failed-build regression rejects stale ELF/capture artifacts |
-| CMSIS layers | Schema validation and generated AC6/GCC builds: application flags unchanged; core and tested timer groups protected. NXP RT685 is excluded from this Corstone-only check because it requires NXP SDK components |
-| Timing checks | Frozen counters, rate mismatch, mid-capture drift and stop epochs; valid wraps, coarse counters and degraded reports |
-| AC6 csolution | Toolbox 2.13 / AC6 6.24: FVP and Unwind contexts build, capture, decode and pass the reference; configurable call-tree and default builds also checked |
-| CI regression | Workflow passes actionlint; AC6/FVP uses reference-counter timestamps and requires valid cumulative timing |
+| Corstone bare-metal FVP | 125/333/2500 Hz, MSP and PSP/FP, precise bounds, stop/restart and independent application SysTick |
+| AC6 four-event FVP | 84 samples, valid timing, 100% workload hits; all four events decoded, model totals zero |
+| PMU software increment | 2,020,000 events per chained pair, including low-half rollover |
+| ATfE 22.1 / LLD PSP/FP FVP | 84 samples, zero rejected/unresolved, 97.62% with two callers |
+| ATfE A–F, 333 Hz/depth 16 | 151 samples; all ten F hits recover ten callers to Reset, no depth truncation; three unreliable entries excluded |
+| RTX 5.9.1 / Toolbox 2.13 / ATfE 22.1 | 665 samples, zero rejected/unresolved, 657 plotted chains, separate static PSP worker trees; [run guide](../examples/corstone300_rtos2/CALL_TREE.md) |
+| CMSIS-FreeRTOS 11.2.0, same tools | 664 samples, valid timing, zero rejects, 660 plotted chains; [run guide](../examples/corstone300_freertos/README.md) |
+| CMSIS-RTOS2 illustration | GCC/AC6 compilation only; no linked kernel/runtime |
+| Split ITCM/code-SRAM FVP | AC6 6.24, GCC 13.2 and ATfE 22.1: valid timing, no unresolved PCs; partial traces retained |
+| STM32N6/Corstone/Alif/NXP SDK adapters | Earlier GCC/AC6 header builds and GCC relocatable links; fresh scope differs as stated above |
+| System LLVM Clang 22 matrix | All 12 cores, applicable security/timestamps, PMU four/depth 16 at `-O2`; Newlib include path required; compile evidence only |
 
 GCC 13 uses `-march=armv8.1-m.main` for M52 because it lacks that CPU name.
-FVP D-cache refill/backend-stall counts are 0 for the ITCM/DTCM workload;
-this says nothing about hardware stalls. Inspect ISR disassembly after compiler/LTO changes.
+Inspect ISR disassembly after compiler/LTO changes. FVP zero refill/stall events
+for ITCM/DTCM workloads do not predict silicon stalls. Clean Toolbox builds and
+stale-output rejection are tested for both RTOS contexts; dynamic task allocation,
+deleting tasks and sampling during context switches are outside those runtime tests.
 
-## Lifecycle and header separation (9 October 2026)
+### Physical hardware
 
-Repeated-stop regressions preserve the complete buffer, PMU snapshots and first
-stop's workload results across PMU counts 0-4, without another hardware stop or
-cache flush. The public API compiles as C11 and C++11 without target settings;
-configuration rejection tests now include the configuration header explicitly.
-
-The 161-test native/host suite passed (1 Plotly-dependent test skipped). GCC 13.2.1 and
-AC6 6.24 passed all 12 Cortex-M compile targets. The standalone AC6 matrix used a
-temporary wrapper to replace the runner's `--target=arm-none-eabi` with AC6's
-required `--target=arm-arm-none-eabi`; the project sources were compiled unchanged.
-Corstone adapter builds passed at 125/333/2500 Hz with sampling enabled/disabled.
-Both AC6 FVP contexts passed with 84 samples each, including the backtrace checks.
-Doxygen generation completed without warnings. No new physical-hardware run.
-
-## Metadata reset and ISR simplification (10 October 2026)
-
-CPU initialization clears its 176-byte header instead of the full allocation.
-Ethos-U startup clears its 128-byte header and stream table; unused descriptors
-remain zero. Native tests seed record storage with nonzero values, verify it
-survives initialization/restart and decode full allocations containing old tails.
-Mixed-depth tests verify failed appends leave the unused tail untouched.
-
-The Cortex-M backend owns the single recording-gate check. Record/reject storage
-requires an admitted ISR, with one shared full-buffer closure. Per-record DMB
-publication is removed: the sole producer completes before same-core thread-mode
-stop, and readers wait for stop's barriers and cache clean. Live-buffer readers,
-concurrent lifecycle calls and shared multicore buffers are outside this contract.
-
-Measured with GCC 13.2.1, CMSIS 6.3.0, Cortex-M55, SysTick, `-Os -mcmse
--mfloat-abi=soft -ffunction-sections -fdata-sections`, vectorization disabled,
-FPU disabled and the default 16-caller limit. Each cell is before -> after under
-identical compiler settings:
-
-| Features | Record writer bytes | CPU + SysTick object code/read-only bytes |
+| Target/path | Evidence | Detailed integration limits |
 |---|---|---|
-| PC | 120 -> 96 | 1,454 -> 1,422 |
-| PC + 4 PMU | 152 -> 132 | 2,026 -> 1,998 |
-| PC + backtraces | 168 -> 152 | 3,150 -> 3,126 |
-| PC + 4 PMU + backtraces | 208 -> 196 | 3,734 -> 3,714 |
+| NXP MIMXRT685-EVK CTIMER4 | M33, 48 MHz, 1 kHz, 128 KiB, depth 16, PMU off; 2,253 accepted, zero rejected/unresolved/faults, 2,252 rooted A–F stacks | [Adapter](../adapters/nxp_rt685/README.md) |
+| NXP MIMXRT685-EVK SysTick | M33 RAM image, 1 kHz, 128 KiB; 2,248 accepted, zero rejected/unresolved, 2,247 rooted stacks | [EXC_RETURN/security finding](../integrations/systick/README.md#nxp-mimxrt685-evk-hardware-validation) |
+| PSOC Edge E84 SysTick | Independent M55/M33 RAM images, 64 KiB, 1 kHz/depth 16; zero rejected/unresolved, A–F chains; M55 four PMU events, M33 none | [Inherited boot configuration](../integrations/systick/README.md#psoc-edge-hardware-validation) |
+| Himax WE2 TIMER4 | M55, 1 kHz, 128 KiB/four PMU/depth 16; 2,049 accepted, zero rejected/unresolved; expected A/B/C chain | [SDK vector handoff and UART](../adapters/himax_we2/README.md) |
+| Alif DevKit-E8 AMP | HP channel 2/HE channel 1, separate SRAM/four PMU/exact AXFs; first run 8,039/4,306 samples, zero rejected; later HE 5,095 samples, 97.2% reach application root | [Clock/probe/retention findings](../adapters/alif_e8/README.md) |
 
-The rejection helper shrinks from 40 to 32 bytes in every configuration. The
-record writer has no barrier call in the resulting disassembly; its PC-only
-compiler stack frame shrinks from 32 to 20 bytes. State/buffer allocations are
-unchanged. Object totals exclude linked library helpers and application unwind
-tables. These are code-size/stack measurements, not measured ISR cycles or latency.
+STM32N6 and MPS3 FPGA execution are unverified. Hardware results establish the
+listed applications, not arbitrary startup, interrupt ownership or complete
+library unwinding. Other physical targets, M0/Non-secure runtime, other kernels,
+dynamic stacks and macOS portability remain unverified.
 
-The 161-test suite passed (1 Plotly-dependent test skipped), as did all 12 GCC/AC6
-Cortex-M targets, Corstone enabled/disabled adapter builds at 125/333/2500 Hz and
-both AC6 FVP contexts. The FVP context produced 83 samples; Unwind produced 84;
-both passed timing, workload and rejection checks. AC6 used the target wrapper
-described above. Doxygen generation completed without warnings. No new
-physical-hardware run or silicon latency measurement.
+## ISR size and stack evidence
 
-## Backtrace stack budget (10 October 2026)
+[ISR_BUDGET.md](../docs/ISR_BUDGET.md) is the reference for compiler frame tables,
+complete-path accounting and target measurement. On 10 October, GCC/AC6 each
+checked 124 `-Os` configurations; 40 additional GCC M55 cases compared depths 4/32
+and PMU 0–4. Frames were static. These differ from the current `-O2` matrix.
 
-The unwinder's register pop uses one aligned, complete-word bounds check and
-retains the 32-bit cursor-overflow check. Native tests cover a truncated word,
-the final readable word followed by a partial bounds failure, a restored SP
-that must not redirect later reads, and a cursor that would wrap. Recovered
-prefixes and their failure status remain intact.
+Historical metadata/gate cleanup reduced GCC M55 object code/RO sizes under
+identical `-Os -mcmse -mfloat-abi=soft` section/vectorization settings:
 
-[The ISR budget guide](../docs/ISR_BUDGET.md) publishes GCC 13.2.1 and AC6 6.24
-local-frame measurements for all 12 cores, plus GCC M55 caller-depth comparisons.
-Each compiler checked 124 configurations at `-Os`: applicable security/timestamp
-modes, PMU counts 0/4 and backtraces off/depth 16. Another 40 GCC M55 configurations
-checked PMU counts 0–4 at depths 4/32. All reported frames were static. The compile
-tool can now retain CSV measurements and compiler/input provenance; it also
-selects AC6's target triple directly, without the earlier command wrapper.
+| Features | Record writer bytes, before → after | CPU + SysTick bytes, before → after |
+|---|---|---|
+| PC | 120 → 96 | 1,454 → 1,422 |
+| PC + four PMU | 152 → 132 | 2,026 → 1,998 |
+| PC + backtraces | 168 → 152 | 3,150 → 3,126 |
+| PC + four PMU + backtraces | 208 → 196 | 3,734 → 3,714 |
 
-In the M55 four-PMU/depth-16 GCC object, `pop()` cleanup reduces unwind object
-code/read-only size from 1,436 to 1,424 bytes. The handler and unwinder frames stay
-216/112 bytes. The disassembled wrapper/handler/unwinder/region-check/span-check
-path totals 404 software stack bytes, excluding hardware entry, other application
-paths and nesting; this is not a recommended stack allocation.
-
-All 161 tests passed (1 optional Plotly test skipped). The AC6 Unwind FVP context
-passed with 84 samples, 0 rejected/unresolved PCs and the expected partial chains.
-There is no new hardware stack high-water or silicon ISR-time measurement;
-the guide specifies those integration checks and distinguishes a maximum
-observed duration from a proven worst-case execution-time bound.
-
-## Timer startup contracts and CLANG scope (10 October 2026)
-
-Every timer start hook returns 1/0. The backend stops failed/partial starts
-before restoring the caller's PRIMASK and preserves adapter diagnostics. Himax
-checks the vendor result before handing the vector/IRQ to the profiler; timer
-unavailable diagnostics retain IRQ/vendor status. Custom adapters must update
-their formerly void start hook.
-
-The 162-test suite passed (1 optional Plotly test skipped). Native backend tests
-exercise partial-start cleanup with both initial interrupt masks, generic and
-adapter-supplied diagnostics, and disabled recording after failure. Himax vendor
-API doubles exercise busy resources, failed/successful vector handoff, stop/restart
-and supported/unsupported rates. Alif's native channel tests check the start result.
-The Himax test headers are API doubles, not real SDK headers.
-
-GCC 13.2.1 and AC6 6.24 passed the 124-configuration architecture/stack report
-matrix described above; the published ISR frames are unchanged. LLVM Clang 22
-also compiled all 12 cores, applicable security/timestamp modes and enabled
-four-slot/depth-16 backtraces at `-O2`. The system Clang used Newlib headers via
-`C_INCLUDE_PATH=/usr/include/newlib`; ATfE Professional 22.1 was unavailable
-without its license. These are compile checks, not LLVM runtime validation.
-
-GCC/AC6 Corstone and STM32N6 SDK-header builds passed at 125/333/2500 Hz with
-sampling enabled/disabled and two PMU slots. STM32 headers came from the FSBL
-driver snapshot in Keil STM32N6570-DK_BSP 1.1.0. AC6 FVP and Unwind captures passed
-with 83 and 84 samples respectively, no rejected/unresolved PCs and unchanged
-workload/timing checks.
-
-Generated CMSIS option-scope checks passed for AC6/GCC/CLANG on the five
-Corstone-compatible timer layers. Every timer layer now declares CLANG
-vectorization restrictions in its source group; CI checks AC6 and CLANG.
-The NXP layer is still excluded from generated scope checks because of its
-device-pack requirements. No fresh Himax, Alif or NXP SDK-header build or
-physical-hardware validation was performed.
-Doxygen completed without warnings; Python formatting and local documentation
-file-link checks passed.
-
-## Host simplification and report identity (10 October 2026)
-
-The 171-test suite passed with Plotly 6.3.0 installed, without skips. Regressions
-keep same-event CPU PMU slots with deltas 10 and 30 as separate means, reject
-changed event IDs despite identical labels, and preserve blank intervals when
-CPU observations are missing. Both folds now share finalized-capture,
-compressed-weight, burst and statistics helpers. Explicit idle names/PC ranges
-are shared with the report index; absent classification omits non-idle estimates.
-
-Matplotlib CLI smoke checks generated MCU, Ethos-U and joint SVG/PNG charts from
-synchronized synthetic reports, including repeated counters and both classified
-and unclassified idle cases. A previously validated 84-sample AC6 Unwind FVP
-capture and its exact ELF were packaged with the shared index generator and
-Plotly dashboard; local artifact links were checked. Packaging regressions also
-preserve raw inputs and diagnostics after optional-render failure. No new target
-capture or physical-hardware measurement was performed for these host changes.
-
-Python formatting and updated documentation links/heading anchors passed.
-See [host requirements and commands](../docs/HOST_TOOLS.md) for optional packages;
-all analysis helpers and plain report/index generation remain standard-library only.
-
-## Generic SysTick hardware evidence
-
-The generic SysTick path was hardware-validated on an Infineon PSOC Edge E84
-platform with independent Cortex-M55 and Cortex-M33 RAM images. Both used 64 KiB
-capture buffers and EHABI backtraces at 1 kHz with zero rejected frames or
-unresolved PCs. The M55 captured four PMU events; the M33 correctly ran PC and
-backtrace sampling without a PMU. This validation inherited board clocks and
-power/security setup from already-running boot firmware; it does not replace the
-Infineon BSP startup flow or validate coexistence with software that owns SysTick.
-
-It was also validated on an NXP MIMXRT685-EVK Cortex-M33 RAM image at 1 kHz with
-a 128 KiB buffer and 16-level EHABI backtraces. The completed capture contained
-2,248 samples with zero rejected frames and zero unresolved PCs; 2,247 samples
-reconstructed the expected A-F workload beneath the selected root. The Cortex-M33
-correctly ran with `PROFILER_PMU_COUNT=0`. This test exposed an important Armv8-M
-integration rule: infer the exception frame security state from `EXC_RETURN`, not
-from the debugger's visible SCS alias. See the
-[SysTick validation notes](../integrations/systick/README.md#nxp-mimxrt685-evk-hardware-validation).
-
+Writer PC-only frame fell from 32 to 20 bytes; rejection helper from 40 to 32
+code bytes. A later bounded-pop cleanup reduced unwind object size 1,436→1,424
+bytes, keeping handler/walker frames at 216/112 bytes. Object totals exclude
+library helpers and application tables. These measurements are historical size
+comparisons, not current image sizes, latency or recommended stack allocations.
 
 ## SDKs used
 
-| SDK | Version / Git revision |
+| SDK | Version / revision |
 |---|---|
-| ARM CMSIS | 6.0.0 for board adapters; 6.3.0 for the full architecture matrix |
-| ARM V2M_MPS3_SSE_300_BSP | 1.5.0 |
+| CMSIS | 6.0.0 in earlier board checks; 6.3.0 architecture/current Corstone checks |
+| V2M_MPS3_SSE_300_BSP | 1.5.0 |
+| Ethos-U core-driver | 1.26.2 |
 | ST cmsis-device-n6 | `81fe2fe8d576ec4c55be308ac4504bd580e498e6` |
 | ST stm32n6xx-hal-driver | `d88071ed0adc1991a5daed6f20ab311f80bb33b7` |
 | Alif alif_ensemble-cmsis-dfp | `652dd6bf6856891695dfef1f0e7f74829ec9f451` |
@@ -251,113 +125,82 @@ python3 tests/compile_adapters.py \
   --alif-dfp /path/to/alif_ensemble-cmsis-dfp \
   --nxp-rt685-dfp /path/to/NXP/MIMXRT685S_DFP/26.06.00 \
   --sample-hz 125 333 2500 --pmu
+python3 tests/check_layer_scope.py --compiler AC6 GCC CLANG
 ```
 
-Add `--stack-unwind --output build/fvp-unwind` to the FVP runner below to require
-at least 90% of samples to recover 2 callers and verify folded-stack counts.
-
-Run `python3 tests/check_layer_scope.py --compiler AC6 GCC CLANG` to check compiler-option
-scope (requires csolution, PyYAML and the packs above). CI checks AC6 and CLANG.
-
-Supply `--cc /path/to/armclang` for AC6. The architecture check and example
-builder also accept `--cc /path/to/ATfE/bin/clang`. The AC6 example builder
-delegates to `cbuild`; the architecture compile check remains a direct compiler test.
-The CI runner uses the AC6 csolution and accepts `--cbuild`, not `--cc`. SDKs are not downloaded by the scripts;
-omit adapter SDK options you do not have. Temporary objects are built outside
-the source tree. FVP build/run instructions are in the
-[Corstone example](../examples/corstone300/README.md).
-
-Physical configurations beyond the hardware results listed above,
-M0/non-secure runtime execution and other RTOS kernels/dynamic stack integration
-remain unverified. FVP validates capture flow and counter integration, not
-cycle-accurate silicon performance.
+SDKs are not downloaded; omit unavailable adapter options. Scope checks need
+csolution, PyYAML and packs; NXP is excluded from the Corstone scope harness.
+Supply `--cc /path/to/armclang` for AC6 or ATfE Clang for the architecture check.
+The AC6 example builder delegates to cbuild; `run_fvp.py` accepts `--cbuild`,
+not `--cc`. See each script's `--help` for matrix/output options.
 
 ## CI reference
 
-[The workflow](../.github/workflows/fvp.yml) follows the
-[CMSIS-NN FVP setup](https://github.com/ARM-software/CMSIS-NN/blob/main/.github/workflows/float-fvp.yml):
-Arm64 runner, vcpkg tools, Arm license activation, cached packs and uploaded artifacts.
-It builds [the csolution](../examples/corstone300/profiler.csolution.yml) with
-CMSIS-Toolbox and AC6 6.24, runs FVP 11.31.28 and decodes the semihosted buffer.
-Put Toolbox on `PATH` and set `AC6_TOOLCHAIN_6_24_0` to the compiler's `bin` directory.
+[CI](../.github/workflows/fvp.yml) uses an Arm64 runner, vcpkg tools, Arm licensing,
+cached packs and uploaded logs/ELF/map/raw/decoded artifacts. CMSIS-Toolbox builds
+the [AC6 6.24 solution](../examples/corstone300/profiler.csolution.yml) and runs
+FVP 11.31.28. It runs on pull requests, main pushes and manual dispatch; there is
+no scheduled trigger. Optional manual RTX/FreeRTOS checks need
+`PROFILER_RTOS_CI=true` and a licensed self-hosted runner.
+
+Put Toolbox on PATH, configure packs and set `AC6_TOOLCHAIN_6_24_0` to its bin directory:
 
 ```sh
-python3 tests/run_fvp.py \
-  --fvp FVP_Corstone_SSE-300 --output build/fvp
+python3 tests/run_fvp.py --fvp FVP_Corstone_SSE-300 --output build/fvp
+python3 tests/check_fvp.py --report build/fvp/report
 ```
 
-The committed [reference](fvp_reference.json) requires 80–90 samples, no rejected
-or unresolved PCs, at least 95% hits in `run_once`, a completed/validated capture,
-correct clocks, valid cumulative timing, restart evidence and an extended PSP frame. PMU must be active
-with events `0x0003`/`0x0024`, no validity flags and consistent totals/deltas.
-Observed 2-event reference-timestamp output: 84 samples, 97.62% workload hits, both event totals 0. PMU totals
-are not fixed thresholds; functional-model zeros are allowed.
+Add `--stack-unwind --output build/fvp-unwind` to the runner for at least 90%
+two-caller coverage and folded-total checks. The [reference](fvp_reference.json)
+requires 80–90 samples, zero rejected/unresolved, at least 95% `run_once` hits,
+complete/validated capture, correct clocks, cumulative timing, restart evidence,
+an extended PSP frame and active PMU events `0x0003`/`0x0024` with no validity flags.
+Model-zero totals are allowed. The runner clears stale outputs, enforces timeouts,
+returns nonzero on failure and writes `result.json`.
 
-The runner clears stale captures, enforces timeouts and writes `result.json`.
-Failures return nonzero. CI uploads logs, ELF/map, raw buffer and decoded reports.
-To recheck reports: `python3 tests/check_fvp.py --report build/fvp/report`.
-Local testing uses Linux x86-64; GitHub runs the Arm64 model.
-
-The runner selects `--reference-timestamp`, using the 100 MHz reference counter
-shared with TIMER0. The functional FVP's DWT rate disagrees with elapsed timer
-time; reference timestamps avoid that mismatch. CI still requires
-`timing_valid=true`; timestamps represent elapsed time, not CPU cycles.
-
-## Integration hardening
-
-Local Linux validation: native/unit tests, ATfE Cortex-M compile matrix,
-AC6 PSP/FP/PMU unwind capture and ATfE CMSIS-RTX dual-thread capture on Corstone-300
-FVP. Split ITCM/code-SRAM A–F images linked with AC6 6.24, GCC 13.2 and ATfE 22.1;
-all ran on FVP with valid timing and no unresolved PCs. Raw traces remain partial.
-AC6 requires `--no_compressexidx` to retain identical recipes across code regions.
-
-Reproduce split placement with the [example builder](../examples/corstone300/README.md):
-add `--call-tree --split-code --reference-timestamp --semihosting`, then use the
-same FVP/export procedure. Preflight each ELF with `--require-unwind --function functionF`.
-The host tests cover format mismatch, gap/order/recipe failures, buffer budgets,
-report input preservation and stale-output rejection. These results do not
-validate physical SRAM, hardware overhead or macOS portability.
+Reference timestamps use the 100 MHz counter shared with TIMER0 because this
+FVP's DWT rate disagrees with elapsed timer time. They measure elapsed time,
+not CPU cycles. Local tests used Linux x86-64; GitHub uses the Arm64 model.
 
 ## Selective AC6 retention
 
-Validated on Linux with AC6 6.24 using the split-code Corstone objects: first link
-without blanket retention, generate rules with `select_profiler_unwind.py` and
-`--code-section .sram_text`, then link again through `--via` with
-`--no_compressexidx`. Final ELF preflight passed for functions E/F. An added
-unreferenced function stayed absent in both passes but survived blanket EXIDX
-retention, confirming the intended dead-code behavior. This was a link/preflight
-check, not a new hardware or FVP run.
+AC6 6.24 split-code link/preflight checks used a first link without blanket
+retention, fresh `select_profiler_unwind.py --code-section .sram_text` rules and a
+second link through `--via` with `--no_compressexidx`. E/F passed final preflight.
+An unreferenced function stayed absent in both passes but survived blanket EXIDX
+retention. This was not a new runtime run.
 
-`tests/test_select_unwind.py` covers sanitized MobileNet map rows, populated `E`,
-duplicate/custom sections, non-code/discarded rows, malformed input, literal `$`
-names and failure handling. Object/archive associations remain unverified.
+`test_select_unwind.py` covers sanitized MobileNet rows, populated `E`, duplicate/
+custom sections, discarded/non-code rows, malformed input, literal `$` names and
+failures. Object/archive associations remain unverified. Follow the
+[AC6 integration recipe](../docs/UNWINDING.md#ac6-table-retention).
 
 ## GCC/LLVM retention
 
-Local Linux link tests used GCC 13.2.1 / GNU ld 2.42 and ATfE 22.1 / LLD 22.1.0,
-with `-funwind-tables -ffunction-sections -fdata-sections`, `--gc-sections` and
-`--no-merge-exidx-entries`. The split-code Corstone image was augmented with live
-and unused functions, both inline and EXTAB recipes, in a direct object and a
-selected archive member. An entirely unreferenced archive member stayed absent.
+GCC 13.2.1/GNU ld 2.42 and ATfE 22.1/LLD 22.1 split-code link tests used unwind
+and per-function/data sections, GC and `--no-merge-exidx-entries`. Probes included
+live/dead inline and EXTAB recipes in direct objects and selected archive members;
+an entirely unreferenced archive member remained absent.
 
-| EHABI selectors | GNU ld: unused functions retained | LLD: unused functions retained |
+| Selectors | GNU ld dead functions retained | LLD dead functions retained |
 |---|---|---|
-| No `KEEP` | 0/4 | 0/4 |
-| EXIDX `KEEP` | 4/4 | 0/4 |
-| EXTAB `KEEP` | 0/4 | 0/4 |
-| Both `KEEP` | 4/4 | 0/4 |
+| No KEEP | 0/4 | 0/4 |
+| EXIDX KEEP | 4/4 | 0/4 |
+| EXTAB KEEP | 0/4 | 0/4 |
+| Both KEEP | 4/4 | 0/4 |
 
-All variants passed final ELF preflight for the live inline/EXTAB probes and
-functions E/F. Ordinary selectors preserve the needed recipes in 1 pass on these
-toolchains; blanket EXIDX retention is harmful with GNU ld. These are link tests,
-not hardware/FVP, LTO, or arbitrary library/assembly validation.
+All variants passed preflight for live probes and E/F. Ordinary selectors worked
+in one pass; blanket EXIDX KEEP retained dead code with GNU ld. This does not
+validate LTO, arbitrary libraries/assembly or physical hardware.
 
 Build the [Corstone example](../examples/corstone300/README.md) with
-`--call-tree --split-code`, then run with the **same compiler**:
+`--call-tree --split-code`, then use the same compiler and an empty output directory:
 
 ```sh
-python3 tests/check_unwind_retention.py --cc arm-none-eabi-gcc --objects build/corstone300 --output build/retention-gcc
+python3 tests/check_unwind_retention.py \
+  --cc arm-none-eabi-gcc --objects build/corstone300 --output build/retention-gcc
 ```
 
-Repeat with ATfE Clang and its own example build directory. Use an empty output
-directory; each run saves 4 ELFs, maps, logs, preflight reports and `results.json`.
+Repeat with ATfE and its own build directory. Each run retains four ELFs/maps,
+logs, preflight reports and `results.json`. The [linker recipe](../docs/UNWINDING.md#gcc--llvm-linker-script-integration)
+is the integration reference.

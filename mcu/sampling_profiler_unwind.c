@@ -17,33 +17,11 @@
  * -------------------------------------------------------------------- */
 
 /** @file sampling_profiler_unwind.c
- * @brief Best-effort EHABI compact personalities 0/1/2; never execute personality routines.
- * @details Tables describe call sites, not every instruction. Bounds checks cannot
- * identify all plausible but incorrect traces sampled inside prologues/epilogues.
- * Encoding reference: https://github.com/ARM-software/abi-aa/blob/main/ehabi32/ehabi32.rst
- *
- * @code
- * Init: validate/cache linker code + EHABI table ranges
- *                         |
- * Sample: interrupted registers + precise stack bounds
- *                         |
- *                         v
- *              Virtual PC/SP/LR + registers <----------------+
- *                         |                                  |
- *              Find PC range in .ARM.exidx                   |
- *                         |                                  |
- *              Decode inline / .ARM.extab recipe             |
- *                         |                                  |
- *              Apply recipe to virtual registers             |
- *              (bounded stack reads; no live-state writes)   |
- *                         |                                  |
- *              Check caller address and stack progress       |
- *                         |                                  |
- *              Append caller; continue within depth limit ---+
- *
- * Stop: end / unsupported / invalid / depth limit
- *       -> keep recovered caller prefix + depth/status
- * @endcode
+ * @brief Bounded compact EHABI personalities 0/1/2; never execute personality routines.
+ * @details Operates on virtual registers and retains checked caller prefixes.
+ * Call-site tables can yield plausible incorrect traces during entry/exit;
+ * bounds checks do not establish asynchronous unwind accuracy.
+ * Encoding: https://github.com/ARM-software/abi-aa/blob/main/ehabi32/ehabi32.rst
  */
 #include "sampling_profiler_unwind.h"
 
@@ -110,44 +88,31 @@ static size_t code_region(uintptr_t address, size_t bytes)
     return 0;
 }
 
-/**
- * @brief Check application-supplied memory ranges before allowing ISR unwinding.
- * @details The application hook supplies linker addresses, not copies of tables.
- * Their storage must remain readable and unchanged throughout capture.
- *
- * Validation order:
- *     hook -> table alignment/sizes -> code allocations -> sorted index -> ready
- *
- * This checks table structure and lookup boundaries, not every unwind recipe.
- * Recipe decoding and stack-read checks happen on demand for each sampled frame.
- */
+/** @brief Validate linker ranges and sorted index before ISR use.
+ * @details Storage must remain immutable/readable. Recipes and stack accesses
+ * are checked on demand; structural validation cannot prove MPU permissions. */
 int profiler_unwind_init(void)
 {
-    /* Invalidate the previous configuration first, including on reinitialization. */
+    /* Failed reinitialization must not reuse the old tables. */
     ready = 0;
     tables = (struct ProfilerUnwindTables){0};
 
-    /* The index is required. The extension table is optional: compact recipes
-     * can fit entirely inside an index entry. */
+    /* EXIDX is required; EXTAB can be absent for inline recipes. */
     if (!profiler_unwind_tables(&tables) || !tables.exidx || !tables.exidx_bytes)
         return profiler_init_fail(PROFILER_INIT_UNWIND, PROFILER_INIT_MISSING_TABLES, 0, 0);
 
-    /* A bounded code-region list is required before checking index addresses. */
     if (!tables.code || !tables.code_count || tables.code_count > PROFILER_MAX_CODE_REGIONS)
         return profiler_init_fail(PROFILER_INIT_UNWIND, PROFILER_INIT_MALFORMED_TABLES, 0, 0);
 
-    /* EXIDX must contain whole 2-word entries. Validate before dereferencing it;
-     * address arithmetic alone cannot establish MPU access permissions. */
+    /* Validate whole EXIDX entries before dereferencing. */
     if (!valid_table_span(tables.exidx, tables.exidx_bytes, EXIDX_ENTRY_BYTES))
         return profiler_init_fail(PROFILER_INIT_UNWIND, PROFILER_INIT_MALFORMED_TABLES, 0, 0);
 
-    /* An absent EXTAB is valid when all recipes fit in EXIDX. If present, it
-     * must contain whole words; individual recipe lengths are checked later. */
+    /* Present EXTAB must contain whole words; recipe lengths are checked later. */
     if (tables.extab_bytes && !valid_table_span(tables.extab, tables.extab_bytes, EHABI_WORD_BYTES))
         return profiler_init_fail(PROFILER_INIT_UNWIND, PROFILER_INIT_MALFORMED_TABLES, 0, 0);
 
-    /* Executable allocations must be ordered and non-overlapping. Keeping each
-     * allocation separate prevents a recipe from covering an unmapped code gap. */
+    /* Sorted, disjoint allocations prevent recipes extending across code gaps. */
     for (size_t i = 0; i < tables.code_count; ++i)
     {
         const struct ProfilerCodeRegion *r = &tables.code[i];
@@ -163,8 +128,7 @@ int profiler_unwind_init(void)
             return profiler_init_fail(PROFILER_INIT_UNWIND, PROFILER_INIT_INVALID_CONFIG, (uint32_t)i, 0);
     }
 
-    /* Sorted starts permit binary search in the ISR. A terminal entry may point
-     * just beyond executable code; it marks a boundary, not a callable address. */
+    /* Sorted starts allow binary search; allocation-end sentinels are permitted. */
     uintptr_t previous = 0;
 
     for (size_t i = 0; i < tables.exidx_bytes / EXIDX_ENTRY_BYTES; ++i)
@@ -185,22 +149,11 @@ int profiler_unwind_init(void)
         previous = address;
     }
 
-    /* Publish readiness only after the full index has passed validation. */
     ready = 1;
     return 1;
 }
 
-/** @brief Read a compact recipe into a bounded byte array, MSB first.
- * @details Index entries cover address ranges; the linker may merge equal recipes.
- * @code
- * .ARM.exidx entry (2 words)
- * +----------------------+--------------------------------+
- * | PREL31: range start  | 1: cannot unwind               |
- * |                      | or inline compact recipe       |
- * |                      | or PREL31 -> .ARM.extab recipe  |
- * +----------------------+--------------------------------+
- * @endcode
- */
+/** @brief Read bounded compact opcode bytes, MSB first; see profiler_ehabi.h. */
 static uint32_t recipe(uint32_t pc, uint8_t bytes[32], uint32_t *length)
 {
     size_t lo = 0, hi = tables.exidx_bytes / EXIDX_ENTRY_BYTES;
@@ -227,7 +180,6 @@ static uint32_t recipe(uint32_t pc, uint8_t bytes[32], uint32_t *length)
     if (code_region(range_start, 2U) != code_region(pc, 2U))
         return PROFILER_UNWIND_NO_TABLE;
 
-    /* The second index word selects no recipe, an inline recipe, or EXTAB. */
     const uint32_t *entry = index_entry + 1U;
     uint32_t word = *entry;
 
@@ -245,8 +197,7 @@ static uint32_t recipe(uint32_t pc, uint8_t bytes[32], uint32_t *length)
             !contains((uintptr_t)tables.extab, tables.extab_bytes, (uintptr_t)entry, EHABI_WORD_BYTES))
             return PROFILER_UNWIND_UNSUPPORTED;
 
-        /* Bits 31:24 identify the compact personality; see the header diagram
-         * in profiler_ehabi.h before interpreting the remaining bytes. */
+        /* The high byte selects the compact personality. */
         word = *entry;
         uint32_t tag = word >> EHABI_COMPACT_TAG_SHIFT;
 
@@ -319,15 +270,8 @@ static int pop(uint32_t regs[16], uint32_t mask, const struct ProfilerStackBound
     return valid_sp(regs[EHABI_SP_IDX], bounds);
 }
 
-/** @brief Interpret a compact recipe; VFP saves are skipped using integer arithmetic.
- * @details regs[] is virtual state, not the live CPU or hardware exception frame.
- * The recipe reverses a function's stack effects to recover its caller:
- *
- *     callee SP -> [locals / saved registers] -> caller SP
- *     saved LR (or live LR for a leaf)        -> caller PC
- *
- * A failed step may leave partial virtual state; the caller stops immediately.
- */
+/** @brief Interpret compact recipes on virtual registers; VFP saves change SP only.
+ * @details A failed step can leave partial state; the caller stops immediately. */
 static uint32_t step(uint32_t regs[16], const struct ProfilerStackBounds *bounds, uint32_t pc)
 {
     uint8_t bytes[32];
@@ -342,8 +286,6 @@ static uint32_t step(uint32_t regs[16], const struct ProfilerStackBounds *bounds
     {
         uint32_t op = bytes[i], mask = 0, add = 0;
 
-        /* Each opcode modifies virtual SP or selects registers to restore.
-         * Reserved/unsupported encodings stop this trace; never guess a layout. */
         if (op <= EHABI_OP_ADJUST_SP_LAST)
         {
             uint32_t amount = ((op & 0x3FU) << 2) + 4U;
@@ -482,7 +424,6 @@ void profiler_unwind_capture(struct ProfilerSample *sample, uint32_t regs[16], c
                 break;
             }
 
-            /* Interpret 1 frame; failures retain only already committed callers. */
             status = step(regs, bounds, lookup);
             if (status)
                 break;
@@ -507,7 +448,6 @@ void profiler_unwind_capture(struct ProfilerSample *sample, uint32_t regs[16], c
                 break;
             }
 
-            /* Subtract only after the lower-bound check; lookup must stay in code. */
             if (!code_region(pc - 2U, 2U))
             {
                 status = PROFILER_UNWIND_INVALID_PC;
@@ -520,13 +460,11 @@ void profiler_unwind_capture(struct ProfilerSample *sample, uint32_t regs[16], c
                 break;
             }
 
-            /* Commit only a checked frame; a later failure preserves this prefix.
-             * Executable addresses still cannot prove an interrupted prologue valid. */
+            /* Commit only checked callers; later failure preserves this prefix. */
             sample->callers[depth] = regs[EHABI_PC_IDX];
         }
 
-    /* The low byte counts initialized caller slots; the next byte explains
-     * termination. A partial chain is useful even when the next frame fails. */
+    /* Store initialized caller count and stop status, retaining partial chains. */
     if (depth == PROFILER_UNWIND_MAX_DEPTH)
         status = PROFILER_UNWIND_DEPTH_LIMIT;
 

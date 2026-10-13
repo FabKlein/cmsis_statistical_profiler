@@ -14,11 +14,9 @@ worker_entry -> worker  -> run_once  -> A  -> B  -> C  -> D  -> E  -> F
              -> worker1 -> run_once1 -> A1 -> B1 -> C1 -> D1 -> E1 -> F1
 ```
 
-2 equal-priority workers have separate static 8 KiB PSP stacks and task-control
-blocks. A-E call the next function 2/4/8/16/32 times, with 100 NOPs after each
-call; F executes 100 NOPs. Inlining and tail calls are disabled. A controller
-captures for 2 seconds at 333 Hz, validates both workers, stops capture and
-exports the 128 KiB buffer through semihosting.
+The shared test captures two static PSP workers for two seconds at 333 Hz,
+validates both, stops and exports 128 KiB through semihosting. The
+[RTX guide](../corstone300_rtos2/CALL_TREE.md) defines workload and acceptance checks.
 
 ## Run
 
@@ -46,11 +44,8 @@ Outputs: `build/freertos-call-tree/{profiler.elf,samples.bin,result.json}` and
 `report/{samples.csv,stacks.folded,flamegraph.svg}`. Omit `--flamegraph` if the
 external renderer is unavailable. Existing outputs are replaced.
 
-The runner checks timing, 650-680 samples, successful worker validation, no
-rejected frames, PSP sampling, both deep caller chains, no mixed-worker chains
-and plotted totals. Each worker needs at least 100 plotted samples and an ordered
-chain reaching E/F; all plotted chains must follow the known caller sequence. It selects `--stack-root worker_entry`, an application
-wrapper above both workers. Task return addresses supplied by the kernel are
+The shared acceptance checks apply. FreeRTOS uses `--stack-root worker_entry`,
+the application wrapper above both workers; kernel task return addresses are
 not reliable caller roots.
 
 ## Configuration and limits

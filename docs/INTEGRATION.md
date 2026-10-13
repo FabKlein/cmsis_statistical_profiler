@@ -1,38 +1,26 @@
 # Integrate in 3 stages
 
-Keep configuration in your application. Identify CPU/security mode, toolchain,
-reserved timer/IRQ, actual clocks, readable stack allocations and executable
-regions first. Do not guess these values. Pin the profiler revision and retain
-the exact unstripped ELF for each capture.
+Before integration identify the CPU/security mode, toolchain, reserved timer/IRQ,
+actual clocks, initialized stack allocations and executable regions. Keep settings
+in the application, pin the profiler revision and retain each exact unstripped ELF.
+Never infer bounds or ownership from device capacity.
 
 ## Confirm the Armv8-M exception frame security state
 
-On Armv8-M targets, do not infer the runtime exception frame security state from
-the debugger's accessible SCS alias, the debug connection view, or a project
-security label alone. Halt in `statistical_sampling_tick()` and inspect the first
-real `EXC_RETURN` value passed by the naked IRQ entry. That value determines which
-stack frame encoding the backend must validate.
-
-If nearly every sample is rejected as `unsupported_frame`, first check
-`EXC_RETURN`; do not weaken frame validation or widen memory bounds. For example,
-the MIMXRT685-EVK validation observed `0xFFFFFFE9`, a Secure basic frame using MSP,
-although the debugger exposed only the Non-secure SCS view. Compiling only the
-profiler backend and ISR sources with AC6 `-mcmse` selected the correct frame
-handling and reduced rejected samples from all samples to zero. Startup,
-application sources and security attribution remained unchanged.
-
-`-mcmse` changes the compiler's Armv8-M security-aware code generation; it does
-not configure the SAU, IDAU, boot security attribution or debug permissions.
-Apply it globally only when the complete application is intentionally a CMSE
-build. After changing the backend build flags, repeat the PC-only stage and
-require zero unexpected rejections before enabling PMU or backtraces.
+Inspect the first real `EXC_RETURN` passed to `statistical_sampling_tick()`;
+debugger SCS visibility and project labels do not establish frame security.
+Secure frames require `-mcmse` on backend/ISR sources. Apply it globally only for
+an intentionally CMSE application; it does not configure SAU/IDAU or routing.
+If nearly every frame is `unsupported_frame`, check this before changing bounds.
+The [NXP case](../integrations/systick/README.md#nxp-mimxrt685-evk-hardware-validation)
+observed Secure MSP `0xFFFFFFE9` through a Non-secure debugger view. Repeat PC-only
+validation after correcting flags; never weaken frame validation to hide failures.
 
 ## 1. PC sampling
 
-1. Add the common, board and timer layers shown in the [README](../README.md#get-started).
-   Manual builds need the 4 `mcu/*.c` sources, 1 timer adapter and their include paths.
-   Keep the [ISR compiler restrictions](CONFIGURATION.md#build-and-ownership).
-2. Set application cproject definitions, or use an application config header:
+1. Select the [common and timer layers](../README.md#get-started). Manual builds
+   need four `mcu/*.c` sources, one timer and the [build restrictions](CONFIGURATION.md#build-and-ownership).
+2. Set application configuration consistently across translation units:
 
    ```yaml
    define:
@@ -42,86 +30,67 @@ require zero unexpected rejections before enabling PMU or backtraces.
      - PROFILER_STACK_UNWIND: 0
    ```
 
-   Supply the timer clock from the board documentation and stack RAM bounds from
-   the application's actual linker/startup layout. Header users
-   define `PROFILER_USER_CONFIG="profiler_app_config.h"`; use `#ifndef` defaults
-   inside it so command-line settings can override them without `#undef`.
-3. Preserve application startup/linker placement and HAL/RTOS exceptions. The
-   buffer defaults to BSS. Check that data plus MSP/task stacks fit physical RAM.
-4. Call `profiler_init()`, `profiler_enable()`, run a known
-   workload, then `profiler_stop(iterations, validation_passed)`.
-   On init failure inspect `*profiler_diagnostics()`; see
-   [failure meanings](CONFIGURATION.md#initialization-failures).
-5. After stop returns, halt and export from GDB with the exact ELF loaded:
-
-   ```gdb
-   source tools/export_profiler_buffer.gdb
-   export_profiler_buffer samples.bin
-   ```
-
-   From the profiler repository, create a fresh local report directory:
-
-   ```sh
-   python3 host/check_profiler_elf.py --elf firmware.elf
-   python3 host/create_profiler_report.py --samples samples.bin --elf firmware.elf --output report-pc --board "<actual target>" --application "<application>"
-   ```
-
-6. Require correct workload output, complete/inactive capture, valid timing,
-   no unexpected rejections/unresolved PCs and hits in the known workload.
-   Missing EHABI is expected at this stage. Bad timing usually means a clock
-   mismatch, lost IRQs or debugger/sleep interference; stack rejections need
-   corrected RAM bounds. Do not enable more features to hide a failed PC test.
+   Supply actual timer clocks and readable MSP/task-stack regions; preserve
+   startup, linker placement and HAL/RTOS exceptions. Check total RAM capacity.
+   See [settings and build identity](CONFIGURATION.md) for the user/generated headers.
+3. Run `host/check_profiler_elf.py --elf firmware.elf` **before capture**.
+   Initialize, enable, run a correctness-checked known workload and stop. On init
+   failure inspect [diagnostics](CONFIGURATION.md#initialization-failures).
+4. After stop returns, export the whole allocation using the
+   [capture commands](../README.md#capture-and-decode), then
+   [package a fresh report](HOST_TOOLS.md#decode-and-package-a-single-capture).
+5. Require correct workload output, complete/inactive state, valid timing, known
+   workload hits and zero unexpected rejections/unresolved PCs. Missing EHABI is
+   expected here. Clock mismatch, lost IRQs, halts or sleep can break timing;
+   invalid stack bounds need correction before adding features.
 
 ## 2. PC + PMU
 
-Keep the same sources, linker and calls. Set `PROFILER_PMU_COUNT: 2` (up to 4),
-optionally overriding event IDs. Repeat capture and report into `report-pmu`.
-Require `header.pmu.status=active`, the requested count and valid event totals.
-Fallback to PC sampling is intentional on unavailable/busy/unsupported PMUs;
-inspect that status before interpreting counts. Model events may remain 0.
-PMU intervals include other execution and are not per-function counts.
+Set `PROFILER_PMU_COUNT=2` (up to 4), optionally choose event IDs, and repeat into
+a new report directory. Require active PMU, requested count and valid totals.
+Unavailable/busy/unsupported PMU intentionally falls back to PC sampling; inspect
+status before interpreting events. Model totals can be zero. PMU intervals include
+other execution and are not per-function counts.
 
 ## 3. Call stacks + FlameGraph
 
-Enable `PROFILER_STACK_UNWIND: 1`, `PROFILER_PRECISE_STACK_BOUNDS: 1` and
-`PROFILER_UNWIND_MAX_DEPTH: 16`. Add the application's table and precise stack
-hooks. Generate tables for profiled application **and library** sources and
-retain them at link time using the [AC6/GCC/LLVM instructions](UNWINDING.md#build-and-integration).
-Use the split-code example if code occupies disjoint allocations.
+Follow [unwinding setup](UNWINDING.md#integration-checklist-and-examples): enable
+unwinding and precise bounds, add both application hooks, generate tables for
+profiled sources/libraries and retain them with the toolchain's linker recipe.
+Adapt the existing memory map; supply separate regions for split executable code.
+
+Before capture, require coverage for a known nested workload function:
 
 ```sh
-python3 host/check_profiler_elf.py --elf firmware.elf --require-unwind --function functionF --output preflight.json
-python3 host/create_profiler_report.py --samples samples.bin --elf firmware.elf --output report-stacks --board "<actual target>" --application "<application>" --stack-root osThreadEntry --flamegraph /path/to/FlameGraph/flamegraph.pl
+python3 host/check_profiler_elf.py \
+  --elf firmware.elf --require-unwind --function functionF --output preflight.json
 ```
 
-Choose a root actually present in your workload, or omit `--stack-root`.
-Require the expected nested calls, then inspect depth/status distributions,
-root coverage and exclusions. A missing/CANTUNWIND recipe needs a library rebuild,
-assembly annotation or linker fix. Preflight checks metadata, not runtime stack
-readability or every EHABI opcode. EHABI sampling remains best effort: graph
-inclusion/root coverage is **not** independently verified stack accuracy.
+Preflight checks metadata, not every opcode or runtime stack readability.
+After capture, require the expected nested chains and inspect depths, stop statuses,
+root coverage and exclusions. Missing/CANTUNWIND recipes may require library
+rebuilds or assembly/linker fixes. Choose an actual workload root and render with
+[external FlameGraph](HOST_TOOLS.md#optional-backtraces-and-flamegraph).
+Graph inclusion/root coverage does not independently verify asynchronous EHABI accuracy.
 
 ## Budget, evidence and overhead
 
-Estimate minimum, expected and worst-case storage before increasing depth/rate:
+Estimate storage before increasing depth/rate:
 
 ```sh
-python3 host/estimate_profiler_buffer.py --buffer-bytes 1048576 --sample-hz 2000 --pmu-count 4 --max-depth 16 --expected-depth 8
+python3 host/estimate_profiler_buffer.py \
+  --buffer-bytes 1048576 --sample-hz 2000 --pmu-count 4 \
+  --max-depth 16 --expected-depth 8
 ```
 
-The report shows average record bytes, payload occupancy, buffer exhaustion and
-finalization separately. Finalization does not prove the requested duration ran.
-The wrapper keeps raw data/ELF, hashes, configuration, validation and tool hashes
-in `manifest.json`; pass `--producer-revision`, `--compiler-id` and
-`--capture-command` to record firmware provenance. These values are caller supplied.
-Supply the actual `--board` and `--application` labels. See [host requirements](HOST_TOOLS.md#python-and-dependencies) for Python 3.10+ and optional dependencies.
-Add `--html` with the optional Plotly dependency for a dashboard. Open `index.html`
-locally. Keep private firmware and reports outside source control.
+Inspect actual record size, occupancy, exhaustion and finalization separately;
+a complete buffer does not prove the requested duration ran. Keep exact inputs
+and provenance in the [report package](HOST_TOOLS.md), including human Markdown
+and offline index. Use actual board/application labels and verified metadata.
 
-Measure the same correctness-checked workload with profiling off, PC only, PMU,
-and unwinding at several rates. Repeat runs under identical clocks/cache/input
-conditions; compare elapsed time and MSP/task stack high-water marks. Report
-whole-workload overhead separately from any measured ISR latency. Validate on
-hardware before claiming device accuracy; FVP is a functional regression test.
-Use the [ISR budget guide](ISR_BUDGET.md) to account for complete call paths,
-exception frames and nesting, and to record maximum observed interrupt time.
+Compare correctness-checked workloads with profiling off, PC, PMU and unwinding
+at several rates under identical clocks/cache/inputs. Measure workload overhead
+separately from ISR duration and MSP/task high-water marks. The
+[ISR budget guide](ISR_BUDGET.md) accounts for complete call paths, hardware frames,
+nesting and maximum observed time. FVP is functional evidence; device performance
+claims require hardware measurement.

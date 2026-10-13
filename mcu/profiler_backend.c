@@ -19,20 +19,9 @@
 /**
  * @file profiler_backend.c
  * @brief Cortex-M timestamping, frame validation and sampling backend.
- *
- * Bridges the timer adapter and the architecture-independent capture storage.
- * The assembly IRQ wrapper preserves the interrupted registers before entering C:
- *
- *     timer IRQ -> acknowledge + timestamp -> recording gate
- *                                             |
- *                                  validate exception frame
- *                                             |
- *                              PC/LR + optional PMU/backtrace
- *                                             |
- *                                      profiler_record()
- *
- * The timer clock schedules samples; the timestamp clock dates them. They may
- * run at different frequencies. Neither replaces the application's RTOS tick.
+ * @details Bridges the timer and storage. The naked IRQ entry preserves the
+ * interrupted registers; this backend validates them before reading stack RAM.
+ * Timer and timestamp clocks are independent of the application's RTOS tick.
  */
 
 #include "profiler_backend.h"
@@ -225,8 +214,7 @@ static int readable_frame(const uint32_t *frame, uint32_t exception_return, stru
     if ((address % sizeof(uint32_t)) != 0U)
         return 0;
 #if PROFILER_PRECISE_STACK_BOUNDS
-    /* The application identifies the active stack without calling RTOS services
-     * from this ISR. Validate its range before using it for any memory read. */
+    /* The ISR-safe hook identifies the interrupted allocation; validate before reads. */
     struct ProfilerStackBounds bounds = {0U, 0U};
     if (!profiler_stack_bounds(exception_return, &bounds) || bounds.bytes < bytes ||
         bounds.bytes - 1U > UINTPTR_MAX - bounds.base || address < bounds.base ||
@@ -244,8 +232,7 @@ static int readable_frame(const uint32_t *frame, uint32_t exception_return, stru
             selected->base = stack_regions[i].address;
             selected->bytes = stack_regions[i].bytes;
 #if PROFILER_PRECISE_STACK_BOUNDS
-            /* Pass only the intersection to the unwinder, so caller recovery
-             * cannot escape either the task stack or the readable RAM window. */
+            /* Caller recovery must stay inside both task and readable-RAM bounds. */
             uintptr_t base = bounds.base > selected->base ? bounds.base : selected->base;
             size_t a = bounds.bytes - (base - bounds.base);
             size_t b = selected->bytes - (base - selected->base);
@@ -260,8 +247,7 @@ static int readable_frame(const uint32_t *frame, uint32_t exception_return, stru
 
 uint32_t profiler_timer_period(uint32_t timer_hz, uint32_t max_period)
 {
-    /* Round to the closest realizable period; callers publish the actual timer
-     * frequency/period so the host need not assume the requested rate was exact. */
+    /* Publish the rounded period so the host uses the achieved rate. */
     uint64_t period = ((uint64_t)timer_hz + PROFILER_SAMPLE_HZ / 2U) / PROFILER_SAMPLE_HZ;
 
     if (!timer_hz || period < 2U || period > max_period)
@@ -298,8 +284,7 @@ int profiler_port_init(struct ProfilerClock *clock)
     if (!profiler_unwind_init())
         return 0;
 #endif
-    /* Keep the timer IRQ out until its time conversion state is ready. Slow
-     * setup and table validation above do not require masking interrupts. */
+    /* Mask the timer IRQ until time conversion is ready; earlier setup can be slow. */
     uint32_t primask = __get_PRIMASK();
     __disable_irq();
     clock->timestamp_hz = timestamp_hz;
@@ -321,8 +306,7 @@ int profiler_port_init(struct ProfilerClock *clock)
         return profiler_init_fail(PROFILER_INIT_TIMER, PROFILER_INIT_BAD_CLOCK, clock->timer_hz, clock->timer_period);
     }
 
-    /* Use the adapter's actual period, not PROFILER_SAMPLE_HZ. Division stays
-     * here in initialization; each interrupt only adds the precomputed parts. */
+    /* Precompute actual-period conversion; no division in the ISR. */
     timer_clock_hz = clock->timer_hz;
     uint64_t numerator = (uint64_t)clock->timer_period * 1000U;
     tick_whole_ms = (uint32_t)(numerator / timer_clock_hz);
@@ -449,10 +433,8 @@ __attribute__((used, noinline)) void statistical_sampling_tick(const uint32_t *f
         return;
     }
 
-    /* R0..xPSR are first in both basic and FP/MVE extended frames on this
-     * backend. DCRS/security checks above exclude additional callee frames. */
-    /* Assign mandatory fields explicitly: aggregate zero-initialization of the
-     * optional trace can introduce an ISR call to a vectorized libc memset. */
+    /* Supported frames begin with r0..xPSR. Explicit assignments avoid a
+     * vectorized libc memset for the optional caller array. */
     struct ProfilerSample sample;
 
     sample.timestamp = timestamp;
@@ -467,8 +449,7 @@ __attribute__((used, noinline)) void statistical_sampling_tick(const uint32_t *f
     profiler_pmu_snapshot(sample.pmu);
 #endif
 #if PROFILER_STACK_UNWIND
-    /* Recover SP as it was before the interrupt by stepping past everything
-     * hardware reserved. The optional alignment word belongs to this frame too. */
+    /* Pre-exception SP includes FP reservation and optional alignment padding. */
     uint32_t frame_bytes = FRAME_CORE_WORDS * sizeof(uint32_t);
     uintptr_t address = (uintptr_t)frame;
 
@@ -478,8 +459,7 @@ __attribute__((used, noinline)) void statistical_sampling_tick(const uint32_t *f
     if ((xpsr & STACKED_XPSR_ALIGNMENT) != 0U)
         frame_bytes += sizeof(uint32_t);
 
-    /* readable_frame() already checked the base and core words. Check the
-     * complete frame before deriving SP; subtraction avoids address overflow. */
+    /* Core words already fit; bound the full frame before deriving SP. */
     int complete_frame_fits = bounds.bytes >= frame_bytes;
 
     if (complete_frame_fits)
@@ -488,25 +468,16 @@ __attribute__((used, noinline)) void statistical_sampling_tick(const uint32_t *f
     /* The virtual Cortex-M SP must also fit in a 32-bit register. */
     if (!complete_frame_fits || address > UINT32_MAX - frame_bytes)
     {
-        /* Keep the valid PC sample even when the full exception frame cannot
-         * fit. Backtrace failure must not discard ordinary sampling data. */
+        /* Invalid extended bounds lose callers, not the valid PC sample. */
         sample.unwind = PROFILER_UNWIND_BOUNDS << 8; /* Status in bits 15:8; depth in bits 7:0. */
         /* Depth is 0, so storage does not read the caller array. */
     }
     else
     {
-        /* Reconstruct the interrupted register set, not the handler's registers.
-         * Hardware saved r0-r3/r12/LR/PC; the wrapper saved r4-r11 separately.
-         * The pre-exception SP lies above the entire frame, including padding.
-         *
-         * frame:        r0 r1 r2 r3 r12 LR PC xPSR [FP area] [padding]
-         * saved block:  r8 r9 r10 r11 r4 r5 r6 r7
-         * regs:         r0 ... r12 SP LR PC  -> EHABI interpreter
-         */
+        /* Merge hardware r0-r3/r12/LR/PC with the wrapper's saved block
+         * [r8-r11, r4-r7]. The unwinder receives a virtual copy only. */
         uint32_t regs[REG_COUNT];
 
-        /* Merge the hardware frame and the wrapper's software snapshot.
-         * Neither contains the C handler's current working register values. */
         for (uint32_t i = 0; i < SAVED_REGISTER_GROUP_WORDS; ++i)
         {
             regs[REG_R0_IDX + i] = frame[FRAME_R0_IDX + i];
@@ -519,12 +490,10 @@ __attribute__((used, noinline)) void statistical_sampling_tick(const uint32_t *f
         regs[REG_LR_IDX] = frame[FRAME_LR_IDX];
         regs[REG_PC_IDX] = frame[FRAME_PC_IDX];
 
-        /* The unwinder updates this local register set, never the real frame. */
         profiler_unwind_capture(&sample, regs, &bounds);
     }
 #endif
 
-    /* Storage owns capacity and full-buffer closure; this backend owns admission
-     * and validation of the sampled context. Stop orders the capture for export. */
+    /* Storage owns capacity/full; admission and frame validation belong here. */
     profiler_record(&sample);
 }

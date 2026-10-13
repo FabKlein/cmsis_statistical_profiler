@@ -17,9 +17,9 @@ worker1 → run_once1 → A1 → B1 → C1 → D1 → E1 → F1
 ```
 
 The builder compiles the source twice, renaming the second copy's symbols.
-Each copy has private validation state. Calls repeat 2/4/8/16/32 times at A–E,
-with 100 NOPs after each call; F executes 100 NOPs. Inlining and sibling calls
-are disabled. RTX preempts the workers with a 5-tick round-robin time slice.
+Each copy has private validation state. The [bare-metal workload guide](../corstone300/README.md#af-flamegraph-workload)
+defines call counts and NOPs; inlining/sibling calls are disabled. RTX preempts
+workers with a 5-tick round-robin time slice.
 An additional higher-priority controller captures for 2 seconds, checks both
 workers completed valid iterations, then stops, suspends them and exports RAM
 through semihosting. SysTick, PendSV and SVC remain owned by RTX.
@@ -67,8 +67,8 @@ without the external renderer. Existing output files are replaced on each run.
 
 Acceptance requires 650–680 samples, valid timing and firmware validation,
 no rejected frames, at least 100 PC hits in each workload, deep caller chains
-from both workers, no chains mixing A–F with A1–F1, PSP frames and matching
-folded totals matching the included samples. Each worker must contribute at least
+from both workers, no chains mixing A–F with A1–F1, PSP frames and
+folded totals equal to included samples. Each worker must contribute at least
 100 plotted samples and an ordered chain reaching E or F; every plotted chain must
 follow the known caller sequence without skipped, repeated or mixed-worker frames. This is a test-specific reference, not a generic RTOS rule.
 

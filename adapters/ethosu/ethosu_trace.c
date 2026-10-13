@@ -77,6 +77,52 @@ static const enum ethosu_pmu_event_type configured_events[PROFILER_ETHOSU_PMU_CO
 };
     #endif
 
+/* Release only our counters and the PMU's power reference. The capture's
+ * separate power reference is released by the lifecycle caller. */
+static void stop_pmu(void)
+{
+    if (!pmu_owned_mask)
+        return;
+    ETHOSU_PMU_CNTR_Disable(trace_driver, pmu_owned_mask);
+    ETHOSU_PMU_Disable(trace_driver);
+    pmu_owned_mask = 0U;
+}
+
+    #if PROFILER_ETHOSU_PMU_COUNT
+/* Busy PMUs remain untouched. A failed acquisition leaves any owned resources
+ * for stop_pmu(); header fields are committed only after event readback passes. */
+static int start_pmu(volatile struct EthosuTraceHeader *header)
+{
+    if ((ETHOSU_PMU_Get_STATUS(trace_driver) & 1U) != 0U || ETHOSU_PMU_CNTR_Status(trace_driver) != 0U ||
+        ETHOSU_PMU_Get_IRQ_Enable(trace_driver) != 0U)
+    {
+        header->pmu_status = ETHOSU_TRACE_PMU_BUSY;
+        return 1;
+    }
+    if (PROFILER_ETHOSU_PMU_COUNT > ETHOSU_PMU_Get_NumEventCounters())
+        return 0;
+
+    ETHOSU_PMU_Enable(trace_driver);
+    pmu_owned_mask = (1U << PROFILER_ETHOSU_PMU_COUNT) - 1U;
+    ETHOSU_PMU_CNTR_Disable(trace_driver, pmu_owned_mask);
+    ETHOSU_PMU_Set_CNTR_IRQ_Disable(trace_driver, pmu_owned_mask);
+    ETHOSU_PMU_Set_CNTR_OVS(trace_driver, pmu_owned_mask);
+    for (uint32_t i = 0; i < PROFILER_ETHOSU_PMU_COUNT; ++i)
+    {
+        ETHOSU_PMU_Set_EVTYPER(trace_driver, i, configured_events[i]);
+        if (ETHOSU_PMU_Get_EVTYPER(trace_driver, i) != configured_events[i])
+            return 0;
+        ETHOSU_PMU_Set_EVCNTR(trace_driver, i, 0U);
+    }
+    ETHOSU_PMU_CNTR_Enable(trace_driver, pmu_owned_mask);
+    for (uint32_t i = 0; i < PROFILER_ETHOSU_PMU_COUNT; ++i)
+        header->pmu_events[i] = (uint32_t)configured_events[i];
+    header->pmu_count = PROFILER_ETHOSU_PMU_COUNT;
+    header->pmu_status = ETHOSU_TRACE_PMU_ACTIVE;
+    return 1;
+}
+    #endif
+
 int trace_ethosu_bind(struct ethosu_driver *driver)
 {
     /* A full buffer still owns power/PMU resources until explicitly stopped. */
@@ -94,9 +140,8 @@ int trace_ethosu_start(void)
     {
         trace_ethosu_stop(0U, 0U);
     }
-    /* Reset metadata and descriptors, not the unused record area. Old tail
-     * contents are excluded by header.count and the fixed record width.
-     * Restore this full clear only when the application needs data erasure:
+    /* Reset metadata only; count/record width exclude undefined old tails.
+     * For applications requiring data erasure, restore the full clear:
      * memset((void *)&ethosu_trace_samples, 0, sizeof(ethosu_trace_samples)); */
     memset((void *)&ethosu_trace_samples.header, 0, sizeof(ethosu_trace_samples.header));
     memset((void *)ethosu_trace_samples.streams, 0, sizeof(ethosu_trace_samples.streams));
@@ -126,50 +171,17 @@ int trace_ethosu_start(void)
     #else
         #error "Ethos-U trace requires a supported Ethos-U core driver variant"
     #endif
+    /* Retain power so driver resets between jobs cannot invalidate PMU setup. */
     if (!trace_driver || !header->timestamp_hz || ethosu_request_power(trace_driver) != 0)
         return 0;
     pmu_owned_mask = 0U;
 
     #if PROFILER_ETHOSU_PMU_COUNT
-    /* The driver soft-reset on the first power request makes these settings
-     * stable across invocations while this trace retains the power reference.
-     * Never seize counters that are already enabled by another owner. */
-    if ((ETHOSU_PMU_Get_STATUS(trace_driver) & 1U) != 0U || ETHOSU_PMU_CNTR_Status(trace_driver) != 0U ||
-        ETHOSU_PMU_Get_IRQ_Enable(trace_driver) != 0U)
+    if (!start_pmu(header))
     {
-        header->pmu_status = ETHOSU_TRACE_PMU_BUSY;
-    }
-    else
-    {
-        if (PROFILER_ETHOSU_PMU_COUNT > ETHOSU_PMU_Get_NumEventCounters())
-        {
-            ethosu_release_power(trace_driver);
-            return 0;
-        }
-        ETHOSU_PMU_Enable(trace_driver);
-        pmu_owned_mask = (1U << PROFILER_ETHOSU_PMU_COUNT) - 1U;
-        ETHOSU_PMU_CNTR_Disable(trace_driver, pmu_owned_mask);
-        ETHOSU_PMU_Set_CNTR_IRQ_Disable(trace_driver, pmu_owned_mask);
-        ETHOSU_PMU_Set_CNTR_OVS(trace_driver, pmu_owned_mask);
-        for (uint32_t i = 0; i < PROFILER_ETHOSU_PMU_COUNT; ++i)
-        {
-            ETHOSU_PMU_Set_EVTYPER(trace_driver, i, configured_events[i]);
-            if (ETHOSU_PMU_Get_EVTYPER(trace_driver, i) != configured_events[i])
-            {
-                /* No producer has been opened; unwind each acquired reference. */
-                ETHOSU_PMU_CNTR_Disable(trace_driver, pmu_owned_mask);
-                ETHOSU_PMU_Disable(trace_driver);
-                pmu_owned_mask = 0U;
-                ethosu_release_power(trace_driver);
-                return 0;
-            }
-            ETHOSU_PMU_Set_EVCNTR(trace_driver, i, 0U);
-        }
-        ETHOSU_PMU_CNTR_Enable(trace_driver, pmu_owned_mask);
-        for (uint32_t i = 0; i < PROFILER_ETHOSU_PMU_COUNT; ++i)
-            header->pmu_events[i] = (uint32_t)configured_events[i];
-        header->pmu_count = PROFILER_ETHOSU_PMU_COUNT;
-        header->pmu_status = ETHOSU_TRACE_PMU_ACTIVE;
+        stop_pmu();
+        ethosu_release_power(trace_driver);
+        return 0;
     }
     #endif
     header->record_bytes += 4U * header->pmu_count;
@@ -190,12 +202,7 @@ void trace_ethosu_stop(uint32_t iterations, uint32_t validation_passed)
         return;
     volatile struct EthosuTraceHeader *header = &ethosu_trace_samples.header;
     header->active = 0U;
-    if (pmu_owned_mask)
-    {
-        ETHOSU_PMU_CNTR_Disable(trace_driver, pmu_owned_mask);
-        ETHOSU_PMU_Disable(trace_driver);
-        pmu_owned_mask = 0U;
-    }
+    stop_pmu();
     header->stop_timestamp = profiler_port_timestamp();
     header->stop_tick = profiler_port_ticks();
     header->iterations = iterations;
@@ -227,9 +234,8 @@ void profiler_aux_sample(uint32_t timestamp, uint32_t tick)
     uint32_t idle_count = 1U;
     int append = 1;
 
-    /* Reuse the last idle record, even in the final buffer slot. Preserve the
-     * latest snapshot and count represented sampling ticks, not stored records.
-     * Split a saturated run rather than allowing its count to wrap to zero. */
+    /* Idle runs retain the latest snapshot and represented ticks, even in the
+     * final slot. Split saturated runs rather than wrapping their count. */
     if (!(status & 1U) && header->count)
     {
         volatile uint32_t *previous = &ethosu_trace_samples.records[index - stride];
@@ -281,11 +287,66 @@ void profiler_aux_sample(uint32_t timestamp, uint32_t tick)
         header->count++;
 }
 
-/* Called from the driver inference-begin callback immediately before submitting a
- * Vela command stream. Its COP1 payload carries the length in 32-bit words.
- * Discover immutable command streams automatically: no application registration.
- * ID 0 means unknown (unparseable payload, table full, or capture began mid-job).
- * Only this callback writes the table; publish the ID after its descriptor. */
+/* COP1 action encodings from Arm core-driver 1.26.2. */
+enum Cop1Action
+{
+    COP1_OPTIMIZER_CONFIG = 1U,
+    COP1_COMMAND_STREAM = 2U,
+    COP1_NOP = 5U
+};
+
+/* Parse the first command stream without touching capture state. Each action
+ * needs a whole header word; its declared length must fit before advancing. */
+static int parse_command_stream(const uint8_t *data, uint32_t size, struct EthosuTraceStream *stream)
+{
+    if (!data || size < 8U || (size & 3U) || data[0] != 'C' || data[1] != 'O' || data[2] != 'P' || data[3] != '1')
+        return 0;
+
+    for (uint32_t offset = 4U; offset <= size - 4U;)
+    {
+        uint8_t action = data[offset];
+        uint32_t words = 1U;
+        if (action == COP1_OPTIMIZER_CONFIG)
+            words = 3U;
+        else if (action == COP1_COMMAND_STREAM)
+            words += ((uint32_t)data[offset + 2U] | ((uint32_t)data[offset + 3U] << 8) |
+                      ((uint32_t)data[offset + 1U] << 16));
+        else if (action != COP1_NOP)
+            return 0;
+        if (words > (size - offset) / 4U)
+            return 0;
+        if (action == COP1_COMMAND_STREAM)
+        {
+            stream->stream_bytes = (words - 1U) * 4U;
+            stream->command_address = (uint32_t)(uintptr_t)(data + offset + 4U);
+            return stream->stream_bytes && !(stream->command_address & 3U);
+        }
+        offset += words * 4U;
+    }
+    return 0;
+}
+
+/* IDs identify immutable address/length pairs within one capture. Only the
+ * inference callback updates this table; publication happens after registration. */
+static uint32_t register_stream(const struct EthosuTraceStream *stream)
+{
+    volatile struct EthosuTraceHeader *header = &ethosu_trace_samples.header;
+    for (uint32_t i = 0; i < header->stream_count; ++i)
+        if (ethosu_trace_samples.streams[i].command_address == stream->command_address &&
+            ethosu_trace_samples.streams[i].stream_bytes == stream->stream_bytes)
+            return i + 1U;
+
+    if (header->stream_count >= PROFILER_ETHOSU_MAX_STREAMS)
+        return 0U;
+    uint32_t index = header->stream_count;
+    ethosu_trace_samples.streams[index].command_address = stream->command_address;
+    ethosu_trace_samples.streams[index].stream_bytes = stream->stream_bytes;
+    header->stream_count = index + 1U;
+    return index + 1U;
+}
+
+/* Invalidate the previous submission before parsing; publish an ID only after
+ * its descriptor is visible. Failed parsing/full tables leave unknown ID 0. */
 void trace_ethosu_inference_begin(struct ethosu_driver *drv, void *user_arg)
 {
     (void)user_arg;
@@ -295,58 +356,15 @@ void trace_ethosu_inference_begin(struct ethosu_driver *drv, void *user_arg)
     ++ethosu_trace_samples.header.streams_seen;
     const uint8_t *data = (const uint8_t *)drv->job.custom_data_ptr;
     uint32_t size = drv->job.custom_data_size > 0 ? (uint32_t)drv->job.custom_data_size : 0U;
-    uint32_t stream_bytes = 0U;
-    uint32_t command_address = 0U;
-    if (data && size >= 8U && !(size & 3U) && data[0] == 'C' && data[1] == 'O' && data[2] == 'P' && data[3] == '1')
+    struct EthosuTraceStream stream;
+    uint32_t id = parse_command_stream(data, size, &stream) ? register_stream(&stream) : 0U;
+    if (id)
     {
-        uint32_t offset = 4U;
-        while (offset <= size - 4U)
-        {
-            uint8_t action = data[offset];
-            uint32_t words = 1U;
-            if (action == 1U)
-                words = 3U;
-            else if (action == 2U)
-                words += ((uint32_t)data[offset + 2U] | ((uint32_t)data[offset + 3U] << 8) |
-                          ((uint32_t)data[offset + 1U] << 16));
-            else if (action != 5U)
-                break;
-            if (words > (size - offset) / 4U)
-                break;
-            if (action == 2U)
-            {
-                stream_bytes = (words - 1U) * 4U;
-                command_address = (uint32_t)(uintptr_t)(data + offset + 4U);
-                break;
-            }
-            offset += words * 4U;
-        }
+        profiler_port_barrier();
+        current_stream_id = id;
     }
-    volatile struct EthosuTraceHeader *header = &ethosu_trace_samples.header;
-    if (stream_bytes && !(command_address & 3U))
-    {
-        for (uint32_t i = 0; i < header->stream_count; ++i)
-        {
-            if (ethosu_trace_samples.streams[i].command_address == command_address &&
-                ethosu_trace_samples.streams[i].stream_bytes == stream_bytes)
-            {
-                profiler_port_barrier();
-                current_stream_id = i + 1U;
-                return;
-            }
-        }
-        if (header->stream_count < PROFILER_ETHOSU_MAX_STREAMS)
-        {
-            uint32_t index = header->stream_count;
-            ethosu_trace_samples.streams[index].command_address = command_address;
-            ethosu_trace_samples.streams[index].stream_bytes = stream_bytes;
-            header->stream_count = index + 1U;
-            profiler_port_barrier();
-            current_stream_id = index + 1U;
-            return;
-        }
-    }
-    ++header->unregistered_streams;
+    else
+        ++ethosu_trace_samples.header.unregistered_streams;
 }
 
     #if PROFILER_ETHOSU_DRIVER_CALLBACK

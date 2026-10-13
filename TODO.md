@@ -1,20 +1,13 @@
 # TODO
 
 - [ ] Circular buffering with defined overwrite and export ordering.
-- [ ] Repeated capture/export/resume: capture until full, stop and finalize,
-  export through the debugger, then resume capture.
+- [ ] Automate the existing manual [capture/export/resume workflow](docs/REPEATED_CAPTURES.md).
 
 - [ ] Broaden backtrace validation on hardware, RTOS context switches and optimized
-  libraries; measure worst-case ISR time. Compact EHABI and folded-stack export
-  are implemented; additional unwind encodings and task IDs remain future work.
+  libraries; measure worst-case ISR time. Extend unwind encodings and task identification.
 
 - [ ] Capture the unwind termination address; current records retain status and
   recovered prefix only. Root reached and complete unwind remain distinct.
-- [x] Embed an immutable build ID in loadable read-only firmware data, copy it
-  into capture metadata and compare it with the supplied ELF during decoding.
-  Generate it per build and retain it through linking; bump the capture format.
-  Keep the full ELF SHA-256 separately for artifact integrity, avoiding a
-  self-referential hash of the ELF containing its own ID.
 - [ ] Resolve selective AC6 retention through input ELF/archive EXIDX associations;
   the current helper infers names from the first-pass map and uses object wildcards.
 - [ ] Reproduce reported macOS test failures with logs/toolchain details; native

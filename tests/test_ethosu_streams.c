@@ -24,6 +24,7 @@
 
 const uint32_t profiler_firmware_id[4] = {1U, 2U, 3U, 4U};
 static uint32_t status, qread, ticks, enabled, interrupts, overflow, bad_readback;
+static uint32_t available_counters = 4U;
 static enum ethosu_pmu_event_type events[4];
 static int power_references;
 static struct ethosu_driver driver;
@@ -101,11 +102,11 @@ uint32_t ETHOSU_PMU_Get_IRQ_Enable(struct ethosu_driver *drv)
     (void)drv;
     return interrupts;
 }
-uint32_t ETHOSU_PMU_Get_NumEventCounters(void) { return 4U; }
+uint32_t ETHOSU_PMU_Get_NumEventCounters(void) { return available_counters; }
 enum ethosu_pmu_event_type ETHOSU_PMU_Get_EVTYPER(struct ethosu_driver *drv, uint32_t n)
 {
     (void)drv;
-    return bad_readback ? ETHOSU_PMU_SENTINEL : events[n];
+    return (bad_readback & (1U << n)) ? ETHOSU_PMU_SENTINEL : events[n];
 }
 void ETHOSU_PMU_Set_CNTR_IRQ_Disable(struct ethosu_driver *drv, uint32_t mask)
 {
@@ -147,6 +148,63 @@ static void sample(uint32_t expected_id)
     assert(ethosu_trace_samples.header.count == before + 1U);
     assert(ethosu_trace_samples.records[before * stride + 4U] == expected_id);
 }
+
+static void check_payload_bounds(void)
+{
+    /* Optimizer config, NOP and a two-word stream ending exactly at the payload end. */
+    static uint32_t payload[] = {0x31504F43U, 1U, 0U, 0U, 5U, 0x00020002U, 0U, 0U};
+    static const uint32_t malformed[] = {
+        0x00000102U, /* Length's high byte requires 65,536 absent words. */
+        0x00030002U, /* Three words declared, only two present. */
+        0xFFFFFF02U, /* Maximum 24-bit length must not wrap span arithmetic. */
+        2U,          /* Empty command stream. */
+        3U,          /* Unsupported action. */
+    };
+    status = 0U;
+    assert(trace_ethosu_start());
+    driver.job.custom_data_ptr = payload;
+    driver.job.custom_data_size = sizeof(payload);
+    ethosu_inference_begin(&driver, NULL);
+    status = 1U;
+    qread = 4U;
+    sample(1U);
+    assert(ethosu_trace_samples.streams[0].command_address == (uint32_t)(uintptr_t)&payload[6]);
+    assert(ethosu_trace_samples.streams[0].stream_bytes == 8U);
+
+    for (uint32_t i = 0; i < sizeof(malformed) / sizeof(malformed[0]); ++i)
+    {
+        payload[5] = malformed[i];
+        ethosu_inference_begin(&driver, NULL);
+        sample(0U);
+        assert(ethosu_trace_samples.header.stream_count == 1U);
+        assert(ethosu_trace_samples.header.unregistered_streams == i + 1U);
+    }
+    payload[5] = 0x00020002U;
+    /* Reject missing signatures, incomplete words/config and NULL payloads. */
+    const int sizes[] = {0, 4, 12, 31};
+    uint32_t rejected = ethosu_trace_samples.header.unregistered_streams;
+    for (uint32_t i = 0; i < sizeof(sizes) / sizeof(sizes[0]); ++i)
+    {
+        driver.job.custom_data_size = sizes[i];
+        ethosu_inference_begin(&driver, NULL);
+    }
+    driver.job.custom_data_size = sizeof(payload);
+    payload[0] = 0U;
+    ethosu_inference_begin(&driver, NULL);
+    payload[0] = 0x31504F43U;
+    driver.job.custom_data_ptr = NULL;
+    ethosu_inference_begin(&driver, NULL);
+    sample(0U);
+    assert(ethosu_trace_samples.header.unregistered_streams == rejected + 6U);
+
+    /* A later valid submission still resolves its original capture-local ID. */
+    driver.job.custom_data_ptr = payload;
+    ethosu_inference_begin(&driver, NULL);
+    sample(1U);
+    assert(ethosu_trace_samples.header.stream_count == 1U);
+    trace_ethosu_stop(1U, 1U);
+    assert(!power_references);
+}
 int main(int argc, char **argv)
 {
     assert(argc == 2);
@@ -158,10 +216,11 @@ int main(int argc, char **argv)
         ethosu_trace_samples.streams[i] = (struct EthosuTraceStream){0x1000U, 16U};
     assert(trace_ethosu_bind(&driver));
 #if PROFILER_ETHOSU_PMU_COUNT
-    for (uint32_t busy = 0U; busy < 2U; ++busy)
+    for (uint32_t busy = 0U; busy < 3U; ++busy)
     {
         enabled = busy == 0U ? 1U : 0U;
         interrupts = busy == 1U ? 1U : 0U;
+        status = busy == 2U ? 1U : 0U;
         overflow = 1U;
         assert(trace_ethosu_start());
         assert(ethosu_trace_samples.header.pmu_status == ETHOSU_TRACE_PMU_BUSY);
@@ -172,12 +231,22 @@ int main(int argc, char **argv)
         assert(!power_references);
     }
     enabled = interrupts = 0U;
-    bad_readback = 1U;
+    status = 0U;
+    available_counters = PROFILER_ETHOSU_PMU_COUNT - 1U;
     assert(!trace_ethosu_start());
     assert(!power_references && !enabled && !ethosu_trace_samples.header.active);
-    assert(!ethosu_trace_samples.header.pmu_count && !ethosu_trace_samples.header.complete);
-    trace_ethosu_stop(0U, 0U);
-    assert(!power_references);
+    available_counters = 4U;
+    for (uint32_t event = 0U; event < PROFILER_ETHOSU_PMU_COUNT; ++event)
+    {
+        bad_readback = 1U << event;
+        assert(!trace_ethosu_start());
+        assert(!power_references && !enabled && !ethosu_trace_samples.header.active);
+        assert(!ethosu_trace_samples.header.pmu_count && !ethosu_trace_samples.header.complete);
+        for (uint32_t i = 0; i < 4U; ++i)
+            assert(!ethosu_trace_samples.header.pmu_events[i]);
+        trace_ethosu_stop(0U, 0U);
+        assert(!power_references);
+    }
     bad_readback = 0U;
 #endif
     assert(trace_ethosu_start());
@@ -300,5 +369,6 @@ int main(int argc, char **argv)
     assert(ethosu_trace_samples.records[2U * stride + 4U] == 2U);
     trace_ethosu_stop(1, 1);
     assert(power_references == 0);
+    check_payload_bounds();
     return 0;
 }

@@ -95,29 +95,17 @@ this ITCM/DTCM workload/model. FVP validates capture flow, not silicon performan
 [linker.ld](linker.ld) is used by GCC/ATfE and the RTX call-tree test. AC6 uses
 [linker.sct](linker.sct). Both target this example's secure ITCM/DTCM mapping.
 
-```text
-ITCM: 0x10000000 .. 0x10080000     DTCM: 0x30000000 .. 0x30080000
-+---------------------------+    +---------------------------+
-| Interrupt vectors         |    | .data (copied at startup) |
-| .text: executable code    |    | .bss: buffer, PSP stacks, |
-| .rodata: constants        |    |       other zeroed state  |
-| .ARM.extab: unwind recipes|    +---------------------------+
-| .ARM.exidx: recipe index  |    | Free space                |
-| Initial .data image       |    +---------------------------+ 0x3007c000
-| Free space                |    | MSP: 16 KiB, grows down   |
-+---------------------------+    +---------------------------+ 0x30080000
-```
+| Region | Execution range | Contents |
+|---|---|---|
+| ITCM | `[0x10000000, 0x10080000)` | Vectors, code/RO, EHABI and initial data image |
+| DTCM | `[0x30000000, 0x30080000)` | Data/BSS, buffer and PSP stacks; final 16 KiB reserved for MSP |
 
-For application integration, see the [AC6 scatter-file steps](../../docs/UNWINDING.md#ac6-scatter-file-integration)
-or [GCC/LLVM linker-script steps](../../docs/UNWINDING.md#gcc--llvm-linker-script-integration).
-
-GNU-script backtrace additions retain `.ARM.exidx`/`.ARM.extab` with `KEEP`, even during
-linker garbage collection. Boundary symbols let [unwind_tables.c](unwind_tables.c)
-supply the index, recipes and executable-only `.text` range to the unwinder.
-`end` aliases the end of `.bss` for libc references pulled in by optional unwind
-runtime code; it does not allocate a heap. The existing assertion prevents
-`.data`/`.bss` from overlapping the reserved MSP region. Sizes within each region
-vary with the build; see `profiler.map` for exact placement.
+[unwind_tables.c](unwind_tables.c) consumes linker-derived code/table bounds.
+Adapt the [AC6](../../docs/UNWINDING.md#ac6-scatter-file-integration) or
+[GCC/LLVM recipe](../../docs/UNWINDING.md#gcc--llvm-linker-script-integration)
+to application maps; GNU/LLVM ordinary selectors retain live tables without
+blanket KEEP. The BSS/MSP overlap assertion and libc `end` alias allocate no heap.
+Check `profiler.map` for exact placement.
 
 ## MPS3 FPGA
 
@@ -132,20 +120,10 @@ board setup. FPGA execution remains unverified.
 
 ## CI regression
 
-[GitHub Actions](../../.github/workflows/fvp.yml) builds the csolution with AC6 6.24 and runs FVP
-11.31.28 with PMU and backtraces, plus native tests, GCC/AC6 compile matrices and
-real U55/U65/U85 driver checks. Use [the runner and reference](../../tests/VALIDATION.md#ci-reference)
-for the same local pass/fail check.
-
-CI sets `PROFILER_TIMESTAMP_CUSTOM=1`: the low 32 bits of the free-running TIMER0
-reference counter, at `PROFILER_TIMER_CLOCK_HZ=100000000`. This avoids the functional FVP's DWT
-rate mismatch while retaining the strict timing check. It measures elapsed time,
-not CPU cycles, and does not reset or reconfigure the shared counter.
-
-For a backtrace regression, add `--stack-unwind --output build/fvp-unwind` to
-`tests/run_fvp.py`. It requires at least 90% of samples to recover 2 callers and
-checks that folded-stack counts match the capture. The PSP example stops at its
-naked stack-switch wrapper, so its traces are intentionally reported incomplete.
+Use [the runner/reference](../../tests/VALIDATION.md#ci-reference) for CI acceptance,
+artifact contents and the FVP reference-timestamp rationale. Add
+`--stack-unwind --output build/fvp-unwind` for backtrace checks. The PSP trace
+stops at its naked stack-switch wrapper and is intentionally partial.
 
 ## A–F flamegraph workload
 
@@ -158,23 +136,12 @@ and its harness. The timeout is checked between iterations, so capture can excee
 250 ms. Most samples should land in E/F; shallow levels execute much less often.
 
 Use the build/run commands above with `--call-tree --sample-hz 333` and an output
-directory such as `build/call-tree`. The ordinary CI workload reference does not
-apply. After decoding, generate an interactive SVG with a local
-[FlameGraph](https://github.com/brendangregg/FlameGraph) checkout:
-
-```sh
-perl /path/to/FlameGraph/flamegraph.pl --countname samples \
-  --subtitle "$(cat report/stacks.note.txt)" report/stacks.folded > report/flamegraph.svg
-```
-
-Open the SVG in a browser. A full deep sample contains
-`capture;profile_workload;run_once;functionA;functionB;functionC;functionD;functionE;functionF`:
-8 callers plus the sampled PC within that suffix. The 16-caller limit also
-allows `main` and `Reset_Handler` to be retained, aligning the graph roots.
-Traces still stop at unsupported startup boundaries; partial-stack status is
-reported outside the plotted hierarchy. Samples during
-entry/exit may skip callers; executable-address validation cannot detect every
-plausible incorrect chain. Unreliable entry samples are excluded from the graph and counted in its subtitle.
+directory such as `build/call-tree`. The ordinary CI reference does not apply.
+Follow the
+[host FlameGraph workflow](../../docs/HOST_TOOLS.md#optional-backtraces-and-flamegraph).
+A deep sample contains `capture;profile_workload;run_once;A;B;C;D;E;F`
+(the workload symbols are `functionA`, etc.); depth 16 can also retain main/Reset.
+Partial startup stops and entry/exit sampling remain best-effort limitations.
 
 For disjoint executable regions, add `--call-tree --split-code`. F executes in
 secure code SRAM; A–E remain in ITCM. See [split linker scripts and hook](../../docs/UNWINDING.md#split-executable-regions).
